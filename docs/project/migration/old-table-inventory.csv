@@ -1,0 +1,357 @@
+old_table,target,country_resolution,has_country_col,has_currency_col,col_count
+ab_test_results,country,GLOBAL? replicate to every country or review,no,no,13
+ab_tests,country,via page_id,no,no,15
+activity_log,central,"copy (dedupe), country-scoped rows keep country column",no,no,13
+ad_campaign_category_targets,country,GLOBAL? replicate to every country or review,no,no,7
+ad_campaign_keywords,country,GLOBAL? replicate to every country or review,no,no,10
+ad_campaign_products,country,via vendor_id,no,no,9
+ad_campaigns,country,direct country column,yes,no,20
+ad_clicks,country,direct country column,yes,no,16
+ad_daily_stats,country,direct country column,yes,no,17
+ad_fraud_patterns,country,GLOBAL? replicate to every country or review,no,no,10
+ad_image_items,country,GLOBAL? replicate to every country or review,no,no,23
+ad_impressions,country,direct country column,yes,no,20
+ad_packages,country,GLOBAL? replicate to every country or review,no,yes,13
+ad_quality_scores,country,via vendor_listing_id,no,no,11
+ad_support_articles,central,"copy (dedupe), country-scoped rows keep country column",no,no,21
+ad_support_collections,central,"copy (dedupe), country-scoped rows keep country column",no,no,15
+addresses,country,direct country column,yes,no,22
+admin_listings,country,direct country column,yes,yes,50
+admin_login_sessions,drop,transient/regenerated,no,no,10
+admin_password_resets,drop,transient/regenerated,no,no,3
+admins,central-identity,merge into users + role_memberships (+ country profile row),yes,no,13
+advertise_inquiries,country,GLOBAL? replicate to every country or review,no,no,10
+affiliate_promo_codes,archive,retired feature — export to archive schema only,no,yes,17
+agent_location_history,country,GLOBAL? replicate to every country or review,no,no,5
+ai_feature_credits,country,GLOBAL? replicate to every country or review,no,no,9
+ai_image_enhancement_jobs,country,GLOBAL? replicate to every country or review,no,no,12
+ai_video_generation_jobs,country,via vendor_listing_id,no,no,15
+announcement_bars,country,direct country column,yes,no,13
+app_bottom_nav_items,country,direct country column,yes,no,14
+app_context_countries,country,direct country column,yes,no,7
+app_contexts,country,GLOBAL? replicate to every country or review,no,no,10
+attribute_values,country,GLOBAL? replicate to every country or review,no,no,10
+attributes,country,GLOBAL? replicate to every country or review,no,no,12
+banner_marketer,country,via marketer_id,no,no,4
+banner_placement_definitions,central,"copy (dedupe), country-scoped rows keep country column",no,no,21
+banners,country,direct country column,yes,no,30
+block_analytics,country,direct country column,yes,no,14
+block_click_events,country,direct country column,yes,no,10
+block_types,central,"copy (dedupe), country-scoped rows keep country column",no,no,16
+blog_categories,country,GLOBAL? replicate to every country or review,no,no,19
+blog_posts,country,direct country column,yes,no,32
+bookable_unit_availability,country,GLOBAL? replicate to every country or review,no,no,10
+bookable_unit_photos,country,GLOBAL? replicate to every country or review,no,no,7
+bookable_unit_reservations,country,via customer_id,no,yes,19
+bookable_unit_time_slots,country,GLOBAL? replicate to every country or review,no,no,10
+bookable_units,country,via travel_agency_id,no,no,21
+booking_unit_days,country,via travel_booking_id,no,no,12
+brands,country,GLOBAL? replicate to every country or review,no,no,18
+cache,drop,transient/regenerated,no,no,3
+cache_locks,drop,transient/regenerated,no,no,3
+carrier_claims,country,via delivery_agent_id,no,no,16
+carrier_performance_ratings,country,via sub_order_id,no,no,12
+cart_card_offers,country,direct country column,yes,no,24
+cart_inventory_locks,drop,transient/regenerated,no,no,8
+cart_item_custom_attribute_values,country,GLOBAL? replicate to every country or review,no,no,8
+cart_items,country,via vendor_listing_id,no,no,14
+carts,country,direct country column,yes,yes,19
+categories,country,GLOBAL? replicate to every country or review,no,no,39
+category_attributes,country,GLOBAL? replicate to every country or review,no,no,7
+category_commission_tiers,country,direct country column,yes,no,14
+category_shipping_methods,country,GLOBAL? replicate to every country or review,no,no,9
+cities,central,"copy (dedupe), country-scoped rows keep country column",yes,no,12
+classified_attribute_definitions,country,GLOBAL? replicate to every country or review,no,no,12
+classified_categories,country,GLOBAL? replicate to every country or review,no,no,19
+classified_category_attribute_map,country,GLOBAL? replicate to every country or review,no,no,9
+classified_category_country,country,direct country column,yes,no,5
+classified_contract_templates,country,direct country column,yes,no,36
+classified_inquiries,country,via customer_id,no,no,11
+classified_listing_attachments,country,via classified_listing_id,no,no,8
+classified_listing_images,country,via classified_listing_id,no,no,6
+classified_listings,country,direct country column,yes,yes,35
+classified_wanted_listings,country,direct country column,yes,yes,22
+commissions,country,via vendor_id,no,no,12
+content_settings,country,GLOBAL? replicate to every country or review,no,no,15
+contract_country_assignments,central,"copy (dedupe), country-scoped rows keep country column",yes,no,11
+contract_display_destinations,central,"copy (dedupe), country-scoped rows keep country column",no,no,8
+contract_template_display_destination,central,"copy (dedupe), country-scoped rows keep country column",no,no,5
+contract_template_marketers,central,"copy (dedupe), country-scoped rows keep country column",no,no,5
+countries,central,"copy (dedupe), country-scoped rows keep country column",no,yes,24
+country_categories,country,direct country column,yes,no,13
+country_payment_gateways,country,direct country column,yes,no,19
+country_shipping_settings,country,direct country column,yes,no,7
+coupon_marketers,country,via marketer_id,no,no,7
+coupon_participation_invitations,country,via coupon_id,no,yes,15
+coupon_participation_requests,country,via invitation_id,no,no,16
+coupon_products,country,via product_id,no,no,4
+coupon_usages,country,via order_id,no,no,10
+coupon_vendors,country,via vendor_id,no,no,7
+coupons,country,via vendor_id,no,yes,35
+currencies,central,"copy (dedupe), country-scoped rows keep country column",no,no,14
+currency_exchange_rates,central,"copy (dedupe), country-scoped rows keep country column",no,no,7
+custom_page_category_map,country,GLOBAL? replicate to every country or review,no,no,11
+custom_pages,country,GLOBAL? replicate to every country or review,no,no,17
+customer_contract_assignments,country,direct country column,yes,no,8
+customer_contracts,country,direct country column,yes,no,38
+customer_otp_tokens,drop,transient/regenerated,no,no,8
+customer_receivers,country,via customer_id,no,no,8
+customer_special_requests,country,via customer_id,no,no,18
+customer_wallets,country,via customer_id,no,yes,6
+customers,central-identity,merge into users + role_memberships (+ country profile row),yes,no,27
+delivery_agent_cod_settlements,country,GLOBAL? replicate to every country or review,no,no,16
+delivery_agent_documents,country,GLOBAL? replicate to every country or review,no,no,11
+delivery_agent_earnings,country,via order_id,no,yes,12
+delivery_agent_payouts,country,GLOBAL? replicate to every country or review,no,yes,17
+delivery_agent_shifts,country,GLOBAL? replicate to every country or review,no,no,14
+delivery_agents,central-identity,merge into users + role_memberships (+ country profile row),yes,no,30
+delivery_assignments,country,via sub_order_id,no,no,30
+delivery_zones,country,direct country column,yes,no,13
+device_tokens,country,GLOBAL? replicate to every country or review,no,no,9
+dispute_evidence,country,via dispute_id,no,no,5
+dispute_messages,country,via dispute_id,no,no,7
+disputes,country,via order_id,no,no,17
+exclusive_contracts,country,via marketer_id,no,no,17
+failed_jobs,drop,transient/regenerated,no,no,7
+faqs,country,GLOBAL? replicate to every country or review,no,no,12
+fbn_daily_overage_fees,country,via vendor_id,no,yes,14
+fbn_inbound_requests,country,via vendor_id,no,no,18
+fbn_storage_fees,country,via vendor_id,no,yes,18
+files,country,GLOBAL? replicate to every country or review,no,no,16
+files_hashes,country,GLOBAL? replicate to every country or review,no,no,6
+flash_sale_analytics,country,via vendor_id,no,yes,17
+flash_sale_marketer_invitations,country,via marketer_id,no,no,16
+flash_sale_orders,country,via order_item_id,no,yes,11
+flash_sale_price_histories,country,via vendor_listing_id,no,yes,9
+flash_sale_submission_histories,country,GLOBAL? replicate to every country or review,no,no,9
+flash_sale_submissions,country,via vendor_id,no,no,26
+flash_sale_vendor_invititions,country,via vendor_id,no,no,12
+flash_sales,country,direct country column,yes,no,29
+flight_bookings,country,via customer_id,no,yes,20
+footer_links,country,GLOBAL? replicate to every country or review,no,no,11
+frequently_bought_together_items,country,via product_id,no,no,5
+gift_card_batches,country,GLOBAL? replicate to every country or review,no,yes,17
+gift_card_purchases,country,via order_id,no,yes,16
+gift_card_transactions,country,via order_id,no,no,10
+gift_cards,country,GLOBAL? replicate to every country or review,no,yes,20
+help_center_articles,country,direct country column,yes,no,22
+help_center_categories,country,direct country column,yes,no,16
+idempotency_keys,drop,transient/regenerated,no,no,11
+inbound_shipment_items,country,via vendor_listing_id,no,no,7
+inbound_shipments,country,direct country column,yes,no,15
+international_shipping_eligibility,country,via vendor_listing_id,no,no,10
+international_shipping_rates,country,GLOBAL? replicate to every country or review,no,no,14
+inventory_movements,country,GLOBAL? replicate to every country or review,no,no,11
+inventory_transfer_items,country,via vendor_listing_id,no,no,10
+inventory_transfers,country,via vendor_id,no,no,15
+job_batches,drop,transient/regenerated,no,no,10
+jobs,drop,transient/regenerated,no,no,7
+languages,central,"copy (dedupe), country-scoped rows keep country column",no,no,9
+ledger_entries,country,GLOBAL? replicate to every country or review,no,yes,13
+live_stream_comments,country,via customer_id,no,no,7
+live_stream_likes,country,via customer_id,no,no,5
+live_streams,country,GLOBAL? replicate to every country or review,no,no,29
+marketer_ad_package_subscriptions,country,via marketer_id,no,yes,22
+marketer_ad_packages,country,GLOBAL? replicate to every country or review,no,yes,15
+marketer_admin_password_resets,drop,transient/regenerated,no,no,3
+marketer_admins,central-identity,merge into users + role_memberships (+ country profile row),no,no,15
+marketer_campaign_category_rules,country,via marketer_campaign_id,no,no,10
+marketer_campaign_conversions,country,via order_id,no,yes,37
+marketer_campaign_invitations,country,via marketer_id,no,no,43
+marketer_campaign_sample_custom_attribute_values,country,GLOBAL? replicate to every country or review,no,no,10
+marketer_campaign_samples,country,via campaign_id,no,no,17
+marketer_campaign_tiered_rules,country,via campaign_id,no,yes,8
+marketer_campaigns,country,direct country column,yes,yes,53
+marketer_category_commissions,country,via marketer_id,no,no,14
+marketer_commission_country_settings,country,direct country column,yes,yes,9
+marketer_commission_rules,country,via marketer_id,no,no,22
+marketer_contract_acceptances,country,via order_id,no,no,15
+marketer_contract_versions,central,"copy (dedupe), country-scoped rows keep country column",no,no,14
+marketer_contracts,central,"copy (dedupe), country-scoped rows keep country column",no,no,7
+marketer_conversation_messages,country,GLOBAL? replicate to every country or review,no,no,10
+marketer_conversations,country,via marketer_id,no,no,14
+marketer_default_commissions,country,direct country column,yes,no,11
+marketer_documents,country,via marketer_id,no,no,12
+marketer_influencer_fee_country_settings,country,direct country column,yes,yes,7
+marketer_job_categories,central,"copy (dedupe), country-scoped rows keep country column",no,no,9
+marketer_jobs,central,"copy (dedupe), country-scoped rows keep country column",no,no,8
+marketer_listings,country,direct country column,yes,yes,51
+marketer_marketer_job,country,via marketer_id,no,no,7
+marketer_marketer_job_category,country,GLOBAL? replicate to every country or review,no,no,7
+marketer_profiles,central-identity,merge into users + role_memberships (+ country profile row),no,no,59
+marketer_promotion_fines,country,via marketer_id,no,yes,15
+marketer_promotion_reminders,country,via marketer_id,no,no,8
+marketer_sale_settlements,country,via order_id,no,yes,21
+marketer_seller_contracts,country,direct country column,yes,no,36
+marketers,central-identity,merge into users + role_memberships (+ country profile row),yes,no,24
+marketplace_shipping_rules,country,via vendor_listing_id,no,no,13
+migrations,drop,transient/regenerated,no,no,3
+model_has_permissions,central,"copy (dedupe), country-scoped rows keep country column",no,no,3
+model_has_roles,central,"copy (dedupe), country-scoped rows keep country column",no,no,3
+newsletter_subscribers,country,direct country column,yes,no,12
+notifications,country,GLOBAL? replicate to every country or review,no,no,10
+open_market_category_commissions,country,via marketer_id,no,no,13
+open_market_listing_prices,country,GLOBAL? replicate to every country or review,no,no,11
+order_item_allocations,country,via order_item_id,no,no,10
+order_item_custom_attribute_values,country,via order_item_id,no,no,10
+order_item_custom_inputs,country,via order_item_id,no,no,11
+order_items,country,via order_id,no,no,34
+order_status_histories,country,via order_id,no,no,10
+orders,country,direct country column,yes,yes,40
+packaging_supplies,country,direct country column,yes,yes,16
+packaging_supply_countries,country,direct country column,yes,no,8
+packaging_supply_request_items,country,GLOBAL? replicate to every country or review,no,no,7
+packaging_supply_requests,country,via vendor_id,no,yes,16
+page_block_brands,country,GLOBAL? replicate to every country or review,no,no,5
+page_block_categories,country,GLOBAL? replicate to every country or review,no,no,5
+page_block_products,country,GLOBAL? replicate to every country or review,no,no,7
+page_block_revisions,country,via page_id,no,no,11
+page_block_sellers,country,GLOBAL? replicate to every country or review,no,no,5
+page_blocks,country,via page_id,no,no,22
+page_revisions,country,via page_id,no,no,8
+page_sections,country,via page_id,no,no,19
+pages,country,direct country column,yes,no,21
+paid_ad_bookings,country,direct country column,yes,yes,53
+paid_ad_charges,country,direct country column,yes,yes,19
+paid_ad_creatives,country,via vendor_id,no,no,26
+paid_ad_daily_stats,country,GLOBAL? replicate to every country or review,no,yes,10
+paid_ad_slots,country,direct country column,yes,yes,43
+paid_banner_bookings,country,GLOBAL? replicate to every country or review,no,yes,22
+payment_gateway_webhook_logs,country,GLOBAL? replicate to every country or review,no,no,11
+payment_gateways,central,"copy (dedupe), country-scoped rows keep country column",no,no,13
+payment_transactions,country,via order_id,no,yes,25
+payout_items,country,via sub_order_id,no,no,19
+payouts,country,via vendor_id,no,yes,25
+permissions,central,"copy (dedupe), country-scoped rows keep country column",no,no,5
+personal_access_tokens,drop,transient/regenerated,no,no,10
+platform_shipping_subsidies,country,via warehouse_id,no,yes,16
+portal_contents,country,direct country column,yes,no,14
+portal_page_views,country,direct country column,yes,no,7
+portal_visitors,country,direct country column,yes,no,11
+product_bestseller_rankings,country,direct country column,yes,no,10
+product_cost_references,country,via vendor_listing_id,no,no,19
+product_countries,country,direct country column,yes,no,19
+product_country_buybox,country,direct country column,yes,no,22
+product_country_settings,country,direct country column,yes,no,12
+product_custom_attributes,country,via product_id,no,no,12
+product_highlights,country,via product_id,no,no,7
+product_image_hashes,country,GLOBAL? replicate to every country or review,no,no,6
+product_images,country,via product_id,no,no,17
+product_price_history,country,via vendor_listing_id,no,no,9
+product_promo_badges,country,via vendor_listing_id,no,no,21
+product_requests,country,direct country column,yes,no,32
+product_specifications,country,via product_id,no,no,9
+product_variant_attributes,country,GLOBAL? replicate to every country or review,no,no,9
+product_variants,country,via product_id,no,no,18
+product_views,country,via customer_id,no,no,7
+products,country,GLOBAL? replicate to every country or review,no,no,46
+promotion_category_targets,country,direct country column,yes,no,6
+radio_channels,country,direct country column,yes,no,11
+radio_listen_sessions,country,via customer_id,no,no,8
+radio_schedule_slots,country,GLOBAL? replicate to every country or review,no,no,11
+refunds,country,via order_id,no,yes,21
+registration_progress,country,direct country column,yes,no,15
+registration_step_events,country,GLOBAL? replicate to every country or review,no,no,6
+return_request_items,country,via order_item_id,no,no,8
+return_request_message_attachments,country,GLOBAL? replicate to every country or review,no,no,5
+return_request_messages,country,via return_request_id,no,no,7
+return_requests,country,via order_id,no,no,22
+review_vendor_replies,country,via vendor_id,no,no,7
+review_votes,country,via customer_id,no,no,5
+reviews,country,direct country column,yes,no,22
+role_has_permissions,central,"copy (dedupe), country-scoped rows keep country column",no,no,2
+roles,central,"copy (dedupe), country-scoped rows keep country column",no,no,7
+search_logs,country,direct country column,yes,no,13
+search_suggestions,country,direct country column,yes,no,10
+sessions,drop,transient/regenerated,no,no,6
+settings,central,"copy (dedupe), country-scoped rows keep country column",no,no,9
+shipment_tracking_events,country,GLOBAL? replicate to every country or review,no,no,12
+shipments,country,via sub_order_id,no,no,14
+shipping_carriers,country,direct country column,yes,no,13
+shipping_companies,central-identity,merge into users + role_memberships (+ country profile row),yes,no,16
+shipping_company_supervisors,central-identity,merge into users + role_memberships (+ country profile row),yes,no,14
+shipping_fallback_rules,country,GLOBAL? replicate to every country or review,no,no,6
+shipping_methods,country,GLOBAL? replicate to every country or review,no,no,27
+shipping_rates,country,GLOBAL? replicate to every country or review,no,no,16
+shipping_weight_slabs,country,direct country column,yes,no,9
+shipping_zones,country,direct country column,yes,no,8
+size_guide_rows,country,GLOBAL? replicate to every country or review,no,no,6
+size_guides,country,via vendor_id,no,no,14
+slider_slides,country,GLOBAL? replicate to every country or review,no,no,29
+slugs,country,GLOBAL? replicate to every country or review,no,no,6
+static_pages,country,direct country column,yes,no,23
+storage_fee_free_period_rules,country,GLOBAL? replicate to every country or review,no,no,6
+sub_orders,country,via order_id,no,no,50
+subscription_plans,central,"copy (dedupe), country-scoped rows keep country column",no,yes,16
+support_tickets,country,GLOBAL? replicate to every country or review,no,no,19
+tax_invoices,country,via order_id,no,yes,16
+tax_rules,country,direct country column,yes,no,13
+ticket_attachments,country,GLOBAL? replicate to every country or review,no,no,2
+ticket_messages,country,GLOBAL? replicate to every country or review,no,no,8
+travel_agencies,central-identity,merge into users + role_memberships (+ country profile row),yes,no,15
+travel_agency_bank_accounts,country,via travel_agency_id,no,yes,15
+travel_agency_campaign_invitations,country,via marketer_id,no,no,11
+travel_agency_campaign_offer_packages,country,via travel_package_id,no,no,7
+travel_agency_campaign_offers,country,via travel_agency_id,no,no,24
+travel_agency_change_requests,country,via travel_agency_id,no,no,15
+travel_agency_members,central-identity,merge into users + role_memberships (+ country profile row),no,no,16
+travel_agency_password_resets,drop,transient/regenerated,no,no,3
+travel_agency_section_locks,country,via travel_agency_id,no,no,11
+travel_bookings,country,via customer_id,no,no,15
+travel_categories,country,GLOBAL? replicate to every country or review,no,no,10
+travel_cities,country,GLOBAL? replicate to every country or review,no,no,9
+travel_countries,country,GLOBAL? replicate to every country or review,no,no,10
+travel_inclusions,country,GLOBAL? replicate to every country or review,no,no,10
+travel_package_categories,country,via travel_package_id,no,no,4
+travel_package_inclusions,country,via travel_package_id,no,no,4
+travel_package_inquiries,country,via travel_package_id,no,no,13
+travel_package_media,country,via travel_package_id,no,no,6
+travel_package_pricing_tiers,country,via travel_package_id,no,no,7
+travel_packages,country,via travel_agency_id,no,yes,30
+vendor_acquisition_commission_earnings,country,via sub_order_id,no,yes,10
+vendor_acquisition_commissions,country,via vendor_id,no,yes,15
+vendor_ad_subscriptions,country,via vendor_id,no,yes,19
+vendor_admin_password_resets,drop,transient/regenerated,no,no,3
+vendor_admins,central-identity,merge into users + role_memberships (+ country profile row),no,no,15
+vendor_api_tokens,country,GLOBAL? replicate to every country or review,no,no,9
+vendor_bank_accounts,country,via vendor_id,no,yes,15
+vendor_category_enrollments,country,via vendor_id,no,no,19
+vendor_change_requests,country,via vendor_id,no,no,15
+vendor_city_shipping_surcharges,country,via vendor_id,no,no,7
+vendor_contracts,country,direct country column,yes,no,50
+vendor_document_country_requirements,country,direct country column,yes,no,6
+vendor_document_types,central,"copy (dedupe), country-scoped rows keep country column",no,no,13
+vendor_documents,country,via vendor_id,no,no,13
+vendor_exceptional_zone_alert_results,country,GLOBAL? replicate to every country or review,no,no,8
+vendor_exceptional_zone_alerts,country,via vendor_id,no,yes,14
+vendor_listing_addon_groups,country,via vendor_listing_id,no,no,8
+vendor_listing_addon_options,country,GLOBAL? replicate to every country or review,no,no,8
+vendor_listing_custom_fields,country,via vendor_listing_id,no,no,11
+vendor_listings,country,direct country column,yes,yes,60
+vendor_payment_methods,country,via vendor_id,no,no,8
+vendor_product_certifications,country,direct country column,yes,no,15
+vendor_section_locks,country,via vendor_id,no,no,11
+vendor_strikes,country,via vendor_id,no,no,10
+vendor_subscription_invoices,country,via vendor_id,no,yes,13
+vendor_subscriptions,country,via vendor_id,no,no,14
+vendors,central-identity,merge into users + role_memberships (+ country profile row),yes,no,61
+virtual_tryon_sessions,country,via vendor_listing_id,no,no,11
+voucher_redemptions,country,via customer_id,no,yes,10
+vouchers,country,direct country column,yes,yes,21
+wallet_transactions,country,via customer_id,no,yes,16
+wallet_withdrawal_requests,country,via wallet_id,no,yes,12
+wallets,country,GLOBAL? replicate to every country or review,no,yes,10
+warehouse_exceptional_zones,country,via warehouse_id,no,no,8
+warehouse_inventories,country,via vendor_listing_id,no,no,19
+warehouse_shipping_surcharges,country,via warehouse_id,no,no,6
+warehouse_vendor_limits,country,via vendor_id,no,no,8
+warehouses,country,direct country column,yes,no,23
+warranty_claim_messages,country,via warranty_claim_id,no,no,7
+warranty_claims,country,via order_item_id,no,no,26
+warranty_plans,country,GLOBAL? replicate to every country or review,no,yes,19
+warranty_purchases,country,via order_id,no,yes,16
+webhook_deliveries,country,GLOBAL? replicate to every country or review,no,no,10
+whishlists,country,via vendor_listing_id,no,no,8
+wishlist_groups,country,via customer_id,no,no,8
+wishlist_items,country,via vendor_listing_id,no,no,15
+wishlists,country,via vendor_listing_id,no,no,6

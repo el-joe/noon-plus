@@ -1,0 +1,82 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens mirrored from the Figma variables (file d2MhBJmRddMrMSHfjJY8Y8).
+ * Semantic names match Figma: color/bg/* → bg-*, color/text/* → text-fg-*, color/border/* → border-line-*.
+ */
+@theme {
+    --font-sans: 'Inter', 'Cairo', ui-sans-serif, system-ui, sans-serif;
+    --font-arabic: 'Cairo', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    --color-page: #f7f7f8;
+    --color-surface: #ffffff;
+    --color-subtle: #efeff1;
+    --color-inverse: #0d1526;
+    --color-brand: #f9bb25;
+    --color-brand-hover: #e9a20b;
+    --color-brand-subtle: #fff8e6;
+    --color-success-subtle: #ecfdf3;
+    --color-danger-subtle: #fef3f2;
+    --color-warning-subtle: #fff6ed;
+    --color-info-subtle: #eff6ff;
+    --color-success: #12b76a;
+    --color-danger: #f04438;
+    --color-sidebar: #0d1526;
+    --color-sidebar-active: #24314a;
+
+    --color-fg: #0d1526;
+    --color-fg-secondary: #565a64;
+    --color-fg-muted: #a1a4ad;
+    --color-fg-on-brand: #0d1526;
+    --color-fg-inverse: #ffffff;
+    --color-fg-link: #175cd3;
+    --color-fg-success: #027a48;
+    --color-fg-danger: #b42318;
+    --color-fg-warning: #c4320a;
+    --color-fg-info: #175cd3;
+    --color-fg-brand: #9c5f09;
+    --color-fg-sidebar: #c6cfdd;
+
+    --color-line: #e2e3e7;
+    --color-line-strong: #cbcdd3;
+    --color-line-focus: #e9a20b;
+    --color-line-danger: #f04438;
+    --color-line-brand: #f9bb25;
+}
+
+@layer base {
+    .dark {
+        --color-page: #0d1526;
+        --color-surface: #172238;
+        --color-subtle: #24314a;
+        --color-inverse: #ffffff;
+        --color-brand-hover: #fbcd58;
+        --color-brand-subtle: #6a3e11;
+        --color-success-subtle: #054f31;
+        --color-danger-subtle: #7a271a;
+        --color-warning-subtle: #7e2410;
+        --color-info-subtle: #194185;
+        --color-fg: #f7f7f8;
+        --color-fg-secondary: #cbcdd3;
+        --color-fg-muted: #767a85;
+        --color-fg-inverse: #0d1526;
+        --color-fg-link: #2e90fa;
+        --color-fg-success: #12b76a;
+        --color-fg-danger: #f04438;
+        --color-fg-warning: #fb6514;
+        --color-fg-info: #2e90fa;
+        --color-fg-brand: #f9bb25;
+        --color-line: #24314a;
+        --color-line-strong: #33425e;
+        --color-line-focus: #f9bb25;
+    }
+
+    [dir='rtl'] body {
+        font-family: var(--font-arabic);
+    }
+}
