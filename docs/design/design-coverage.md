@@ -14,8 +14,8 @@ Updated 14 Nov 2026 — Figma milestones M3 (panels), M4 (website + portal) and 
 | Classifieds (OpenSooq) | Home, results, ad detail, post-ad wizard, seller shop | ✅ | app post-ad | — |
 | Modest fashion (Boksha) | Abaya category (fulfilment / ships-within / length filters, designer shops), made-to-order PDP (size & fit selector, measurement form, custom-item returns rule), size-guide drawer (find my size, height table, units) | ✅ | — | — |
 | Creators (Boutiqaat) | Directory, creator boutique, broker profile, Nawy TV — all lives/videos admin-produced (ADR 11) | ✅ | app Nawy Live | — |
-| Travel | Home (search widget), trip detail (departures with seats, itinerary, policies), booking — travellers step (seat hold timer, passports) | ✅ | — | — |
-| Real estate | Results (list + map, premium/verified), property detail (facts, permit info, agent box, viewing request) | ✅ | — | — |
+| Travel | Home (search widget), trip detail (departures with seats, itinerary, policies, "Request to book"), booking request — one details form (name, email, phone with country code, departure, rooms, traveller count, optional names, notes; seat-hold timer; estimate + "pay the agency directly"), guest + phone-validation state, request sent, booking status (D8: no payment, no passports) | ✅ | ✅ app 55–58 | — |
+| Real estate | Results (list + map, premium/verified), property detail (facts, permit info, agent box, viewing request with name / email / mobile, no payment) | ✅ | — | — |
 | Content | Help centre, help article, legal (versioned), 404, 500, gift cards store, referral landing | ✅ | — | — |
 
 ## Portal — business.nawy.com (page "Web · Sell with us")
@@ -48,3 +48,12 @@ Portal header (component) · Join chooser (8 roles) · Sell landing (fees, FBN) 
 - **Panel layouts** (pages "Page templates" + "Panel layouts"): 39 page layouts across Admin, Seller Center, Creator Studio, Marketplace, Broker, Travel Partner, Shipping, Ops, Delivery.
 - **Apps**: delivery app 17 screens (code-match flow per SRS), ops apps 18 screens (shared sign-in + role switch).
 Node IDs: `figma-state.json` (keys appV2, portalPages, webExtras, panelLayouts, appScreens). Live status: `/STATUS.md`.
+
+## WPD1 — decision D8 (2026-11-15): bookings without payment
+Travel bookings and classified viewing / reserve requests take no payment on Nawy; the agency or seller confirms and is paid directly. Guests can book; seat holds still apply.
+- **Component:** `Booking status` chip set `145:6927` (Web components page) — Held, Requested, Confirmed, Completed, Rejected, Cancelled, Hold expired (built from Badge).
+- **Web travel:** request form `69:6370` (Oman, signed in), request form guest + phone error `96:4188` (UAE), request sent `96:4554`, booking status `98:10830`. Wizard steps, payment methods, card form, voucher/tax invoice, refund estimate and passport fields/uploads removed.
+- **Web classifieds:** viewing / reserve request modal `151:10194` and request sent `151:10399` (page "Web · States & extras"); property viewing form `70:6945` now asks for mobile. The ad detail page had no payment UI.
+- **Web account:** My bookings `49:2757` — list with a status chip per state plus a legend (trips + viewings / reserves). Old documents upload and "Paid via" block removed.
+- **App v2:** 55 travel request form, 56 request sent, 57 My bookings, 58 booking status, 59 Souq viewing / reserve request, 60 Souq request sent (`152:2650`, `152:2811`, `152:2866`, `152:2974`, `153:2795`, `153:2881`). Account row renamed "My bookings".
+- Arabic: these flows have no AR siblings, so none were drawn; they use the RTL rules.

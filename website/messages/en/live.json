@@ -1,0 +1,44 @@
+{
+  "live": {
+    "title": "Nawy TV",
+    "subtitle": "Shop live with hosts and creators — tap a product to add it to your cart.",
+    "tabs": {
+      "all": "For you",
+      "live": "Live now ({count})",
+      "upcoming": "Upcoming",
+      "replays": "Replays"
+    },
+    "status": {
+      "live": "Live",
+      "scheduled": "Scheduled",
+      "idle": "Starting soon",
+      "ended": "Replay"
+    },
+    "liveNow": "Live now",
+    "upcoming": "Upcoming lives",
+    "replays": "Recent replays",
+    "empty": "No lives right now",
+    "emptyBody": "New shows are scheduled every week. Check back soon.",
+    "inThisLive": "In this live ({count})",
+    "noProducts": "Products for this show will appear here.",
+    "add": "Add",
+    "added": "Added",
+    "like": "Like",
+    "likes": "{count, plural, one {# like} other {# likes}}",
+    "startsAt": "Starts {date}",
+    "notStarted": "This live hasn't started yet. It starts {date}.",
+    "ended": "This live has ended.",
+    "playerSoon": "Live video on the web is coming soon. Watch this show in the Nawy app.",
+    "watch": "Watch",
+    "remindMe": "Remind me",
+    "mini": {
+      "label": "Mini player",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "close": "Close player",
+      "open": "Back to the show",
+      "play": "Play",
+      "pause": "Pause"
+    }
+  }
+}

@@ -4,6 +4,7 @@ namespace App\Domains\Cart\Support;
 
 use App\Domains\Cart\Exceptions\CartRejected;
 use App\Domains\Cart\Models\Cart;
+use App\Domains\Catalog\Support\Measurements;
 use App\Domains\FlashSales\Support\FlashSalePricing;
 use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Models\Listing;
@@ -15,7 +16,8 @@ use Illuminate\Support\Str;
 
 /**
  * Cart operations. Every quantity change refreshes a 15-minute stock hold so
- * two shoppers can't take the last unit at the same time (FR-CHK-1), and is
+ * two shoppers can't take the last unit at the same time (FR-CHK-1) —
+ * capped per guest line and in total lifetime (QA-010) — and is
  * checked against running flash deals (per-customer maximum, units left).
  */
 class CartService
@@ -29,6 +31,14 @@ class CartService
     public function forCustomer(int $userId): Cart
     {
         return Cart::query()->firstOrCreate(['customer_user_id' => $userId]);
+    }
+
+    /**
+     * The guest cart for this token, without creating one.
+     */
+    public function findGuest(?string $token): ?Cart
+    {
+        return $token === null || $token === '' ? null : Cart::query()->where('guest_token', $token)->first();
     }
 
     public function forGuest(?string $token): Cart
@@ -68,11 +78,30 @@ class CartService
             }
 
             $cart->items()->updateOrCreate(['listing_id' => $listingId], ['quantity' => $quantity]);
-            $cart->locks()->updateOrCreate(
-                ['listing_id' => $listingId],
-                ['quantity' => $quantity, 'expires_at' => now()->addMinutes((int) config('nawy.checkout.cart_lock_minutes'))],
-            );
+            $this->hold($cart, $listingId, $quantity);
         });
+    }
+
+    /**
+     * The stock hold of a cart line (QA-010): a guest cart holds at most
+     * `checkout.guest_hold_max_quantity` units of a line, and a hold is
+     * refreshed for `cart_lock_minutes` but never past
+     * `cart_lock_max_minutes` after it was first taken.
+     */
+    private function hold(Cart $cart, int $listingId, int $quantity): void
+    {
+        $held = $cart->customer_user_id === null ? min($quantity, (int) config('nawy.checkout.guest_hold_max_quantity', 3)) : $quantity;
+        $lock = $cart->locks()->where('listing_id', $listingId)->first();
+        $startedAt = $lock?->created_at ?? now();
+        $expiresAt = min(now()->addMinutes((int) config('nawy.checkout.cart_lock_minutes')), $startedAt->copy()->addMinutes((int) config('nawy.checkout.cart_lock_max_minutes', 60)));
+
+        if ($lock === null) {
+            $cart->locks()->create(['listing_id' => $listingId, 'quantity' => $held, 'expires_at' => $expiresAt]);
+
+            return;
+        }
+
+        $lock->forceFill(['quantity' => $held, 'expires_at' => $expiresAt])->save();
     }
 
     /**
@@ -96,6 +125,28 @@ class CartService
     }
 
     /**
+     * Measurements for a made-to-order line (MP v2 §14b), validated against
+     * the category's measurement fields, plus a note to the designer.
+     *
+     * @param  array<string, mixed>  $measurements
+     */
+    public function setMeasurements(Cart $cart, int $listingId, array $measurements, ?string $note): void
+    {
+        $item = $cart->items()->where('listing_id', $listingId)->with('listing.variant.product.category')->first()
+            ?? throw new CartRejected('item_not_in_cart', __('This item is not in your cart.'), 404);
+        $product = $item->listing->variant->product;
+
+        if (! app(Measurements::class)->requiredFor($product)) {
+            throw new CartRejected('measurements_not_needed', __('This item is not made to order.'));
+        }
+
+        $item->forceFill([
+            'measurements' => app(Measurements::class)->validate($product, $measurements),
+            'measurement_note' => $note === null ? null : mb_substr($note, 0, 500),
+        ])->save();
+    }
+
+    /**
      * Remember where the cart ships to and the preferred delivery method.
      */
     public function setShipping(Cart $cart, ?string $city, ?string $area, ShippingMethod $method): void
@@ -114,29 +165,73 @@ class CartService
     }
 
     /**
-     * Move a guest cart into a customer's cart after sign-in. Quantities are
-     * summed and capped at what is still available.
+     * Move a guest cart into a customer's cart after sign-in (QA-008).
+     * Quantities are summed and clipped to the stock still available and to
+     * a running flash deal's per-customer allowance; a line that cannot be
+     * merged at all is skipped. Every guest hold is released and the guest
+     * cart is removed whatever happens to single lines.
+     *
+     * @return array<int, array{listing_id: int, code: string, message: string, requested: int, merged: int}> lines clipped or skipped
      */
-    public function merge(Cart $guestCart, Cart $customerCart): void
+    public function merge(Cart $guestCart, Cart $customerCart): array
     {
+        $warnings = [];
+
         foreach ($guestCart->items()->get() as $item) {
+            $guestCart->locks()->where('listing_id', $item->listing_id)->delete();
             $existing = (int) $customerCart->items()->where('listing_id', $item->listing_id)->value('quantity');
             $listing = Listing::query()->find($item->listing_id);
+            $wanted = $existing + $item->quantity;
 
             if ($listing === null || $listing->status !== ListingStatus::Active) {
+                $warnings[] = $this->mergeWarning($item->listing_id, 'listing_unavailable', __('This item is not available right now.'), $wanted, $existing);
+
                 continue;
             }
 
-            $wanted = $existing + $item->quantity;
-            $guestCart->locks()->where('listing_id', $item->listing_id)->delete();
             $quantity = min($wanted, $this->stockAvailability->availableFor($listing, $customerCart->id));
+            $code = $quantity < $wanted ? 'insufficient_stock' : null;
 
-            if ($quantity > 0) {
+            if ($deal = $this->flashPricing->activeDeals([$item->listing_id])->get($item->listing_id)) {
+                $allowance = $this->flashPricing->allowance($deal, $customerCart->customer_user_id);
+
+                if ($quantity > $allowance) {
+                    $quantity = $allowance;
+                    $code = 'flash_sale_customer_limit';
+                }
+            }
+
+            if ($quantity <= $existing) {
+                $warnings[] = $this->mergeWarning($item->listing_id, $code ?? 'insufficient_stock', __('This item could not be added from your guest cart.'), $wanted, $existing);
+
+                continue;
+            }
+
+            try {
                 $this->setQuantity($customerCart, $item->listing_id, $quantity);
                 $customerCart->items()->where('listing_id', $item->listing_id)->whereNull('warranty_plan_id')->update(['warranty_plan_id' => $item->warranty_plan_id]);
+            } catch (CartRejected $rejected) {
+                $warnings[] = $this->mergeWarning($item->listing_id, $rejected->errorCode, $rejected->getMessage(), $wanted, $existing);
+
+                continue;
+            }
+
+            if ($code !== null) {
+                $warnings[] = $this->mergeWarning($item->listing_id, $code, __('Only :count of this item could be kept in your cart.', ['count' => $quantity]), $wanted, $quantity);
             }
         }
 
+        $guestCart->locks()->delete();
         $guestCart->delete();
+
+        return $warnings;
+    }
+
+    /**
+     * @return array{listing_id: int, code: string, message: string, requested: int, merged: int}
+     */
+    private function mergeWarning(int $listingId, string $code, string $message, int $requested, int $merged): array
+    {
+        return ['listing_id' => $listingId, 'code' => $code, 'message' => $message, 'requested' => $requested, 'merged' => $merged];
     }
 }

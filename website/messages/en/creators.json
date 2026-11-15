@@ -1,0 +1,41 @@
+{
+  "creators": {
+    "title": "Creators",
+    "kicker": "Nawy creators",
+    "heroTitle": "Shop the edits of creators you trust",
+    "heroBody": "Influencers, affiliates and brokers curate boutiques of real Nawy products. Same prices, same delivery, same returns.",
+    "browse": "Browse boutiques",
+    "become": "Become a creator",
+    "statCreators": "creators",
+    "tabs": {
+      "all": "All creators",
+      "influencer": "Influencers",
+      "affiliate": "Affiliates",
+      "broker": "Brokers"
+    },
+    "type": {
+      "influencer": "Influencer",
+      "affiliate": "Affiliate",
+      "broker": "Broker"
+    },
+    "searchPlaceholder": "Search creators",
+    "followers": "{count, plural, one {# follower} other {# followers}}",
+    "followersLabel": "followers",
+    "picksLabel": "picks",
+    "verified": "Verified",
+    "visitBoutique": "Visit boutique",
+    "empty": "No creators yet",
+    "emptyBody": "Creator boutiques will appear here soon.",
+    "picks": "{name}'s picks",
+    "noPicks": "This creator has no picks right now.",
+    "about": "About",
+    "follow": "Follow on {network}",
+    "earnTitle": "Earn with Nawy — pick your program",
+    "earn": {
+      "influencer": "Brands book you for campaigns; get a fixed fee or commission.",
+      "affiliate": "Share links and your boutique; earn a commission on every sale.",
+      "broker": "List properties and bring buyers; earn on every closed deal."
+    },
+    "apply": "Apply"
+  }
+}

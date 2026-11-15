@@ -2,6 +2,7 @@
 
 namespace App\Domains\Countries\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\CountryCalendarFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -16,8 +17,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * delivery ETAs, SLA clocks and payout dates skip (country-reference §6).
  * Central table: reference data next to `countries.weekend`.
  *
- * @property \Carbon\CarbonImmutable $starts_on
- * @property \Carbon\CarbonImmutable $ends_on
+ * @property CarbonImmutable $starts_on
+ * @property CarbonImmutable $ends_on
  */
 #[UseFactory(CountryCalendarFactory::class)]
 #[Fillable(['country_id', 'starts_on', 'ends_on', 'name_en', 'name_ar', 'is_confirmed', 'updated_by'])]

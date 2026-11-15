@@ -1,0 +1,413 @@
+{
+  "portal": {
+    "forBusiness": "Nawy for business",
+    "nav": {
+      "sell": "Sell",
+      "join": "Join Nawy",
+      "advertise": "Advertise",
+      "status": "Application status"
+    },
+    "common": {
+      "continue": "Continue",
+      "optional": "optional",
+      "choose": "Choose…",
+      "back": "Back",
+      "cancel": "Cancel",
+      "error": "Something went wrong. Please try again."
+    },
+    "join": {
+      "metaTitle": "Join Nawy for business",
+      "eyebrow": "Join Nawy for business",
+      "title": "How do you want to work with Nawy?",
+      "subtitle": "Choose your country, then pick one option. You can add other roles later.",
+      "whereRegistered": "1. Where is your business registered?",
+      "howToWork": "2. Choose how you'll work with Nawy",
+      "openIn": "Open in {country}",
+      "closedIn": "Not available in {country} right now",
+      "selected": "Selected: {option} · {country}",
+      "noneOpen": "No option is open in {country} right now.",
+      "checkStatus": "Already applied? Check your status"
+    },
+    "sections": {
+      "vendor": {
+        "title": "Product seller",
+        "body": "Sell new products on the Nawy marketplace.",
+        "detail": "Listings, orders and payouts in Seller Center · ship yourself (FBM) or with Nawy (FBN) · 5-step registration"
+      },
+      "open_souq": {
+        "title": "Open Souq",
+        "body": "Post classifieds as a person or a business: cars, property, services.",
+        "detail": "Verified shop page · featured ads and boosts · leads by chat, call and WhatsApp"
+      },
+      "travel_agency": {
+        "title": "Travel agency",
+        "body": "List trips, packages and hotel deals.",
+        "detail": "Licensed agencies only · 2-step registration · booking requests in the Travel Partner panel"
+      },
+      "marketer": {
+        "title": "Marketer",
+        "body": "Promote products and listings and get paid.",
+        "detail": "Influencers, affiliates and real-estate brokers"
+      },
+      "shipping": {
+        "title": "Shipping partner",
+        "body": "Deliver Nawy parcels with your own fleet.",
+        "detail": "Courier companies · your drivers in the Shipping panel · COD and settlements"
+      }
+    },
+    "roles": {
+      "influencer": {
+        "title": "Influencer",
+        "hint": "Fixed amount per campaign"
+      },
+      "affiliate": {
+        "title": "Affiliate",
+        "hint": "% of every sale"
+      },
+      "broker": {
+        "title": "Broker",
+        "hint": "Fixed, %, or both"
+      }
+    },
+    "types": {
+      "vendor": {
+        "register": "Register as a seller",
+        "intro": "Five short steps: account, store, address, documents and the seller agreement.",
+        "yourApplication": "Your seller application"
+      },
+      "classified": {
+        "register": "Register as an Open Souq seller",
+        "intro": "Create your Open Souq shop. Individuals don't need a licence number.",
+        "yourApplication": "Your Open Souq application"
+      },
+      "travel_agency": {
+        "register": "Register your travel agency",
+        "intro": "Two steps: the owner's account and your agency details. Documents and the agreement come at submission.",
+        "yourApplication": "Your travel agency application"
+      },
+      "marketer": {
+        "register": "Join as a creator",
+        "intro": "Tell us about you and your audience as an influencer or affiliate.",
+        "yourApplication": "Your creator application"
+      },
+      "broker": {
+        "register": "Join as a real-estate broker",
+        "intro": "Your account, your broker licence and the areas you cover.",
+        "yourApplication": "Your broker application"
+      },
+      "carrier": {
+        "register": "Register your shipping company",
+        "intro": "Your account, company details, documents and the shipping agreement.",
+        "yourApplication": "Your shipping partner application"
+      }
+    },
+    "steps": {
+      "account": "Account",
+      "store": "Store",
+      "address": "Address",
+      "documents": "Documents",
+      "agreement": "Agreement",
+      "agency": "Agency",
+      "profile": "Profile",
+      "company": "Company"
+    },
+    "stepTitles": {
+      "account": "Account information",
+      "store": "Store information",
+      "address": "Contact & business address",
+      "agency": "Agency details",
+      "profile": "Your profile",
+      "company": "Company details"
+    },
+    "fields": {
+      "name": "Full name",
+      "email": "Work email",
+      "phone": "Mobile",
+      "gender": "Gender",
+      "password": "Password",
+      "password_confirmation": "Confirm password",
+      "store_name": "Store name",
+      "slug": "Store address",
+      "business_type": "Business type",
+      "legal_name": "Legal name",
+      "cr_number": "Commercial registration number",
+      "licence_expiry": "Licence expiry",
+      "tax_id": "Tax ID",
+      "fulfilment": "Fulfilment",
+      "description": "Description",
+      "city": "City",
+      "area": "Area",
+      "street": "Street",
+      "building": "Building",
+      "postal_code": "Postal code",
+      "landmark": "Landmark",
+      "agency_name": "Agency name",
+      "licence_number": "Licence number",
+      "logo": "Logo",
+      "display_name": "Display name",
+      "company_name": "Company",
+      "whatsapp_phone": "WhatsApp number",
+      "areas": "Areas you cover",
+      "bio": "Short bio",
+      "job_types": "I want to work as",
+      "niche": "Niche",
+      "followers": "Followers",
+      "languages": "Languages",
+      "socials": "Social accounts",
+      "fleet_size": "Fleet size",
+      "coverage": "Coverage (cities)",
+      "services": "Services",
+      "api_integration": "API / system integration",
+      "main_category_id": "Main category"
+    },
+    "options": {
+      "gender": {
+        "male": "Male",
+        "female": "Female"
+      },
+      "business_type": {
+        "llc": "Limited liability company (LLC)",
+        "sole_proprietorship": "Sole proprietorship",
+        "partnership": "Partnership",
+        "corporation": "Corporation",
+        "individual": "Individual",
+        "business": "Business"
+      },
+      "fulfilment": {
+        "fbm": "I ship myself (FBM)",
+        "fbn": "Nawy ships for me (FBN)",
+        "both": "Both"
+      },
+      "job_types": {
+        "influencer": "Influencer",
+        "affiliate": "Affiliate"
+      },
+      "services": {
+        "same_day": "Same day",
+        "next_day": "Next day",
+        "standard": "Standard",
+        "cod": "Cash on delivery",
+        "returns": "Returns",
+        "bulk": "Bulk / large items"
+      },
+      "socials": {
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "youtube": "YouTube",
+        "snapchat": "Snapchat",
+        "x": "X",
+        "facebook": "Facebook"
+      }
+    },
+    "hints": {
+      "slug": "Lowercase letters, numbers and dashes, e.g. bloom-home.",
+      "list": "Separate with commas.",
+      "password": "At least 8 characters.",
+      "phone": "With the country code, e.g. +971 50 123 4567.",
+      "logo": "PNG, JPG or WebP, up to 2 MB.",
+      "main_category_id": "The category you sell most in."
+    },
+    "wizard": {
+      "slugAvailable": "This store address is available.",
+      "slugTaken": "This store address is taken. Try another one.",
+      "notFound": "We couldn't open this application. The link may have expired.",
+      "startNew": "Start a new application",
+      "draftSaved": "Draft {number} is saved — you can leave and come back on this device.",
+      "progress": "Registration progress",
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "notStarted": "Not started",
+      "saveContinue": "Save and continue"
+    },
+    "documents": {
+      "intro": "Upload clear copies (PDF, JPG, PNG or WebP). Documents marked required must be uploaded before you submit.",
+      "none": "No documents are needed for this application in your country.",
+      "chooseFile": "Choose a file first.",
+      "formats": "PDF, JPG, PNG or WebP · up to {mb} MB",
+      "requirement": {
+        "mandatory": "Required",
+        "optional": "Optional"
+      },
+      "status": {
+        "pending": "Uploaded · waiting for review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "expired": "Expired"
+      },
+      "validUntil": "Valid until {date}",
+      "remove": "Remove document",
+      "file": "File",
+      "expiry": "Expiry date",
+      "reupload": "Re-upload",
+      "upload": "Upload",
+      "missing": "Upload the required documents first."
+    },
+    "agreement": {
+      "mustAccept": "Accept the agreement to submit your application.",
+      "version": "Version {version}",
+      "fileOnly": "The agreement is available as a document from Nawy. By signing below you accept its terms.",
+      "noneRequired": "There is no agreement to sign for this application in your country. Confirm your details to submit.",
+      "accept": "I have read and accept the agreement.",
+      "confirm": "I confirm that the information I gave is correct.",
+      "fullName": "Type your full name to sign",
+      "fullNameHint": "Your typed name, the date and your device are recorded as your signature.",
+      "submit": "Sign and submit"
+    },
+    "resume": {
+      "title": "Continue your application",
+      "question": "Already started an application? Email me a link to continue",
+      "send": "Send link",
+      "sent": "If there is an open application for this email, we've sent a link to continue it.",
+      "invalid": "This link is no longer valid. Request a new one from the registration page, or",
+      "opening": "Opening your application…"
+    },
+    "success": {
+      "title": "Application submitted",
+      "body": "Thanks! Our team reviews applications within 2 business days. We'll email {email} with the result.",
+      "reference": "Reference",
+      "viewStatus": "View application status"
+    },
+    "status": {
+      "title": "Application status",
+      "reference": "Reference",
+      "submittedOn": "submitted {date}",
+      "notFound": "We couldn't find this application on this device. Open the link from your email to see it.",
+      "emptyTitle": "No applications on this device",
+      "emptyBody": "Applications you start here appear on this page. To see one started elsewhere, open the link we emailed you.",
+      "startApplication": "Start an application",
+      "needsAttention": "Needs your attention",
+      "fix": "Update",
+      "timeline": {
+        "agreement": "Agreement signed and submitted",
+        "review": "Verification by Nawy",
+        "reviewWaiting": "Usually within 2 business days",
+        "access": "Panel access",
+        "accessReady": "Sign-in details have been emailed to you",
+        "accessAfter": "After approval"
+      },
+      "states": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "under_review": "In review",
+        "changes_requested": "Changes requested",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "approvedTitle": "Welcome to Nawy!",
+      "approvedBody": "Your application is approved. We've emailed {email} with how to sign in to your panel.",
+      "rejectedTitle": "Your application was not approved",
+      "rejectedBody": "You can start a new application at any time.",
+      "changesTitle": "Our team asked for changes",
+      "draftBody": "This application is a draft. Finish the remaining steps and submit it.",
+      "withdrawnBody": "You withdrew this application.",
+      "continue": "Continue application",
+      "updateResubmit": "Update and resubmit",
+      "startNew": "Start a new application",
+      "withdrawConfirm": "Withdraw this application? This can't be undone.",
+      "withdraw": "Withdraw application",
+      "forget": "Remove from this device"
+    },
+    "advertise": {
+      "eyebrow": "Nawy Ads",
+      "title": "Talk to the Nawy Ads team",
+      "subtitle": "Tell us about your business and goals. An ads specialist will reply within 2 business days.",
+      "yourDetails": "Your details",
+      "workEmail": "Work email",
+      "company": "Company",
+      "yourCampaign": "Your campaign",
+      "iAm": "I am a…",
+      "advertiserTypes": {
+        "seller": "Seller on Nawy",
+        "brand": "Brand",
+        "agency": "Agency",
+        "other": "Other"
+      },
+      "interest": "Interested in",
+      "interests": {
+        "product_ads": "Product ads",
+        "display_ads": "Display ads",
+        "both": "Both",
+        "not_sure": "Not sure yet"
+      },
+      "budget": "Monthly budget",
+      "budgets": {
+        "under_5k": "Under {currency} 5,000",
+        "5k_20k": "{currency} 5,000 – 20,000",
+        "20k_50k": "{currency} 20,000 – 50,000",
+        "over_50k": "Over {currency} 50,000"
+      },
+      "message": "Message",
+      "messageHint": "Max. 1,000 characters",
+      "messagePlaceholder": "What would you like to promote?",
+      "consent": "I agree to be contacted by Nawy about advertising.",
+      "consentRequired": "Please agree to be contacted so we can reply.",
+      "send": "Send request",
+      "sentTitle": "Request sent",
+      "sentBody": "Thanks! An ads specialist will contact you within 2 business days.",
+      "nextTitle": "What happens next",
+      "next": {
+        "review": {
+          "title": "We review your request",
+          "body": "Usually within 2 business days."
+        },
+        "call": {
+          "title": "A specialist calls you",
+          "body": "To understand goals and budget."
+        },
+        "plan": {
+          "title": "You get a plan",
+          "body": "Formats, audiences and pricing."
+        }
+      },
+      "sellersTitle": "Already selling on Nawy?",
+      "sellersBody": "Sellers can also start self-serve campaigns in Seller Center → Advertising.",
+      "bands": {
+        "under": "Under {currency} {max}",
+        "between": "{currency} {min} – {max}",
+        "over": "Over {currency} {min}",
+        "not_sure": "Not sure yet"
+      }
+    },
+    "sell": {
+      "title": "Grow your business with Nawy",
+      "subtitle": "Reach millions of shoppers across 8 countries. Sell products, post in Open Souq, list trips or deliver with us.",
+      "cta": "Join Nawy",
+      "why": {
+        "reach": {
+          "title": "Millions of shoppers",
+          "body": "One store, eight countries, English and Arabic."
+        },
+        "payouts": {
+          "title": "Reliable payouts",
+          "body": "Clear fees and regular settlements to your bank."
+        },
+        "fulfilment": {
+          "title": "Ship your way",
+          "body": "Ship yourself or let Nawy store, pack and deliver."
+        }
+      },
+      "waysTitle": "Ways to work with Nawy",
+      "howTitle": "How it works",
+      "how": {
+        "register": {
+          "title": "Register",
+          "body": "Create your account and add your business details."
+        },
+        "documents": {
+          "title": "Upload documents",
+          "body": "Licence, ID and bank details for your country."
+        },
+        "review": {
+          "title": "We review",
+          "body": "Our team checks your application within 2 business days."
+        },
+        "sell": {
+          "title": "Start selling",
+          "body": "Sign in to your panel and publish your first listing."
+        }
+      },
+      "ctaTitle": "Ready to start?"
+    }
+  }
+}

@@ -25,6 +25,8 @@ class ProductCardResource extends JsonResource
             'category' => $this->category?->slug,
             'price' => MoneyResource::make($this->best_price),
             'fulfilment_mode' => $this->fulfilment_mode,
+            'image' => $this->primaryImage()?->toPublicArray(),
+            'rating' => ['average' => $this->rating_average, 'count' => (int) $this->rating_count],
         ];
     }
 }

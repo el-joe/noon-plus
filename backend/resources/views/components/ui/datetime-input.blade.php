@@ -5,7 +5,7 @@
         {{ $label }}
         <x-ui.badge tone="info">{{ $country->name_en }} · {{ $country->timezone }}</x-ui.badge>
     </label>
-    <input id="{{ $fieldId }}" name="{{ $name }}" type="datetime-local" value="{{ old($name, $localValue) }}"
+    <input id="{{ $fieldId }}" name="{{ $name }}" type="datetime-local" value="{{ is_scalar($oldValue = old($name, $localValue)) ? $oldValue : "" }}"
            {{ $attributes->except('id')->class('h-10 rounded-lg border border-line bg-surface px-3 text-sm text-fg focus:border-line-focus focus:outline-none focus:ring-2 focus:ring-brand/30') }}>
     <p class="text-xs text-fg-secondary" data-admin-time-label>{{ $adminTimeLabel ?? __('Pick a time to see the Oman equivalent') }}</p>
 </div>

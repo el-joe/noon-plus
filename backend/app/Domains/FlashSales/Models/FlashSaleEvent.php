@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * A flash-sale event in one country. Times are UTC (entered in the country's
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[UseFactory(FlashSaleEventFactory::class)]
 #[Fillable([
-    'name', 'display_name', 'submission_starts_at', 'submission_ends_at', 'starts_at', 'ends_at',
+    'name', 'display_name', 'slug', 'submission_starts_at', 'submission_ends_at', 'starts_at', 'ends_at',
     'max_qty_per_customer', 'marketer_bonus_type', 'marketer_bonus_value', 'created_by',
 ])]
 class FlashSaleEvent extends Model
@@ -36,6 +37,18 @@ class FlashSaleEvent extends Model
      * @var array<string, string>
      */
     protected $attributes = ['status' => 'draft'];
+
+    /**
+     * Every event gets a public slug (G-W30): "{name}-{id}", set once.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (FlashSaleEvent $event): void {
+            if ($event->slug === null) {
+                $event->forceFill(['slug' => (Str::slug((string) ($event->display_name ?: $event->name)) ?: 'flash-sale').'-'.$event->id])->saveQuietly();
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

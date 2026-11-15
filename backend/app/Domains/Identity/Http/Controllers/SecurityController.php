@@ -43,6 +43,20 @@ class SecurityController extends Controller
         return ApiResponse::success(['revoked' => true]);
     }
 
+    /**
+     * Sign out (G-W7): revoke the token that made this request.
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $token = $request->user()->currentAccessToken();
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
+
+        return ApiResponse::success(['signed_out' => true]);
+    }
+
     public function loginHistory(Request $request): JsonResponse
     {
         $events = $request->user()->loginEvents()

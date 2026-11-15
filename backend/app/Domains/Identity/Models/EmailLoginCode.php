@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * A one-time 6-digit sign-in code sent by email (MASTER_PLAN ADR 5).
  */
-#[Fillable(['email', 'code_hash', 'attempts', 'expires_at', 'locked_until', 'consumed_at'])]
+#[Fillable(['email', 'purpose', 'code_hash', 'attempts', 'expires_at', 'locked_until', 'consumed_at'])]
 #[Hidden(['code_hash'])]
 class EmailLoginCode extends Model
 {

@@ -3,6 +3,7 @@
 namespace App\Domains\FlashSales\Http\Resources;
 
 use App\Domains\Catalog\Http\Resources\MoneyResource;
+use App\Domains\Catalog\Support\ListingCards;
 use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
 use App\Domains\FlashSales\Models\FlashSaleEvent;
 use App\Domains\FlashSales\Models\FlashSaleSubmission;
@@ -26,6 +27,7 @@ class FlashSaleEventResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'slug' => $this->slug,
             'name' => $this->display_name ?? $this->name,
             'state' => $isRunning ? 'live' : 'upcoming',
             'starts_at' => $this->starts_at->toIso8601String(),
@@ -33,10 +35,7 @@ class FlashSaleEventResource extends JsonResource
             'max_per_customer' => $this->max_qty_per_customer,
             'deals' => $this->submissions->map(fn (FlashSaleSubmission $deal): array => [
                 'listing_id' => $deal->listing_id,
-                'product' => [
-                    'slug' => $deal->listing->variant->product->slug,
-                    'title' => $deal->listing->variant->product->title(),
-                ],
+                'product' => array_diff_key(ListingCards::card($deal->listing, (string) $deal->flash_price), ['listing_id' => true, 'price' => true]),
                 'price' => MoneyResource::make((string) $deal->flash_price),
                 'was_price' => MoneyResource::make((string) $deal->original_price),
                 'sold_out' => $deal->status === FlashSaleSubmissionStatus::SoldOut || $deal->remainingQuantity() === 0,

@@ -419,6 +419,8 @@ Build order inside each module: migration → model → calculator/service → s
 | D5 | Campaign fee refund | No refund after live, configurable |
 | D6 | Local payment methods (KNET, BenefitPay, NAPS/QPay, eFAWATEERcom) | ❓ Owner to confirm. Adapters are ready to add. |
 | D7 | VAT/GST rates and weekends in §4a | ❓ Finance to confirm. They are settings, not code. |
+| D8 | **Travel and classified bookings take no payment** | ✅ Owner decision (2026-11-14): the customer fills in name, email and phone and submits. The agency or seller confirms and settles payment outside Nawy. Seat capacity and holds still apply. Guests can book. |
+| D9 | **Customer sign-in: email code, password, Google and Apple** | ✅ Owner decision (2026-11-15): customers can sign in with an email code (the default), with an optional password (set, change, forgot/reset by email), or with Google and Apple sign-in. Social accounts link by verified email. The owner approved installing `laravel/socialite` (2026-11-15) for Google and Apple sign-in. If Apple needs it, a Socialite community provider package also requires approval. |
 | DV1 | **Deviation:** customers sign in by email, not phone + OTP (spec §17.1) | User decision 2026-11-14 |
 | DV2 | **Deviation:** panels are designed as layouts + components (key page types), not every panel page (spec §15.2) | User brief |
 | DV3 | **Deviation:** marketer media library is admin-curated (spec §5.4) | ADR 11 |

@@ -39,13 +39,13 @@ function parcelListing(string $price, int $weightGrams, ?array $dimensionsCm = n
 }
 
 /**
- * Puts a listing in a guest cart shipping to a city/area and returns the cart JSON.
+ * Puts a listing in a new guest cart shipping to a city/area and returns the cart JSON.
  *
  * @return array<string, mixed>
  */
 function quoteTo(Listing $listing, string $city, ?string $area = null, string $method = 'standard', int $quantity = 1, string $market = 'uae-en'): array
 {
-    $token = test()->putJson("/api/v1/{$market}/cart/items", ['listing_id' => $listing->id, 'quantity' => $quantity])->assertOk()->headers->get('X-Cart-Token');
+    $token = test()->flushHeaders()->putJson("/api/v1/{$market}/cart/items", ['listing_id' => $listing->id, 'quantity' => $quantity])->assertOk()->headers->get('X-Cart-Token');
 
     return test()->withHeader('X-Cart-Token', $token)
         ->putJson("/api/v1/{$market}/cart/shipping", ['city' => $city, 'area' => $area, 'method' => $method])
@@ -101,7 +101,6 @@ it('adds percentage and fixed surcharges, fulfilment-specific ones only when the
 
     expect(quoteTo(parcelListing('40.00', 2300), 'Dubai')['shipments'][0]['shipping']['amount'])->toBe('20.90');
 
-    app('auth')->forgetGuards();
     expect(quoteTo(parcelListing('40.00', 2300, attributes: ['fulfilment' => 'fbn']), 'Dubai')['shipments'][0]['shipping']['amount'])->toBe('25.90');
 });
 
@@ -140,13 +139,11 @@ it('lets the customer pick express, offers same-day only for items that leave to
         ->and($express['shipping']['amount'])->toBe('25.00')
         ->and(array_column($express['shipping_options'], 'method'))->toBe(['standard', 'express']);
 
-    app('auth')->forgetGuards();
     $sameDay = quoteTo(parcelListing('40.00', 500, attributes: ['handling_days' => 0]), 'Dubai', method: 'same_day')['shipments'][0];
     expect($sameDay['method'])->toBe('same_day')
         ->and($sameDay['shipping']['amount'])->toBe('35.00')
         ->and($sameDay['delivery']['by'])->toBe('2026-11-16');
 
-    app('auth')->forgetGuards();
     $handled = quoteTo(parcelListing('40.00', 500), 'Dubai', method: 'same_day')['shipments'][0];
     expect($handled['method'])->toBe('standard')
         ->and($handled['shipping']['amount'])->toBe('15.00');
@@ -154,7 +151,7 @@ it('lets the customer pick express, offers same-day only for items that leave to
 
 it('rejects an unknown shipping method', function () {
     $this->putJson('/api/v1/uae-en/cart/shipping', ['city' => 'Dubai', 'method' => 'drone'])
-        ->assertJsonValidationErrors(['method']);
+        ->assertJsonValidationErrors(['method'], 'error.fields');
 });
 
 it('ships free over the order threshold with the platform absorbing the engine cost', function () {

@@ -1,6 +1,7 @@
 @props(['label', 'name', 'type' => 'text', 'value' => null, 'helper' => null])
 
 @php($fieldId = $attributes->get('id', $name))
+@php($current = old($name, $value))
 
 <div class="flex flex-col gap-1.5">
     <label for="{{ $fieldId }}" class="text-sm font-medium text-fg">{{ $label }}</label>
@@ -8,7 +9,7 @@
         id="{{ $fieldId }}"
         name="{{ $name }}"
         type="{{ $type }}"
-        value="{{ old($name, $value) }}"
+        value="{{ is_scalar($current) ? $current : '' }}"
         @error($name) aria-invalid="true" aria-describedby="{{ $fieldId }}-error" @enderror
         {{ $attributes->except('id')->class([
             'h-10 rounded-lg border bg-surface px-3 text-sm text-fg placeholder:text-fg-muted focus:border-line-focus focus:outline-none focus:ring-2 focus:ring-brand/30',

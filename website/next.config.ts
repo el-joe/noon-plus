@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   experimental: {
     agentFeedback: true,
+    // The root layout lives under the dynamic `[market]` segment, so URLs
+    // that match no route use app/global-not-found.tsx.
+    globalNotFound: true,
   },
   cacheComponents: true,
   partialPrefetching: true,

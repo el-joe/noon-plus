@@ -25,4 +25,21 @@ class MoneyResource
 
         return ['amount' => (string) $money->getAmount(), 'currency' => $currency];
     }
+
+    /**
+     * Same shape in an explicit currency (a stored row's own currency).
+     *
+     * @return array{amount: string, currency: string}|null
+     */
+    public static function of(string|int|null $amount, ?string $currency): ?array
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+
+        $currency ??= app(CountryContext::class)->current()->currency;
+        $money = app(MoneyFactory::class)->of((string) $amount, $currency);
+
+        return ['amount' => (string) $money->getAmount(), 'currency' => $currency];
+    }
 }

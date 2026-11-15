@@ -2,12 +2,18 @@
 
 namespace App\Domains\Cart\Support;
 
+use App\Domains\Advertising\Support\CouponParticipations;
 use App\Domains\Cart\Models\Cart;
+use App\Domains\Catalog\Support\Measurements;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Coupons\Enums\CouponScope;
 use App\Domains\Coupons\Enums\CouponType;
 use App\Domains\Coupons\Models\Coupon;
+use App\Domains\Coupons\Support\CouponTargets;
+use App\Domains\Coupons\Support\CouponValidator;
 use App\Domains\FlashSales\Support\FlashSalePricing;
+use App\Domains\Listings\Models\Listing;
+use App\Domains\Membership\Support\Memberships;
 use App\Domains\Settings\SettingsService;
 use App\Domains\Shipping\Enums\ShippingMethod;
 use App\Domains\Shipping\Support\ShipmentQuoter;
@@ -17,12 +23,13 @@ use App\Domains\Warranty\Support\WarrantyPlanCatalog;
 use App\Shared\Money\MoneyFactory;
 use Brick\Math\RoundingMode;
 use Brick\Money\Money;
+use Illuminate\Support\Collection;
 
 /**
  * Cart totals (FR-CHK-2): subtotal (flash prices while a deal runs)
  * − coupons (≤ 1 Nawy + 1 seller) + shipping per seller from the shipping
- * engine (zone → method → rate/slabs → surcharges; free over the threshold,
- * absorbed by the platform; exceptional-zone subsidy) + COD fee + warranty
+ * engine (zone → method → rate/slabs → surcharges; free over the threshold
+ * or for Nawy One members, absorbed by the platform; exceptional-zone subsidy) + COD fee + warranty
  * plans. Prices include VAT; the included VAT is shown separately. Every
  * amount is rounded to the currency. Without a matching zone or rate the
  * flat `shipping_fee_per_seller` applies, as before the engine existed.
@@ -37,6 +44,7 @@ class CheckoutCalculator
         private ShipmentQuoter $shipments,
         private FlashSalePricing $flashPricing,
         private WarrantyPlanCatalog $warrantyPlans,
+        private CouponTargets $couponTargets,
     ) {}
 
     public function quote(Cart $cart, ?string $paymentMethod = null, ?ShippingDestination $destination = null): CheckoutQuote
@@ -50,7 +58,7 @@ class CheckoutCalculator
         $warnings = [];
 
         $groups = [];
-        $items = $cart->items()->with(['listing.vendor', 'listing.variant.product', 'warrantyPlan'])->get();
+        $items = $cart->items()->with(['listing.vendor', 'listing.variant.product.media', 'warrantyPlan'])->get();
         $deals = $this->flashPricing->activeDeals($items->pluck('listing_id')->all());
         $purchased = $this->flashPricing->purchasedBy($cart->customer_user_id, $deals->pluck('id')->all());
         $plansByCategory = $this->warrantyPlans->forCategories($items->map(fn ($item): int => (int) $item->listing->variant->product->category_id)->all());
@@ -104,6 +112,8 @@ class CheckoutCalculator
                 'category_id' => $categoryId,
                 'sku' => $listing->variant->sku,
                 'title' => $listing->variant->product->title(),
+                'product_slug' => $listing->variant->product->slug,
+                'image' => $listing->variant->product->primaryImage($listing->product_variant_id)?->toPublicArray(),
                 'quantity' => $item->quantity,
                 'unit_price' => $unitPrice,
                 'regular_unit_price' => $regularPrice,
@@ -116,6 +126,10 @@ class CheckoutCalculator
                 'warranty_months' => $plan?->duration_months,
                 'warranty_unit_price' => $warrantyUnitPrice,
                 'warranty_total' => $warrantyTotal,
+                'fulfilment_mode' => $listing->variant->product->fulfilment_mode,
+                'measurements' => $item->measurements,
+                'measurement_note' => $item->measurement_note,
+                'measurement_fields' => $listing->variant->product->fulfilment_mode === 'made_to_order' ? app(Measurements::class)->describe($listing->variant->product) : [],
                 'warranty_options' => $plans->map(fn ($option): array => [
                     'id' => $option->id,
                     'name' => $option->name(),
@@ -129,7 +143,8 @@ class CheckoutCalculator
         }
 
         $subtotal = array_reduce($groups, fn (Money $sum, array $group): Money => $sum->plus($group['subtotal']), $zero);
-        $freeShipping = $subtotal->isGreaterThanOrEqualTo($this->money->of($setting('free_shipping_threshold'), $currency));
+        $freeShipping = $subtotal->isGreaterThanOrEqualTo($this->money->of($setting('free_shipping_threshold'), $currency))
+            || ($groups !== [] && app(Memberships::class)->hasFreeShipping($cart->customer_user_id));
         $zone = $groups === [] ? null : $this->zones->resolve($destination ?? $cart->destination());
         $wantedMethod = $cart->shipping_method ?? ShippingMethod::Standard;
         $flatFee = $this->money->of($setting('shipping_fee_per_seller'), $currency);
@@ -154,7 +169,7 @@ class CheckoutCalculator
             $groups[$vendorId]['shipping'] = $freeShipping || $subsidised ? $zero : $shipment->cost;
         }
 
-        [$groups, $appliedCoupons, $couponWarnings] = $this->applyCoupons($cart, $groups, $zero);
+        [$groups, $appliedCoupons, $couponWarnings] = $this->applyCoupons($cart, $groups, $zero, $items->pluck('listing')->keyBy('id'));
 
         $discountTotal = $zero;
         $shippingTotal = $zero;
@@ -184,25 +199,51 @@ class CheckoutCalculator
 
     /**
      * Seller coupons first (on that seller's items), then the Nawy coupon on
-     * what is left, spread across sellers in proportion to their subtotals.
+     * what is left (QC-014). Each coupon applies to its eligible lines only
+     * (category / product / brand / seller targets) and is spread across
+     * sellers in proportion to their eligible amounts — for BOGO, to the
+     * sellers of the discounted units. Customers who are not eligible (first
+     * order, segment) get a warning and no discount.
      *
      * @param  array<int, array<string, mixed>>  $groups
+     * @param  Collection<int, Listing>  $listings  by id
      * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>, 2: array<int, string>}
      */
-    private function applyCoupons(Cart $cart, array $groups, Money $zero): array
+    private function applyCoupons(Cart $cart, array $groups, Money $zero, Collection $listings): array
     {
         $applied = [];
         $warnings = [];
+        $currency = $zero->getCurrency()->getCurrencyCode();
         $coupons = $cart->coupons()->get()->sortBy(fn (Coupon $coupon): int => $coupon->scope === CouponScope::Vendor ? 0 : 1);
 
         foreach ($coupons as $coupon) {
-            $targetVendorIds = $coupon->scope === CouponScope::Vendor
-                ? array_values(array_filter([$coupon->vendor_id], fn (int $id): bool => isset($groups[$id])))
-                : array_keys($groups);
+            if (app(CouponValidator::class)->customerIneligibility($coupon, $cart->customer_user_id) !== null) {
+                $warnings[] = __('Coupon :code is not available for your account and was not applied.', ['code' => $coupon->code]);
 
-            $base = array_reduce($targetVendorIds, fn (Money $sum, int $id): Money => $sum->plus($groups[$id]['subtotal'])->minus($groups[$id]['discount']), $zero);
+                continue;
+            }
 
-            if ($targetVendorIds === [] || ($coupon->min_order_amount !== null && $base->isLessThan($this->money->of((string) $coupon->min_order_amount, $zero->getCurrency()->getCurrencyCode())))) {
+            $participants = $coupon->scope === CouponScope::Vendor ? null : app(CouponParticipations::class)->restrictedVendorIds($coupon);
+            $targetVendorIds = match (true) {
+                $coupon->scope === CouponScope::Vendor => array_values(array_filter([$coupon->vendor_id], fn (int $id): bool => isset($groups[$id]))),
+                $participants !== null => array_values(array_intersect(array_keys($groups), $participants)),
+                default => array_keys($groups),
+            };
+
+            $eligibleLines = [];
+
+            foreach ($targetVendorIds as $id) {
+                $lines = array_values(array_filter($groups[$id]['lines'], fn (array $line): bool => $listings->has($line['listing_id']) && $this->couponTargets->covers($coupon, $listings->get($line['listing_id']))));
+
+                if ($lines !== []) {
+                    $eligibleLines[$id] = $lines;
+                }
+            }
+
+            $targetVendorIds = array_keys($eligibleLines);
+            $orderBase = array_reduce($targetVendorIds, fn (Money $sum, int $id): Money => $sum->plus($groups[$id]['subtotal'])->minus($groups[$id]['discount']), $zero);
+
+            if ($targetVendorIds === [] || ($coupon->min_order_amount !== null && $orderBase->isLessThan($this->money->of((string) $coupon->min_order_amount, $currency)))) {
                 $warnings[] = __('Coupon :code needs a bigger order and was not applied.', ['code' => $coupon->code]);
 
                 continue;
@@ -210,40 +251,114 @@ class CheckoutCalculator
 
             if ($coupon->type === CouponType::FreeShipping) {
                 $saved = $zero;
+                $shares = [];
 
                 foreach ($targetVendorIds as $id) {
                     $saved = $saved->plus($groups[$id]['shipping']);
+                    $shares[$id] = $groups[$id]['shipping'];
                     $groups[$id]['shipping'] = $zero;
                 }
 
-                $applied[] = ['coupon_id' => $coupon->id, 'code' => $coupon->code, 'scope' => $coupon->scope->value, 'discount' => $saved, 'free_shipping' => true];
+                $applied[] = ['coupon_id' => $coupon->id, 'code' => $coupon->code, 'scope' => $coupon->scope->value, 'type' => $coupon->type->value,
+                    'discount' => $saved, 'free_shipping' => true, 'funded_by' => $coupon->funding()->value, 'shares' => $shares];
 
                 continue;
             }
 
-            $discount = $coupon->type === CouponType::Percentage
-                ? $this->money->percentageOf($base, (string) $coupon->value)
-                : $this->money->of((string) $coupon->value, $zero->getCurrency()->getCurrencyCode());
+            /** @var array<int, Money> $weights eligible amount per seller (what the discount is spread over) */
+            $weights = [];
+
+            foreach ($eligibleLines as $id => $lines) {
+                $lineTotal = array_reduce($lines, fn (Money $sum, array $line): Money => $sum->plus($line['line_total']), $zero);
+                $weights[$id] = Money::min($lineTotal, Money::max($zero, $groups[$id]['subtotal']->minus($groups[$id]['discount'])));
+            }
+
+            $base = array_reduce($weights, fn (Money $sum, Money $weight): Money => $sum->plus($weight), $zero);
+
+            if ($coupon->type === CouponType::Bogo) {
+                $weights = $this->bogoFreeUnits($coupon, $eligibleLines, $weights, $zero);
+                $freeValue = array_reduce($weights, fn (Money $sum, Money $weight): Money => $sum->plus($weight), $zero);
+                $discount = $this->money->percentageOf($freeValue, (string) ($coupon->value > 0 ? $coupon->value : '100'));
+
+                if ($discount->isZero()) {
+                    $warnings[] = __('Add :count eligible items to use coupon :code.', ['count' => (int) $coupon->buy_quantity + (int) $coupon->get_quantity, 'code' => $coupon->code]);
+
+                    continue;
+                }
+            } else {
+                $discount = $coupon->type === CouponType::Percentage
+                    ? $this->money->percentageOf($base, (string) $coupon->value)
+                    : $this->money->of((string) $coupon->value, $currency);
+            }
 
             if ($coupon->max_discount_amount !== null) {
-                $discount = Money::min($discount, $this->money->of((string) $coupon->max_discount_amount, $zero->getCurrency()->getCurrencyCode()));
+                $discount = Money::min($discount, $this->money->of((string) $coupon->max_discount_amount, $currency));
             }
 
             $discount = Money::min($discount, $base);
-            $remaining = $discount;
+            $weights = array_filter($weights, fn (Money $weight): bool => $weight->isPositive());
+            $weightTotal = array_reduce($weights, fn (Money $sum, Money $weight): Money => $sum->plus($weight), $zero);
 
-            foreach ($targetVendorIds as $index => $id) {
-                $groupBase = $groups[$id]['subtotal']->minus($groups[$id]['discount']);
-                $share = $index === array_key_last($targetVendorIds)
+            if ($weights === [] || ! $discount->isPositive()) {
+                continue;
+            }
+
+            $remaining = $discount;
+            $shares = [];
+            $lastId = array_key_last($weights);
+
+            foreach ($weights as $id => $weight) {
+                $share = $id === $lastId
                     ? $remaining
-                    : $discount->multipliedBy($groupBase->getAmount(), RoundingMode::HalfUp)->dividedBy($base->getAmount(), RoundingMode::HalfUp);
+                    : $discount->multipliedBy($weight->getAmount(), RoundingMode::HalfUp)->dividedBy($weightTotal->getAmount(), RoundingMode::HalfUp);
                 $groups[$id]['discount'] = $groups[$id]['discount']->plus($share);
+                $shares[$id] = $share;
                 $remaining = $remaining->minus($share);
             }
 
-            $applied[] = ['coupon_id' => $coupon->id, 'code' => $coupon->code, 'scope' => $coupon->scope->value, 'discount' => $discount, 'free_shipping' => false];
+            $applied[] = ['coupon_id' => $coupon->id, 'code' => $coupon->code, 'scope' => $coupon->scope->value, 'type' => $coupon->type->value,
+                'discount' => $discount, 'free_shipping' => false, 'funded_by' => $coupon->funding()->value, 'shares' => $shares];
         }
 
         return [$groups, $applied, $warnings];
+    }
+
+    /**
+     * BOGO (QC-014): every eligible unit, dearest first; for each full set
+     * of buy + get units, the `get` cheapest units of the cart are the free
+     * ones. Returns the value of the free units per seller (capped at what
+     * is left of the seller's goods after earlier coupons).
+     *
+     * @param  array<int, array<int, array<string, mixed>>>  $eligibleLines
+     * @param  array<int, Money>  $caps
+     * @return array<int, Money>
+     */
+    private function bogoFreeUnits(Coupon $coupon, array $eligibleLines, array $caps, Money $zero): array
+    {
+        $buy = max(1, (int) $coupon->buy_quantity);
+        $get = max(1, (int) $coupon->get_quantity);
+        $units = [];
+
+        foreach ($eligibleLines as $vendorId => $lines) {
+            foreach ($lines as $line) {
+                for ($unit = 0; $unit < $line['quantity']; $unit++) {
+                    $units[] = ['vendor_id' => $vendorId, 'price' => $line['unit_price']];
+                }
+            }
+        }
+
+        usort($units, fn (array $a, array $b): int => $b['price']->compareTo($a['price']));
+        $freeCount = intdiv(count($units), $buy + $get) * $get;
+        $free = array_fill_keys(array_keys($eligibleLines), $zero);
+
+        foreach (array_slice($units, count($units) - $freeCount) as $unit) {
+            $free[$unit['vendor_id']] = $free[$unit['vendor_id']]->plus($unit['price']);
+        }
+
+        foreach ($free as $vendorId => $value) {
+            $free[$vendorId] = Money::min($value, $caps[$vendorId]);
+        }
+
+        return $free;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Domains\FlashSales\Http\Controllers;
 
+use App\Domains\Catalog\Support\ListingCards;
 use App\Domains\FlashSales\Enums\FlashSaleEventStatus;
 use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
 use App\Domains\FlashSales\Http\Resources\FlashSaleEventResource;
@@ -24,9 +25,14 @@ class FlashSaleController extends Controller
         return ApiResponse::success(FlashSaleEventResource::collection($events));
     }
 
-    public function show(int $id): JsonResponse
+    /**
+     * By id or by slug (G-W30).
+     */
+    public function show(string $id): JsonResponse
     {
-        return ApiResponse::success(new FlashSaleEventResource($this->published()->findOrFail($id)));
+        $event = ctype_digit($id) ? $this->published()->findOrFail((int) $id) : $this->published()->where('slug', $id)->firstOrFail();
+
+        return ApiResponse::success(new FlashSaleEventResource($event));
     }
 
     /**
@@ -41,6 +47,6 @@ class FlashSaleController extends Controller
                 ->whereIn('status', [...FlashSaleSubmissionStatus::pricing(), FlashSaleSubmissionStatus::SoldOut])
                 ->orderBy('flash_price')
                 ->orderBy('id')
-                ->with('listing.variant.product')]);
+                ->with(ListingCards::relations('listing.'))]);
     }
 }

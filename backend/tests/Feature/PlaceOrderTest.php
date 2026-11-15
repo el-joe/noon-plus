@@ -86,7 +86,7 @@ it('refuses an empty cart with 422 and requires an address', function () {
     $this->withToken($token)->postJson('/api/v1/uae-en/orders', ['payment_method' => 'cod'] + deliveryAddress())
         ->assertStatus(422)->assertJsonPath('error.code', 'cart_empty');
     $this->withToken($token)->postJson('/api/v1/uae-en/orders', ['payment_method' => 'cod'])
-        ->assertJsonValidationErrors(['address']);
+        ->assertJsonValidationErrors(['address'], 'error.fields');
 });
 
 it('shows customers only their own orders', function () {

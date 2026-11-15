@@ -24,8 +24,11 @@ return [
     /*
      * You can specify an auth driver here that gets user models.
      * If this is null we'll use the current Laravel auth driver.
+     * Nawy (QA wave 2): admins change audited models through the panels'
+     * `web` guard; resolving the current driver (e.g. `sanctum`) outside a
+     * request would cache a stale API user on that guard.
      */
-    'default_auth_driver' => null,
+    'default_auth_driver' => 'web',
 
     /*
      * If set to true, the subject returns soft deleted models.

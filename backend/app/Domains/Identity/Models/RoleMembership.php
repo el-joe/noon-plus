@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-#[Fillable(['user_id', 'role', 'country_id', 'status', 'tenant_type', 'tenant_id'])]
+#[Fillable(['user_id', 'role', 'country_id', 'status', 'tenant_type', 'tenant_id', 'tenant_role'])]
 class RoleMembership extends Model
 {
     use LogsActivity;

@@ -29,8 +29,16 @@ class CartController extends Controller
         private CheckoutCalculator $calculator,
     ) {}
 
+    /**
+     * A guest without a (known) cart token gets an empty cart and no new
+     * cart row (G-W9); the token is issued on the first write.
+     */
     public function show(Request $request): JsonResponse
     {
+        if ($this->customerId($request) === null) {
+            return $this->respond($this->carts->findGuest($request->header('X-Cart-Token')) ?? new Cart, $request);
+        }
+
         return $this->respond($this->resolveCart($request), $request);
     }
 
@@ -62,6 +70,20 @@ class CartController extends Controller
         $planId = $request->validated('warranty_plan_id');
 
         return $this->attempt($cart, $request, fn () => $this->carts->setWarranty($cart, $listingId, $planId === null ? null : (int) $planId));
+    }
+
+    /**
+     * Measurements for a made-to-order line.
+     */
+    public function setMeasurements(Request $request, int $listingId): JsonResponse
+    {
+        $data = $request->validate([
+            'measurements' => ['required', 'array'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $cart = $this->resolveCart($request);
+
+        return $this->attempt($cart, $request, fn () => $this->carts->setMeasurements($cart, $listingId, $data['measurements'], $data['note'] ?? null));
     }
 
     /**
@@ -107,18 +129,17 @@ class CartController extends Controller
     }
 
     /**
-     * Move the guest cart from `X-Cart-Token` into the signed-in customer's cart.
+     * Move the guest cart from `X-Cart-Token` into the signed-in customer's
+     * cart; lines clipped or skipped are listed in `meta.merge_warnings`.
      */
     public function merge(Request $request): JsonResponse
     {
         $customerCart = $this->carts->forCustomer($request->user()->id);
         $guestCart = Cart::query()->where('guest_token', (string) $request->header('X-Cart-Token'))->first();
 
-        if ($guestCart !== null) {
-            $this->carts->merge($guestCart, $customerCart);
-        }
+        $warnings = $guestCart !== null ? $this->carts->merge($guestCart, $customerCart) : [];
 
-        return $this->respond($customerCart, $request);
+        return $this->respond($customerCart, $request, ['merge_warnings' => $warnings]);
     }
 
     public function resolveCart(Request $request): Cart
@@ -147,9 +168,12 @@ class CartController extends Controller
         return $this->respond($cart, $request);
     }
 
-    private function respond(Cart $cart, Request $request): JsonResponse
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function respond(Cart $cart, Request $request, array $meta = []): JsonResponse
     {
-        $response = ApiResponse::success(CartPresenter::present($cart, $this->calculator->quote($cart, $request->query('payment_method'))));
+        $response = ApiResponse::success(CartPresenter::present($cart, $this->calculator->quote($cart, $request->query('payment_method'))), $meta);
 
         return $cart->guest_token !== null ? $response->header('X-Cart-Token', $cart->guest_token) : $response;
     }

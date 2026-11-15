@@ -39,6 +39,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_enabled' => 'boolean',
+            'marketing_preferences' => 'array',
         ];
     }
 

@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    /*
+    | LiveKit SFU (ADR 11) for admin live streams: server API URL (https),
+    | API key and secret used to sign access tokens (HS256).
+    */
+    'livekit' => [
+        'url' => env('LIVEKIT_URL'),
+        'ws_url' => env('LIVEKIT_WS_URL'),
+        'api_key' => env('LIVEKIT_API_KEY'),
+        'api_secret' => env('LIVEKIT_API_SECRET'),
+    ],
+
 ];

@@ -15,7 +15,7 @@ class PanelDashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $panel = Panel::find($request->route('panel'));
+        $panel = Panel::find($request->route('panel') ?? Panel::fromRequest($request)->key);
 
         return view('panels.dashboard', [
             'panel' => $panel,

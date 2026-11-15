@@ -1,0 +1,503 @@
+<?php
+
+/*
+| Admin commerce screens (admin.) — SRS §4.1. Loaded inside the panel group
+| (signed-in admin, country selected); each route checks its permission.
+*/
+
+use App\Domains\Advertising\Http\Controllers\Admin\AdsReviewController;
+use App\Domains\Campaigns\Http\Controllers\Admin\CampaignAdminController;
+use App\Domains\Catalog\Http\Controllers\Admin\BrandAdminController;
+use App\Domains\Catalog\Http\Controllers\Admin\CategoryAdminController;
+use App\Domains\Catalog\Http\Controllers\Admin\ProductAdminController;
+use App\Domains\Classifieds\Http\Controllers\Admin\ClassifiedReviewController;
+use App\Domains\Content\Http\Controllers\Admin\AppContextController;
+use App\Domains\Content\Http\Controllers\Admin\CmsController;
+use App\Domains\Content\Http\Controllers\Admin\NotificationTemplateController;
+use App\Domains\Content\Http\Controllers\Admin\PageBuilderController;
+use App\Domains\Contracts\Http\Controllers\Admin\ContractTemplateController;
+use App\Domains\Countries\Http\Controllers\Admin\HolidayController;
+use App\Domains\Coupons\Http\Controllers\Admin\CouponAdminController;
+use App\Domains\Delivery\Http\Controllers\Admin\CarrierClaimController;
+use App\Domains\Delivery\Http\Controllers\Admin\DeliveryDispatchController;
+use App\Domains\Delivery\Http\Controllers\Admin\DeliveryNetworkController;
+use App\Domains\Disputes\Http\Controllers\Admin\AdminDisputeController;
+use App\Domains\Documents\Http\Controllers\Admin\DocumentReviewController;
+use App\Domains\Finance\Http\Controllers\Admin\CodSettlementController;
+use App\Domains\Finance\Http\Controllers\Admin\PayoutController;
+use App\Domains\FlashSales\Http\Controllers\Admin\FlashSaleEventController;
+use App\Domains\GiftCards\Http\Controllers\Admin\GiftCardAdminController;
+use App\Domains\Identity\Http\Controllers\Admin\RoleAdminController;
+use App\Domains\Identity\Http\Controllers\Admin\StaffController;
+use App\Domains\Listings\Http\Controllers\Admin\ListingReviewController;
+use App\Domains\LiveMedia\Http\Controllers\Admin\LiveMediaController;
+use App\Domains\Marketers\Http\Controllers\Admin\MarketerAdminController;
+use App\Domains\Membership\Http\Controllers\Admin\MembershipAdminController;
+use App\Domains\Onboarding\Http\Controllers\Admin\ApplicationReviewController;
+use App\Domains\Onboarding\Http\Controllers\Admin\PortalAdminController;
+use App\Domains\Orders\Http\Controllers\Admin\AdminOrderController;
+use App\Domains\Panels\Http\Controllers\Admin\ActivityLogController;
+use App\Domains\Panels\Http\Controllers\Admin\SystemHealthController;
+use App\Domains\Panels\Http\Controllers\AdminSettingsController;
+use App\Domains\Payments\Http\Controllers\Admin\PaymentGatewayController;
+use App\Domains\Payments\Http\Controllers\Admin\PaymentReviewController;
+use App\Domains\Refunds\Http\Controllers\Admin\RefundAdminController;
+use App\Domains\Returns\Http\Controllers\Admin\AdminReturnController;
+use App\Domains\Reviews\Http\Controllers\Admin\ReviewModerationController;
+use App\Domains\Shipping\Http\Controllers\Admin\ShippingZoneController;
+use App\Domains\Travel\Http\Controllers\Admin\TravelReviewController;
+use App\Domains\Vendors\Http\Controllers\Admin\VendorAdminController;
+use App\Domains\Warranty\Http\Controllers\Admin\WarrantyClaimAdminController;
+use App\Domains\Warranty\Http\Controllers\Admin\WarrantyPlanController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('approvals', [ListingReviewController::class, 'index'])->middleware('can:vendor_listings.view')->name('approvals');
+Route::middleware('can:vendor_listings.approve')->group(function (): void {
+    Route::post('approvals/listings/{listing}/approve', [ListingReviewController::class, 'approve'])->whereNumber('listing')->name('approvals.approve');
+    Route::post('approvals/listings/{listing}/reject', [ListingReviewController::class, 'reject'])->whereNumber('listing')->name('approvals.reject');
+});
+
+Route::middleware('can:orders.view')->group(function (): void {
+    Route::get('orders', [AdminOrderController::class, 'index'])->name('orders');
+    Route::get('orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+});
+Route::post('sub-orders/{subOrder}/status', [AdminOrderController::class, 'move'])->whereNumber('subOrder')->middleware('can:orders.status')->name('orders.move');
+Route::post('sub-orders/{subOrder}/cancel', [AdminOrderController::class, 'forceCancel'])->whereNumber('subOrder')->middleware('can:orders.force_cancel')->name('orders.force-cancel');
+
+Route::get('settings', AdminSettingsController::class)->name('settings');
+
+Route::get('delivery', [ShippingZoneController::class, 'index'])->middleware('can:shipping_zones.view')->name('delivery');
+Route::get('delivery/zones/{zone}', [ShippingZoneController::class, 'show'])->whereNumber('zone')->middleware('can:shipping_zones.view')->name('delivery.zones.show');
+Route::middleware('can:shipping_zones.configure')->group(function (): void {
+    Route::post('delivery/zones', [ShippingZoneController::class, 'store'])->name('delivery.zones.store');
+    Route::put('delivery/zones/{zone}', [ShippingZoneController::class, 'update'])->whereNumber('zone')->name('delivery.zones.update');
+    Route::post('delivery/zones/{zone}/areas', [ShippingZoneController::class, 'storeArea'])->whereNumber('zone')->name('delivery.zones.areas.store');
+    Route::delete('delivery/areas/{area}', [ShippingZoneController::class, 'destroyArea'])->whereNumber('area')->name('delivery.areas.destroy');
+    Route::post('delivery/zones/{zone}/rates', [ShippingZoneController::class, 'storeRate'])->whereNumber('zone')->name('delivery.zones.rates.store');
+    Route::put('delivery/rates/{rate}', [ShippingZoneController::class, 'updateRate'])->whereNumber('rate')->name('delivery.rates.update');
+    Route::delete('delivery/rates/{rate}', [ShippingZoneController::class, 'destroyRate'])->whereNumber('rate')->name('delivery.rates.destroy');
+});
+
+Route::get('settings/holidays', [HolidayController::class, 'index'])->middleware('can:calendars.view')->name('settings.holidays');
+Route::middleware('can:calendars.configure')->group(function (): void {
+    Route::post('settings/holidays', [HolidayController::class, 'store'])->name('settings.holidays.store');
+    Route::put('settings/holidays/{holiday}', [HolidayController::class, 'update'])->whereNumber('holiday')->name('settings.holidays.update');
+    Route::delete('settings/holidays/{holiday}', [HolidayController::class, 'destroy'])->whereNumber('holiday')->name('settings.holidays.destroy');
+});
+
+Route::get('catalog/warranty-plans', [WarrantyPlanController::class, 'index'])->middleware('can:warranty_plans.view')->name('catalog.warranty-plans');
+Route::middleware('can:warranty_plans.update')->group(function (): void {
+    Route::post('catalog/warranty-plans', [WarrantyPlanController::class, 'store'])->name('catalog.warranty-plans.store');
+    Route::put('catalog/warranty-plans/{plan}', [WarrantyPlanController::class, 'update'])->whereNumber('plan')->name('catalog.warranty-plans.update');
+});
+
+Route::get('flash-sales', [FlashSaleEventController::class, 'index'])->middleware('can:flash_sales.view')->name('flash-sales');
+Route::get('flash-sales/{event}', [FlashSaleEventController::class, 'show'])->whereNumber('event')->middleware('can:flash_sales.view')->name('flash-sales.show');
+Route::middleware('can:flash_sales.manage')->group(function (): void {
+    Route::post('flash-sales', [FlashSaleEventController::class, 'store'])->name('flash-sales.store');
+    Route::post('flash-sales/{event}/status', [FlashSaleEventController::class, 'transition'])->whereNumber('event')->name('flash-sales.transition');
+    Route::post('flash-sales/submissions/{submission}/approve', [FlashSaleEventController::class, 'approveSubmission'])->whereNumber('submission')->name('flash-sales.submissions.approve');
+    Route::post('flash-sales/submissions/{submission}/reject', [FlashSaleEventController::class, 'rejectSubmission'])->whereNumber('submission')->name('flash-sales.submissions.reject');
+});
+
+/*
+| Countries & gateways → Payment gateways (ADR 6, Figma 13:648): super admin
+| and Finance (matrix §3.2 `payment_gateways`).
+*/
+Route::get('countries', fn () => redirect()->route('admin.countries.payment-gateways'))->middleware('can:payment_gateways.view')->name('countries');
+Route::get('countries/payment-gateways', [PaymentGatewayController::class, 'index'])->middleware('can:payment_gateways.view')->name('countries.payment-gateways');
+Route::middleware('can:payment_gateways.update')->group(function (): void {
+    Route::post('countries/payment-gateways', [PaymentGatewayController::class, 'store'])->name('countries.payment-gateways.store');
+    Route::put('countries/payment-gateways/{config}', [PaymentGatewayController::class, 'update'])->whereNumber('config')->name('countries.payment-gateways.update');
+    Route::post('countries/payment-gateways/{config}/recommend', [PaymentGatewayController::class, 'recommend'])->whereNumber('config')->name('countries.payment-gateways.recommend');
+});
+
+/*
+| Returns (SRS §4.1.4, §7.4) and Finance → Payouts / COD settlements
+| (SRS §4.1.12, Figma 98:4242) — matrix §3.2 `returns`, `payouts`,
+| `cod_settlements`.
+*/
+Route::get('returns', [AdminReturnController::class, 'index'])->middleware('can:returns.view')->name('returns');
+Route::get('returns/{return}', [AdminReturnController::class, 'show'])->whereNumber('return')->middleware('can:returns.view')->name('returns.show');
+Route::middleware('can:returns.manage')->group(function (): void {
+    Route::post('returns/{return}/approve', [AdminReturnController::class, 'approve'])->whereNumber('return')->name('returns.approve');
+    Route::post('returns/{return}/reject', [AdminReturnController::class, 'reject'])->whereNumber('return')->name('returns.reject');
+    Route::post('returns/{return}/advance', [AdminReturnController::class, 'advance'])->whereNumber('return')->name('returns.advance');
+    Route::post('returns/{return}/inspect', [AdminReturnController::class, 'inspect'])->whereNumber('return')->name('returns.inspect');
+});
+
+/*
+| Disputes (QC-001, SRS §7.6): review, escalate, resolve with refund, close.
+*/
+Route::get('disputes', [AdminDisputeController::class, 'index'])->middleware('can:disputes.view')->name('disputes');
+Route::get('disputes/{dispute}', [AdminDisputeController::class, 'show'])->whereNumber('dispute')->middleware('can:disputes.view')->name('disputes.show');
+Route::middleware('can:disputes.manage')->group(function (): void {
+    Route::post('disputes/{dispute}/messages', [AdminDisputeController::class, 'message'])->whereNumber('dispute')->middleware('throttle:30,1')->name('disputes.message');
+    Route::post('disputes/{dispute}/review', [AdminDisputeController::class, 'review'])->whereNumber('dispute')->name('disputes.review');
+    Route::post('disputes/{dispute}/escalate', [AdminDisputeController::class, 'escalate'])->whereNumber('dispute')->name('disputes.escalate');
+    Route::post('disputes/{dispute}/resolve', [AdminDisputeController::class, 'resolve'])->whereNumber('dispute')->name('disputes.resolve');
+    Route::post('disputes/{dispute}/close', [AdminDisputeController::class, 'close'])->whereNumber('dispute')->name('disputes.close');
+});
+
+Route::get('finance', fn () => redirect()->route('admin.finance.payouts'))->middleware('can:payouts.view')->name('finance');
+Route::get('finance/payouts', [PayoutController::class, 'index'])->middleware('can:payouts.view')->name('finance.payouts');
+Route::get('finance/payouts/{payout}', [PayoutController::class, 'show'])->whereNumber('payout')->middleware('can:payouts.view')->name('finance.payouts.show');
+Route::middleware('can:payouts.approve')->group(function (): void {
+    Route::post('finance/payouts/{payout}/approve', [PayoutController::class, 'approve'])->whereNumber('payout')->name('finance.payouts.approve');
+    Route::post('finance/payouts/{payout}/hold', [PayoutController::class, 'hold'])->whereNumber('payout')->name('finance.payouts.hold');
+    Route::post('finance/payouts/{payout}/release', [PayoutController::class, 'release'])->whereNumber('payout')->name('finance.payouts.release');
+    Route::post('finance/payouts/{payout}/recalculate', [PayoutController::class, 'recalculate'])->whereNumber('payout')->name('finance.payouts.recalculate');
+});
+Route::middleware('can:payouts.process')->group(function (): void {
+    Route::post('finance/payouts/generate', [PayoutController::class, 'generate'])->name('finance.payouts.generate');
+    Route::post('finance/payouts/{payout}/process', [PayoutController::class, 'process'])->whereNumber('payout')->name('finance.payouts.process');
+    Route::post('finance/payouts/{payout}/complete', [PayoutController::class, 'complete'])->whereNumber('payout')->name('finance.payouts.complete');
+    Route::post('finance/payouts/{payout}/fail', [PayoutController::class, 'fail'])->whereNumber('payout')->name('finance.payouts.fail');
+});
+Route::get('finance/cod-settlements', [CodSettlementController::class, 'index'])->middleware('can:cod_settlements.view')->name('finance.cod-settlements');
+Route::post('finance/cod-settlements/{settlement}/settle', [CodSettlementController::class, 'settle'])->whereNumber('settlement')->middleware('can:cod_settlements.settle')->name('finance.cod-settlements.settle');
+
+/*
+| Marketers & campaigns, Contracts, Documents (WP5, SRS §4.1.6, §13,
+| matrix §3.2 `marketers`, `marketer_campaigns`, `marketer_settings`,
+| `cross_promotion`, `contract_templates`, `documents`, `document_types`).
+*/
+Route::get('marketers', [MarketerAdminController::class, 'index'])->middleware('can:marketers.view')->name('marketers');
+Route::post('marketers/{marketer}/status', [MarketerAdminController::class, 'status'])->whereNumber('marketer')->middleware('can:marketers.manage')->name('marketers.status');
+Route::get('marketers/settings', [MarketerAdminController::class, 'settings'])->middleware('can:marketer_settings.configure')->name('marketers.settings');
+Route::middleware('can:marketer_settings.configure')->group(function (): void {
+    Route::post('marketers/settings/rules', [MarketerAdminController::class, 'saveRule'])->name('marketers.settings.rules');
+    Route::post('marketers/settings/fees', [MarketerAdminController::class, 'saveFee'])->name('marketers.settings.fees');
+    Route::post('marketers/settings/general', [MarketerAdminController::class, 'saveGeneral'])->name('marketers.settings.general');
+});
+Route::get('marketers/withdrawals', [MarketerAdminController::class, 'withdrawals'])->middleware('can:marketers.view')->name('marketers.withdrawals');
+Route::post('marketers/withdrawals/{withdrawal}', [MarketerAdminController::class, 'withdrawal'])->whereNumber('withdrawal')->middleware('can:marketer_withdrawals.process')->name('marketers.withdrawals.update');
+Route::get('marketers/cross-promotion', [MarketerAdminController::class, 'crossPromotion'])->middleware('can:cross_promotion.manage')->name('marketers.cross-promotion');
+Route::middleware('can:cross_promotion.manage')->group(function (): void {
+    Route::post('marketers/cross-promotion', [MarketerAdminController::class, 'storePolicy'])->name('marketers.cross-promotion.store');
+    Route::post('marketers/cross-promotion/{policy}/toggle', [MarketerAdminController::class, 'togglePolicy'])->whereNumber('policy')->name('marketers.cross-promotion.toggle');
+});
+
+Route::get('marketers/campaigns', [CampaignAdminController::class, 'index'])->middleware('can:marketer_campaigns.view')->name('marketers.campaigns');
+Route::get('marketers/campaigns/{campaign}', [CampaignAdminController::class, 'show'])->whereNumber('campaign')->middleware('can:marketer_campaigns.view')->name('marketers.campaigns.show');
+Route::middleware('can:marketer_campaigns.manage')->group(function (): void {
+    Route::post('marketers/campaigns', [CampaignAdminController::class, 'store'])->name('marketers.campaigns.store');
+    Route::post('marketers/campaigns/{campaign}/status', [CampaignAdminController::class, 'transition'])->whereNumber('campaign')->name('marketers.campaigns.transition');
+    Route::post('marketers/campaigns/{campaign}/invite', [CampaignAdminController::class, 'invite'])->whereNumber('campaign')->name('marketers.campaigns.invite');
+    Route::post('marketers/invitations/{invitation}/resend', [CampaignAdminController::class, 'resend'])->whereNumber('invitation')->name('marketers.invitations.resend');
+    Route::post('marketers/samples/{sample}', [CampaignAdminController::class, 'sample'])->whereNumber('sample')->name('marketers.samples.update');
+    Route::post('marketers/content/{submission}', [CampaignAdminController::class, 'content'])->whereNumber('submission')->name('marketers.content.review');
+});
+
+Route::get('contracts', [ContractTemplateController::class, 'index'])->middleware('can:contract_templates.view')->name('contracts');
+Route::get('contracts/{template}', [ContractTemplateController::class, 'show'])->whereNumber('template')->middleware('can:contract_templates.view')->name('contracts.show');
+Route::middleware('can:contract_templates.manage')->group(function (): void {
+    Route::post('contracts', [ContractTemplateController::class, 'store'])->name('contracts.store');
+    Route::post('contracts/{template}/draft', [ContractTemplateController::class, 'saveDraft'])->whereNumber('template')->name('contracts.draft');
+    Route::post('contracts/versions/{version}/publish', [ContractTemplateController::class, 'publish'])->whereNumber('version')->name('contracts.publish');
+    Route::post('contracts/{template}/assignments', [ContractTemplateController::class, 'assign'])->whereNumber('template')->name('contracts.assign');
+    Route::delete('contracts/assignments/{assignment}', [ContractTemplateController::class, 'unassign'])->whereNumber('assignment')->name('contracts.unassign');
+});
+
+Route::get('documents', [DocumentReviewController::class, 'index'])->middleware('can:documents.view')->name('documents');
+Route::get('documents/{document}/download', [DocumentReviewController::class, 'download'])->whereNumber('document')->middleware('can:documents.view')->name('documents.download');
+Route::post('documents/{document}/review', [DocumentReviewController::class, 'review'])->whereNumber('document')->middleware('can:documents.review')->name('documents.review');
+Route::get('documents/types', [DocumentReviewController::class, 'types'])->middleware('can:document_types.configure')->name('documents.types');
+Route::post('documents/types', [DocumentReviewController::class, 'storeType'])->middleware('can:document_types.configure')->name('documents.types.store');
+
+/*
+| Verticals & advertising review queues (WP6).
+*/
+Route::middleware('can:classifieds.review')->group(function (): void {
+    Route::get('classifieds', [ClassifiedReviewController::class, 'index'])->name('classifieds');
+    Route::post('classifieds/{ad}/approve', [ClassifiedReviewController::class, 'approve'])->whereNumber('ad')->name('classifieds.approve');
+    Route::post('classifieds/{ad}/reject', [ClassifiedReviewController::class, 'reject'])->whereNumber('ad')->name('classifieds.reject');
+    Route::get('classifieds/reports', [ClassifiedReviewController::class, 'reports'])->name('classifieds.reports');
+    Route::post('classifieds/reports/{report}', [ClassifiedReviewController::class, 'decide'])->whereNumber('report')->name('classifieds.reports.decide');
+});
+Route::middleware('can:travel_packages.review')->group(function (): void {
+    Route::get('travel', [TravelReviewController::class, 'index'])->name('travel');
+    Route::post('travel/{package}/approve', [TravelReviewController::class, 'approve'])->whereNumber('package')->name('travel.approve');
+    Route::post('travel/{package}/reject', [TravelReviewController::class, 'reject'])->whereNumber('package')->name('travel.reject');
+    Route::get('travel/{package}/contract', [TravelReviewController::class, 'contract'])->whereNumber('package')->name('travel.contract');
+});
+Route::middleware('can:ads.review')->group(function (): void {
+    Route::get('marketing', [AdsReviewController::class, 'index'])->name('marketing');
+    Route::post('marketing/campaigns/{campaign}', [AdsReviewController::class, 'decideCampaign'])->whereNumber('campaign')->name('marketing.campaigns.decide');
+    Route::post('marketing/bookings/{booking}', [AdsReviewController::class, 'decideBooking'])->whereNumber('booking')->name('marketing.bookings.decide');
+    Route::post('marketing/subscriptions/{subscription}', [AdsReviewController::class, 'decideSubscription'])->whereNumber('subscription')->name('marketing.subscriptions.decide');
+});
+Route::middleware('can:coupon_participation.manage')->group(function (): void {
+    Route::get('marketing/coupon-participation', [AdsReviewController::class, 'participation'])->name('marketing.coupon-participation');
+    Route::post('marketing/coupon-participation', [AdsReviewController::class, 'storeInvitation'])->name('marketing.coupon-participation.store');
+    Route::post('marketing/coupon-participation/requests/{participation}', [AdsReviewController::class, 'decideRequest'])->whereNumber('participation')->name('marketing.coupon-participation.decide');
+});
+
+/*
+| Delivery & logistics (WP7, SRS §4.1.11, ADR 15): dispatch queue and
+| assignments, failed shipments (reschedule / return to origin), agents,
+| shipping companies, carrier claims and scorecards.
+*/
+Route::middleware('can:delivery_assignments.view')->group(function (): void {
+    Route::get('delivery/assignments', [DeliveryDispatchController::class, 'index'])->name('delivery.assignments');
+    Route::get('delivery/assignments/{assignment}', [DeliveryDispatchController::class, 'show'])->whereNumber('assignment')->name('delivery.assignments.show');
+    Route::get('delivery/assignments/{assignment}/proof/{kind}', [DeliveryDispatchController::class, 'proof'])->whereNumber('assignment')->whereIn('kind', ['photo', 'signature'])->name('delivery.assignments.proof');
+    Route::get('delivery/scorecard', [DeliveryNetworkController::class, 'scorecard'])->name('delivery.scorecard');
+});
+Route::middleware('can:delivery_assignments.manage')->group(function (): void {
+    Route::post('delivery/sub-orders/{subOrder}/assign', [DeliveryDispatchController::class, 'assign'])->whereNumber('subOrder')->name('delivery.assign');
+    Route::post('delivery/sub-orders/{subOrder}/allocate', [DeliveryDispatchController::class, 'allocate'])->whereNumber('subOrder')->name('delivery.allocate');
+    Route::post('delivery/assignments/{assignment}/reassign', [DeliveryDispatchController::class, 'reassign'])->whereNumber('assignment')->name('delivery.assignments.reassign');
+    Route::post('delivery/shipments/{shipment}/reschedule', [DeliveryDispatchController::class, 'reschedule'])->whereNumber('shipment')->name('delivery.shipments.reschedule');
+    Route::post('delivery/shipments/{shipment}/return-to-origin', [DeliveryDispatchController::class, 'returnToOrigin'])->whereNumber('shipment')->name('delivery.shipments.rto');
+    Route::post('delivery/shipments/{shipment}/returned', [DeliveryDispatchController::class, 'confirmReturned'])->whereNumber('shipment')->name('delivery.shipments.returned');
+});
+Route::middleware('can:delivery_agents.manage')->group(function (): void {
+    Route::get('delivery/agents', [DeliveryNetworkController::class, 'agents'])->name('delivery.agents');
+    Route::post('delivery/agents', [DeliveryNetworkController::class, 'storeAgent'])->name('delivery.agents.store');
+    Route::post('delivery/agents/{agent}/status', [DeliveryNetworkController::class, 'agentStatus'])->whereNumber('agent')->name('delivery.agents.status');
+});
+Route::middleware('can:shipping_companies.manage')->group(function (): void {
+    Route::get('delivery/carriers', [DeliveryNetworkController::class, 'carriers'])->name('delivery.carriers');
+    Route::post('delivery/carriers', [DeliveryNetworkController::class, 'storeCarrier'])->name('delivery.carriers.store');
+    Route::put('delivery/carriers/{carrier}', [DeliveryNetworkController::class, 'updateCarrier'])->whereNumber('carrier')->name('delivery.carriers.update');
+});
+Route::get('delivery/claims', [CarrierClaimController::class, 'index'])->middleware('can:carrier_claims.view')->name('delivery.claims');
+Route::middleware('can:carrier_claims.manage')->group(function (): void {
+    Route::post('delivery/claims', [CarrierClaimController::class, 'store'])->name('delivery.claims.store');
+    Route::post('delivery/claims/{claim}/{action}', [CarrierClaimController::class, 'act'])->whereNumber('claim')->whereIn('action', ['review', 'approve', 'reject', 'compensate'])->name('delivery.claims.act');
+});
+
+/*
+| Content (WP7, SRS §14–15, ADR 11, ADR 16): page builder, app contexts,
+| live & videos (admin-only media), blog, help centre / knowledge hub,
+| static pages, footer and notification templates.
+*/
+Route::middleware('can:pages.view')->group(function (): void {
+    Route::get('pages', [PageBuilderController::class, 'index'])->name('pages');
+    Route::get('pages/{page}', [PageBuilderController::class, 'show'])->whereNumber('page')->name('pages.show');
+});
+Route::middleware('can:pages.manage')->group(function (): void {
+    Route::post('pages', [PageBuilderController::class, 'store'])->name('pages.store');
+    Route::post('pages/{page}/save', [PageBuilderController::class, 'save'])->whereNumber('page')->name('pages.save');
+    Route::post('pages/{page}/{action}', [PageBuilderController::class, 'act'])->whereNumber('page')
+        ->whereIn('action', ['publish', 'schedule', 'draft', 'archive', 'restore', 'copy', 'layout'])->name('pages.act');
+});
+Route::middleware('can:app_contexts.manage')->group(function (): void {
+    Route::get('app-contexts', [AppContextController::class, 'index'])->name('app-contexts');
+    Route::put('app-contexts/{context}', [AppContextController::class, 'update'])->whereNumber('context')->name('app-contexts.update');
+});
+Route::middleware('can:live_media.view')->group(function (): void {
+    Route::get('media', [LiveMediaController::class, 'index'])->name('media');
+    Route::get('media/{stream}', [LiveMediaController::class, 'show'])->whereNumber('stream')->name('media.show');
+});
+Route::middleware('can:live_media.manage')->group(function (): void {
+    Route::post('media', [LiveMediaController::class, 'store'])->name('media.store');
+    Route::put('media/{stream}', [LiveMediaController::class, 'update'])->whereNumber('stream')->name('media.update');
+    Route::post('media/{stream}/live', [LiveMediaController::class, 'goLive'])->whereNumber('stream')->name('media.live');
+    Route::post('media/{stream}/end', [LiveMediaController::class, 'end'])->whereNumber('stream')->name('media.end');
+    Route::post('media/{stream}/products', [LiveMediaController::class, 'products'])->whereNumber('stream')->name('media.products');
+});
+Route::middleware('can:blog.manage')->group(function (): void {
+    Route::get('cms', [CmsController::class, 'blog'])->name('cms');
+    Route::post('cms/blog/categories', [CmsController::class, 'storeCategory'])->name('cms.blog.categories.store');
+    Route::post('cms/blog/posts', [CmsController::class, 'storePost'])->name('cms.blog.posts.store');
+    Route::put('cms/blog/posts/{post}', [CmsController::class, 'updatePost'])->whereNumber('post')->name('cms.blog.posts.update');
+    Route::post('cms/blog/posts/{post}/{action}', [CmsController::class, 'postAction'])->whereNumber('post')->whereIn('action', ['publish', 'schedule', 'draft', 'archive'])->name('cms.blog.posts.act');
+});
+Route::middleware('can:help_center.manage')->group(function (): void {
+    Route::get('cms/help', [CmsController::class, 'help'])->name('cms.help');
+    Route::post('cms/help/collections', [CmsController::class, 'storeCollection'])->name('cms.help.collections.store');
+    Route::post('cms/help/articles', [CmsController::class, 'storeArticle'])->name('cms.help.articles.store');
+    Route::put('cms/help/articles/{article}', [CmsController::class, 'updateArticle'])->whereNumber('article')->name('cms.help.articles.update');
+});
+Route::middleware('can:static_pages.manage')->group(function (): void {
+    Route::get('cms/static-pages', [CmsController::class, 'staticPages'])->name('cms.static');
+    Route::post('cms/static-pages', [CmsController::class, 'saveStaticPage'])->name('cms.static.save');
+});
+Route::middleware('can:footer.manage')->group(function (): void {
+    Route::get('cms/footer', [CmsController::class, 'footer'])->name('cms.footer');
+    Route::post('cms/footer', [CmsController::class, 'saveFooter'])->name('cms.footer.save');
+});
+Route::middleware('can:notification_templates.manage')->group(function (): void {
+    Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('notification-templates');
+    Route::post('notification-templates', [NotificationTemplateController::class, 'store'])->name('notification-templates.store');
+});
+
+/*
+| Portal backend (WP8): partner applications review, join options per
+| country, advertise requests.
+*/
+Route::middleware('can:applications.view')->group(function (): void {
+    Route::get('applications', [ApplicationReviewController::class, 'index'])->name('applications');
+    Route::get('applications/{application}', [ApplicationReviewController::class, 'show'])->whereNumber('application')->name('applications.show');
+    Route::get('applications/{application}/documents/{document}', [ApplicationReviewController::class, 'download'])->whereNumber(['application', 'document'])->name('applications.documents.download');
+});
+Route::middleware('can:applications.approve')->group(function (): void {
+    Route::post('applications/{application}/assign', [ApplicationReviewController::class, 'assign'])->whereNumber('application')->name('applications.assign');
+    Route::post('applications/{application}/decide', [ApplicationReviewController::class, 'decide'])->whereNumber('application')->name('applications.decide');
+    Route::post('applications/{application}/documents/{document}', [ApplicationReviewController::class, 'reviewDocument'])->whereNumber(['application', 'document'])->name('applications.documents.review');
+});
+Route::get('join-options', [PortalAdminController::class, 'joinOptions'])->middleware('can:join_options.configure')->name('join-options');
+Route::put('join-options', [PortalAdminController::class, 'saveJoinOptions'])->middleware('can:join_options.configure')->name('join-options.save');
+Route::get('advertise-requests', [PortalAdminController::class, 'inquiries'])->middleware('can:advertise_inquiries.view')->name('advertise-requests');
+Route::post('advertise-requests/{inquiry}', [PortalAdminController::class, 'moveInquiry'])->whereNumber('inquiry')->middleware('can:advertise_inquiries.manage')->name('advertise-requests.move');
+
+/*
+| Reviews & Q&A moderation (G-W3, SRS §7.8): reviews need
+| `reviews.moderate`, questions and answers `product_qa.moderate`.
+*/
+Route::get('reviews', [ReviewModerationController::class, 'index'])->middleware('can:reviews.view')->name('reviews');
+Route::post('reviews/reviews/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'reviews')->middleware('can:reviews.moderate')->name('reviews.reviews.decide');
+Route::middleware('can:product_qa.moderate')->group(function (): void {
+    Route::post('reviews/questions/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'questions')->name('reviews.questions.decide');
+    Route::post('reviews/answers/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'answers')->name('reviews.answers.decide');
+    Route::post('reviews/questions/{question}/answer', [ReviewModerationController::class, 'answer'])->whereNumber('question')->name('reviews.questions.answer');
+});
+
+/*
+| QA wave 2 — admin back office (QA-011, QC-002–QC-004, QC-014, QC-019,
+| QC-029, QC-030, QC-044). Catalog: categories (tree, attributes, copy to
+| other countries), brands, products and variants.
+*/
+Route::get('catalog', fn () => redirect()->route('admin.catalog.categories'))->middleware('can:categories.view')->name('catalog');
+Route::middleware('can:categories.view')->group(function (): void {
+    Route::get('catalog/categories', [CategoryAdminController::class, 'index'])->name('catalog.categories');
+    Route::get('catalog/categories/{category}', [CategoryAdminController::class, 'show'])->whereNumber('category')->name('catalog.categories.show');
+});
+Route::middleware('can:categories.manage')->group(function (): void {
+    Route::get('catalog/categories/create', [CategoryAdminController::class, 'create'])->name('catalog.categories.create');
+    Route::post('catalog/categories', [CategoryAdminController::class, 'store'])->name('catalog.categories.store');
+    Route::get('catalog/categories/{category}/edit', [CategoryAdminController::class, 'edit'])->whereNumber('category')->name('catalog.categories.edit');
+    Route::put('catalog/categories/{category}', [CategoryAdminController::class, 'update'])->whereNumber('category')->name('catalog.categories.update');
+    Route::post('catalog/categories/{category}/attributes', [CategoryAdminController::class, 'storeAttribute'])->whereNumber('category')->name('catalog.categories.attributes.store');
+    Route::delete('catalog/attributes/{attribute}', [CategoryAdminController::class, 'destroyAttribute'])->whereNumber('attribute')->name('catalog.attributes.destroy');
+    Route::post('catalog/categories/copy', [CategoryAdminController::class, 'copy'])->name('catalog.categories.copy');
+});
+Route::get('catalog/brands', [BrandAdminController::class, 'index'])->middleware('can:brands.view')->name('catalog.brands');
+Route::middleware('can:brands.manage')->group(function (): void {
+    Route::post('catalog/brands', [BrandAdminController::class, 'store'])->name('catalog.brands.store');
+    Route::get('catalog/brands/{brand}/edit', [BrandAdminController::class, 'edit'])->whereNumber('brand')->name('catalog.brands.edit');
+    Route::put('catalog/brands/{brand}', [BrandAdminController::class, 'update'])->whereNumber('brand')->name('catalog.brands.update');
+});
+Route::middleware('can:products.view')->group(function (): void {
+    Route::get('catalog/products', [ProductAdminController::class, 'index'])->name('catalog.products');
+    Route::get('catalog/products/{product}', [ProductAdminController::class, 'show'])->whereNumber('product')->name('catalog.products.show');
+});
+Route::middleware('can:products.update')->group(function (): void {
+    Route::get('catalog/products/{product}/edit', [ProductAdminController::class, 'edit'])->whereNumber('product')->name('catalog.products.edit');
+    Route::put('catalog/products/{product}', [ProductAdminController::class, 'update'])->whereNumber('product')->name('catalog.products.update');
+    Route::put('catalog/variants/{variant}', [ProductAdminController::class, 'updateVariant'])->whereNumber('variant')->name('catalog.variants.update');
+});
+
+/*
+| Coupons (QC-014), gift cards and vouchers, Nawy One plans and subscriptions.
+*/
+Route::middleware('can:coupons.view')->group(function (): void {
+    Route::get('coupons', [CouponAdminController::class, 'index'])->name('coupons');
+    Route::get('coupons/{coupon}', [CouponAdminController::class, 'show'])->whereNumber('coupon')->name('coupons.show');
+});
+Route::middleware('can:coupons.manage')->group(function (): void {
+    Route::get('coupons/create', [CouponAdminController::class, 'create'])->name('coupons.create');
+    Route::post('coupons', [CouponAdminController::class, 'store'])->name('coupons.store');
+    Route::get('coupons/{coupon}/edit', [CouponAdminController::class, 'edit'])->whereNumber('coupon')->name('coupons.edit');
+    Route::put('coupons/{coupon}', [CouponAdminController::class, 'update'])->whereNumber('coupon')->name('coupons.update');
+});
+Route::middleware('can:gift_cards.view')->group(function (): void {
+    Route::get('gift-cards', [GiftCardAdminController::class, 'index'])->name('gift-cards');
+    Route::get('gift-cards/{card}', [GiftCardAdminController::class, 'show'])->whereNumber('card')->name('gift-cards.show');
+    Route::get('gift-cards/vouchers', [GiftCardAdminController::class, 'vouchers'])->name('gift-cards.vouchers');
+    Route::get('gift-cards/vouchers/{voucher}', [GiftCardAdminController::class, 'voucher'])->whereNumber('voucher')->name('gift-cards.vouchers.show');
+});
+Route::middleware('can:gift_cards.manage')->group(function (): void {
+    Route::post('gift-cards', [GiftCardAdminController::class, 'issue'])->name('gift-cards.issue');
+    Route::post('gift-cards/{card}/void', [GiftCardAdminController::class, 'void'])->whereNumber('card')->name('gift-cards.void');
+    Route::post('gift-cards/vouchers', [GiftCardAdminController::class, 'storeVoucher'])->name('gift-cards.vouchers.store');
+    Route::post('gift-cards/vouchers/{voucher}/void', [GiftCardAdminController::class, 'voidVoucher'])->whereNumber('voucher')->name('gift-cards.vouchers.void');
+});
+Route::middleware('can:membership.view')->group(function (): void {
+    Route::get('membership', [MembershipAdminController::class, 'plans'])->name('membership');
+    Route::get('membership/subscriptions', [MembershipAdminController::class, 'subscriptions'])->name('membership.subscriptions');
+    Route::get('membership/subscriptions/{membership}', [MembershipAdminController::class, 'subscription'])->whereNumber('membership')->name('membership.subscriptions.show');
+});
+Route::middleware('can:membership.manage')->group(function (): void {
+    Route::post('membership/plans', [MembershipAdminController::class, 'store'])->name('membership.plans.store');
+    Route::get('membership/plans/{plan}/edit', [MembershipAdminController::class, 'edit'])->whereNumber('plan')->name('membership.plans.edit');
+    Route::put('membership/plans/{plan}', [MembershipAdminController::class, 'update'])->whereNumber('plan')->name('membership.plans.update');
+});
+
+/*
+| Refunds approval queue (QC-029) and payments held under review (QA-009
+| follow-up): resolved through the refund and payment state machines.
+*/
+Route::middleware('can:orders.refund')->group(function (): void {
+    Route::get('refunds', [RefundAdminController::class, 'index'])->name('refunds');
+    Route::get('refunds/{refund}', [RefundAdminController::class, 'show'])->whereNumber('refund')->name('refunds.show');
+    Route::post('refunds/{refund}/approve', [RefundAdminController::class, 'approve'])->whereNumber('refund')->name('refunds.approve');
+    Route::post('refunds/{refund}/reject', [RefundAdminController::class, 'reject'])->whereNumber('refund')->name('refunds.reject');
+    Route::post('refunds/{refund}/retry', [RefundAdminController::class, 'retry'])->whereNumber('refund')->name('refunds.retry');
+    Route::post('orders/{order}/refunds', [RefundAdminController::class, 'store'])->whereNumber('order')->name('refunds.store');
+});
+Route::middleware('can:payments.review')->group(function (): void {
+    Route::get('finance/payments-review', [PaymentReviewController::class, 'index'])->name('finance.payments-review');
+    Route::get('finance/payments-review/{payment}', [PaymentReviewController::class, 'show'])->whereNumber('payment')->name('finance.payments-review.show');
+    Route::post('finance/payments-review/{payment}', [PaymentReviewController::class, 'resolve'])->whereNumber('payment')->name('finance.payments-review.resolve');
+});
+
+/*
+| Warranty claims (QC-002): admin handles extended-plan claims and can step
+| into standard ones; linked to disputes on the same shipment.
+*/
+Route::middleware('can:warranty_claims.view')->group(function (): void {
+    Route::get('warranty-claims', [WarrantyClaimAdminController::class, 'index'])->name('warranty-claims');
+    Route::get('warranty-claims/{claim}', [WarrantyClaimAdminController::class, 'show'])->whereNumber('claim')->name('warranty-claims.show');
+});
+Route::middleware('can:warranty_claims.manage')->group(function (): void {
+    Route::post('warranty-claims/{claim}/messages', [WarrantyClaimAdminController::class, 'message'])->whereNumber('claim')->middleware('throttle:30,1')->name('warranty-claims.message');
+    Route::post('warranty-claims/{claim}/{action}', [WarrantyClaimAdminController::class, 'act'])->whereNumber('claim')
+        ->whereIn('action', ['review', 'approve', 'reject', 'fulfil', 'resolve', 'close'])->name('warranty-claims.act');
+});
+
+/*
+| Users & vendors: vendors with account-manager assignment (QC-019); staff,
+| invitations and roles (QC-004).
+*/
+Route::middleware('can:vendors.view')->group(function (): void {
+    Route::get('users', fn () => redirect()->route('admin.vendors'))->name('users');
+    Route::get('vendors', [VendorAdminController::class, 'index'])->name('vendors');
+    Route::get('vendors/{vendor}', [VendorAdminController::class, 'show'])->whereNumber('vendor')->name('vendors.show');
+});
+Route::post('vendors/{vendor}/status', [VendorAdminController::class, 'status'])->whereNumber('vendor')->middleware('can:vendors.update')->name('vendors.status');
+Route::post('vendors/{vendor}/account-manager', [VendorAdminController::class, 'accountManager'])->whereNumber('vendor')->middleware('can:vendors.assign_account_manager')->name('vendors.account-manager');
+Route::middleware('can:admins.view')->group(function (): void {
+    Route::get('staff', [StaffController::class, 'index'])->name('staff');
+    Route::get('staff/{user}', [StaffController::class, 'show'])->whereNumber('user')->name('staff.show');
+});
+Route::middleware('can:admins.manage')->group(function (): void {
+    Route::post('staff/invitations', [StaffController::class, 'invite'])->name('staff.invite');
+    Route::delete('staff/invitations/{invitation}', [StaffController::class, 'revokeInvitation'])->whereNumber('invitation')->name('staff.invitations.revoke');
+    Route::put('staff/{user}/roles', [StaffController::class, 'roles'])->whereNumber('user')->name('staff.roles');
+    Route::post('staff/{user}/status', [StaffController::class, 'status'])->whereNumber('user')->name('staff.status');
+});
+Route::get('roles', [RoleAdminController::class, 'index'])->middleware('can:roles.view')->name('roles');
+Route::middleware('can:roles.manage')->group(function (): void {
+    Route::post('roles', [RoleAdminController::class, 'store'])->name('roles.store');
+    Route::put('roles/{role}', [RoleAdminController::class, 'update'])->whereNumber('role')->name('roles.update');
+});
+
+/*
+| Activity log (QC-044) and system health (Figma 99:3364).
+*/
+Route::get('activity', [ActivityLogController::class, 'index'])->middleware('can:activity_log.view')->name('activity');
+Route::get('health', [SystemHealthController::class, 'index'])->middleware('can:system_health.view')->name('health');
+Route::middleware('can:system_health.manage')->group(function (): void {
+    Route::post('health/failed-jobs/{uuid}/retry', [SystemHealthController::class, 'retry'])->whereUuid('uuid')->name('health.retry');
+    Route::delete('health/failed-jobs/{uuid}', [SystemHealthController::class, 'forget'])->whereUuid('uuid')->name('health.forget');
+});
+
+/*
+| Delivery agents created by admin go through the team invitation (wave 1).
+*/
+Route::middleware('can:delivery_agents.manage')->group(function (): void {
+    Route::post('delivery/agents/invitations/{invitation}/revoke', [DeliveryNetworkController::class, 'revokeInvitation'])->whereNumber('invitation')->name('delivery.agents.invitations.revoke');
+});

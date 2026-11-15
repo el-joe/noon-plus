@@ -2,6 +2,7 @@
 
 namespace App\Domains\Catalog\Models;
 
+use App\Shared\Audit\LogsCountryActivity;
 use App\Shared\Database\UsesCountryDatabase;
 use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,11 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[UseFactory(CategoryFactory::class)]
-#[Fillable(['parent_id', 'slug', 'name_en', 'name_ar', 'image_path', 'commission_rate', 'is_active', 'sort_order'])]
+#[Fillable(['parent_id', 'slug', 'name_en', 'name_ar', 'description_en', 'description_ar', 'image_path', 'size_guide_template_id', 'commission_rate', 'return_window_days', 'requires_contract', 'requires_certification', 'is_active', 'sort_order'])]
 class Category extends Model
 {
     /** @use HasFactory<CategoryFactory> */
-    use HasFactory, UsesCountryDatabase;
+    use HasFactory, LogsCountryActivity, UsesCountryDatabase;
 
     /**
      * Get the attributes that should be cast.
@@ -28,6 +29,8 @@ class Category extends Model
         return [
             'is_active' => 'boolean',
             'commission_rate' => 'decimal:2',
+            'requires_contract' => 'boolean',
+            'requires_certification' => 'boolean',
         ];
     }
 
@@ -48,11 +51,47 @@ class Category extends Model
     }
 
     /**
+     * Attributes sellers fill in and shoppers filter by (wave 2).
+     *
+     * @return HasMany<CategoryAttribute, $this>
+     */
+    public function attributeDefinitions(): HasMany
+    {
+        return $this->hasMany(CategoryAttribute::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * @return BelongsTo<SizeGuideTemplate, $this>
+     */
+    public function sizeGuide(): BelongsTo
+    {
+        return $this->belongsTo(SizeGuideTemplate::class, 'size_guide_template_id');
+    }
+
+    /**
      * @return HasMany<Product, $this>
      */
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    /**
+     * This category followed by its parents, nearest first.
+     *
+     * @return array<int, Category>
+     */
+    public function lineage(): array
+    {
+        $lineage = [];
+        $category = $this;
+
+        while ($category !== null && count($lineage) < 10) {
+            $lineage[] = $category;
+            $category = $category->parent;
+        }
+
+        return $lineage;
     }
 
     public function name(): string

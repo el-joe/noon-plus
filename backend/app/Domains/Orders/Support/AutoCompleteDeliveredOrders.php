@@ -3,16 +3,20 @@
 namespace App\Domains\Orders\Support;
 
 use App\Domains\Countries\Models\Country;
+use App\Domains\Disputes\Enums\DisputeStatus;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Returns\Enums\ReturnStatus;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
  * AutoCompleteOrdersJob (SRS §7.1, §17): a delivered sub-order becomes
  * completed once its return window has passed — `delivered_at` plus the
  * longest window among its items (snapshotted per item at placement, else
- * the country default). Completion unlocks payouts and conversion approval.
+ * the country default). Sub-orders with an open return or dispute wait
+ * until it is decided. Completion settles the vendor money (payouts) and
+ * unlocks conversion approval.
  */
 class AutoCompleteDeliveredOrders
 {
@@ -34,6 +38,8 @@ class AutoCompleteDeliveredOrders
             ->where('status', SubOrderStatus::Delivered)
             ->whereNotNull('delivered_at')
             ->where('delivered_at', '<=', $now)
+            ->whereNotExists(fn ($query) => $query->from('return_requests')->whereColumn('return_requests.sub_order_id', 'sub_orders.id')->whereIn('return_requests.status', ReturnStatus::openValues()))
+            ->whereNotExists(fn ($query) => $query->from('disputes')->whereColumn('disputes.sub_order_id', 'sub_orders.id')->whereIn('disputes.status', DisputeStatus::openValues()))
             ->with('items:id,sub_order_id,return_window_days')
             ->chunkById(200, function (Collection $subOrders) use ($default, $now, &$completed): void {
                 foreach ($subOrders as $subOrder) {

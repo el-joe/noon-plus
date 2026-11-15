@@ -12,19 +12,14 @@ beforeEach(function () {
     $this->withoutVite();
 });
 
-function panelUrl(string $host, string $path = ''): string
-{
-    return "http://{$host}.".config('nawy.base_domain').'/'.ltrim($path, '/');
-}
-
 it('signs each business role into its own panel', function (string $host, MembershipRole $role, string $panelName) {
     $user = User::factory()->create(['email' => 'member@example.com', 'password' => 'a-long-password']);
     $user->memberships()->create(['role' => $role]);
 
-    $this->post(panelUrl($host, 'login'), ['email' => 'member@example.com', 'password' => 'a-long-password'])
-        ->assertRedirect(rtrim(panelUrl($host), '/'));
+    $this->post(onPanel($host, 'login'), ['email' => 'member@example.com', 'password' => 'a-long-password'])
+        ->assertRedirect(rtrim(onPanel($host), '/'));
 
-    $this->get(panelUrl($host))->assertOk()->assertSee($panelName)->assertSee($role->value);
+    $this->get(onPanel($host))->assertOk()->assertSee($panelName)->assertSee($role->value);
 })->with([
     'product vendor' => ['partner', MembershipRole::ProductVendor, 'Seller Center'],
     'classified seller' => ['partner', MembershipRole::ClassifiedSeller, 'Seller Center'],
@@ -39,17 +34,17 @@ it('forbids a member of one panel from opening another panel', function () {
     $vendor = User::factory()->create();
     $vendor->memberships()->create(['role' => MembershipRole::ProductVendor]);
 
-    $this->actingAs($vendor)->get(panelUrl('marketer'))->assertForbidden();
-    $this->actingAs($vendor)->get(panelUrl('admin'))->assertForbidden();
+    $this->actingAs($vendor)->get(onPanel('marketer'))->assertForbidden();
+    $this->actingAs($vendor)->get(onPanel('admin'))->assertForbidden();
 });
 
 it('sends a guest to the sign-in page of the panel they tried to open', function () {
-    $this->get(panelUrl('travel-agency'))->assertRedirect(panelUrl('travel-agency', 'login'));
+    $this->get(onPanel('travel-agency'))->assertRedirect(onPanel('travel-agency', 'login'));
 });
 
 it('ignores suspended memberships', function () {
     $vendor = User::factory()->create();
     $vendor->memberships()->create(['role' => MembershipRole::ProductVendor, 'status' => 'suspended']);
 
-    $this->actingAs($vendor)->get(panelUrl('partner'))->assertForbidden();
+    $this->actingAs($vendor)->get(onPanel('partner'))->assertForbidden();
 });

@@ -63,13 +63,16 @@ return new class extends Migration
 
         Schema::create('flash_sale_submission_status_history', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('flash_sale_submission_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('flash_sale_submission_id');
             $table->string('from_status', 24)->nullable();
             $table->string('to_status', 24);
             $table->string('actor_type', 16);
             $table->unsignedBigInteger('actor_user_id')->nullable();
             $table->string('reason')->nullable();
             $table->timestamp('created_at')->useCurrent();
+
+            $table->foreign('flash_sale_submission_id', 'fs_submission_history_submission_fk')
+                ->references('id')->on('flash_sale_submissions')->cascadeOnDelete();
         });
     }
 

@@ -53,7 +53,7 @@ class TwoFactorChallengeController extends Controller
         ])['code'];
 
         try {
-            $consumeCode->handle($user->email, $code);
+            $consumeCode->handle($user->email, $code, 'panel_2fa');
         } catch (EmailLoginCodeRejected $rejected) {
             $recordLoginEvent->handle(
                 $request,

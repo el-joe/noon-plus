@@ -2,12 +2,15 @@
 
 namespace App\Domains\Orders\Support;
 
+use App\Domains\Campaigns\Support\Attribution;
 use App\Domains\Cart\Exceptions\CartRejected;
 use App\Domains\Cart\Models\Cart;
 use App\Domains\Cart\Support\CheckoutCalculator;
 use App\Domains\Cart\Support\StockAvailability;
+use App\Domains\Catalog\Support\Measurements;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Coupons\Models\CouponRedemption;
+use App\Domains\Finance\Support\CommissionRates;
 use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
 use App\Domains\FlashSales\Models\FlashSaleSubmission;
 use App\Domains\FlashSales\Support\FlashSalePricing;
@@ -18,6 +21,9 @@ use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\OrderStatus;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\Order;
+use App\Domains\Payments\Enums\PaymentMethod;
+use App\Domains\Payments\Support\PaymentMethodCatalog;
+use App\Domains\Settings\SettingsService;
 use App\Domains\Shipping\Support\ShippingDestination;
 use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Domains\Warranty\Models\WarrantyPurchase;
@@ -32,7 +38,11 @@ use Illuminate\Support\Facades\DB;
  * Running flash deals are locked too, so their caps and per-customer
  * maximums hold under concurrency. Shipping is quoted to the order address;
  * the method, ETA, subsidy split, warranty plans and return window are
- * snapshotted, and warranty purchases are created.
+ * snapshotted with the category commission rate, and warranty purchases
+ * are created. The payment method must
+ * be offered for the order total ({@see PaymentMethodCatalog}); an unpaid
+ * card/BNPL order is held until `payment_due_at`. Marketer conversions are
+ * recorded for referred items (direct code, else the attribution model).
  */
 class PlaceOrder
 {
@@ -45,16 +55,19 @@ class PlaceOrder
         private FlashSalePricing $flashPricing,
         private FlashSaleSubmissionMachine $flashSubmissions,
         private ReturnWindow $returnWindow,
+        private PaymentMethodCatalog $paymentMethods,
+        private SettingsService $settings,
+        private CommissionRates $commissionRates,
     ) {}
 
     /**
      * @param  array<string, mixed>  $shippingAddress
      */
-    public function handle(Cart $cart, int $customerUserId, string $paymentMethod, array $shippingAddress): Order
+    public function handle(Cart $cart, int $customerUserId, string $paymentMethodCode, array $shippingAddress, ?string $visitorToken = null, ?string $referralCode = null): Order
     {
         $country = $this->countryContext->current();
 
-        return DB::connection($cart->getConnectionName())->transaction(function () use ($cart, $customerUserId, $paymentMethod, $shippingAddress, $country): Order {
+        return DB::connection($cart->getConnectionName())->transaction(function () use ($cart, $customerUserId, $paymentMethodCode, $shippingAddress, $country, $visitorToken, $referralCode): Order {
             $items = $cart->items()->orderBy('listing_id')->get();
 
             if ($items->isEmpty()) {
@@ -69,24 +82,33 @@ class PlaceOrder
                 if ($listing === null || ! $listing->status->isSellable() || $this->stockAvailability->availableFor($listing, $cart->id) < $item->quantity) {
                     throw new CartRejected('insufficient_stock', __('Some items are no longer available in the quantity you chose.'), 409);
                 }
+
+                if (empty($item->measurements) && app(Measurements::class)->requiredFor($listing->variant->product)) {
+                    throw new CartRejected('measurements_required', __('Add your measurements for :title (made to order).', ['title' => $listing->variant->product->title()]), 409);
+                }
             }
 
             $deals = $this->flashPricing->activeDeals($listings->keys()->all(), lockForUpdate: true);
-            $quote = $this->calculator->quote($cart, $paymentMethod, ShippingDestination::fromAddress($shippingAddress));
+            $quote = $this->calculator->quote($cart, $paymentMethodCode === PaymentMethod::Cod->value ? 'cod' : null, ShippingDestination::fromAddress($shippingAddress));
+            $paymentMethod = $this->paymentMethods->find($country, $paymentMethodCode, $quote->grandTotal, $customerUserId)['method']
+                ?? throw new CartRejected('payment_method_unavailable', __('This payment method is not available for this order.'), 422);
 
             if ($quote->exceedsFlashLimits()) {
                 throw new CartRejected('flash_sale_limit', __('A deal in your cart is over its limit. Lower the quantity to keep the deal price.'), 409);
             }
 
             $amount = fn (Money $money): string => $this->money->toStorage($money);
-            $returnWindows = $this->returnWindow->daysForCategories($country, array_merge(...array_map(fn (array $group): array => array_column($group['lines'], 'category_id'), $quote->groups)));
+            $categoryIds = array_merge(...array_map(fn (array $group): array => array_column($group['lines'], 'category_id'), $quote->groups));
+            $returnWindows = $this->returnWindow->daysForCategories($country, $categoryIds);
+            $commissionRates = $this->commissionRates->forCategories($categoryIds);
 
             $order = Order::query()->create([
                 'number' => 'PENDING-'.uniqid(),
                 'customer_user_id' => $customerUserId,
                 'status' => OrderStatus::Placed,
-                'payment_method' => $paymentMethod,
+                'payment_method' => $paymentMethod->value,
                 'payment_status' => 'pending',
+                'payment_due_at' => $paymentMethod === PaymentMethod::Cod ? null : now()->addMinutes($this->pendingExpiryMinutes()),
                 'currency' => $country->currency,
                 'subtotal' => $amount($quote->subtotal),
                 'discount_total' => $amount($quote->discountTotal),
@@ -140,6 +162,9 @@ class PlaceOrder
                         'warranty_unit_price' => $amount($line['warranty_unit_price']),
                         'warranty_total' => $amount($line['warranty_total']),
                         'return_window_days' => $returnWindows[$line['category_id']],
+                        'commission_rate' => $commissionRates[$line['category_id']],
+                        'measurements' => $line['measurements'] ?? null,
+                        'measurement_note' => $line['measurement_note'] ?? null,
                     ]);
                     $this->inventoryLedger->move($listings->get($line['listing_id']), -$line['quantity'], 'sale', 'order_item', $orderItem->id, $customerUserId);
 
@@ -171,12 +196,16 @@ class PlaceOrder
                     'order_id' => $order->id,
                     'customer_user_id' => $customerUserId,
                     'discount_amount' => $amount($coupon['discount']),
+                    'funded_by' => $coupon['funded_by'] ?? null,
+                    'vendor_shares' => array_map(fn ($share): string => $amount($share), $coupon['shares'] ?? []),
                 ]);
             }
 
             $cart->items()->delete();
             $cart->locks()->delete();
             $cart->coupons()->detach();
+
+            app(Attribution::class)->attributeOrder($order, $visitorToken, $referralCode);
 
             return $order->load('subOrders.items');
         });
@@ -193,5 +222,13 @@ class PlaceOrder
         if ($deal->remainingQuantity() === 0 && $deal->status === FlashSaleSubmissionStatus::Live) {
             $this->flashSubmissions->transition($deal, FlashSaleSubmissionStatus::SoldOut, ActorType::System);
         }
+    }
+
+    /**
+     * Hold window of an unpaid card/BNPL order (setting `payment.pending_expiry_minutes`).
+     */
+    private function pendingExpiryMinutes(): int
+    {
+        return (int) $this->settings->get('payment.pending_expiry_minutes', config('nawy.payments.pending_expiry_minutes'));
     }
 }

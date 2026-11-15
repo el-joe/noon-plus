@@ -5,6 +5,7 @@ namespace Tests;
 use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\CountryContext;
 use Database\Seeders\CountrySeeder;
+use Database\Seeders\PaymentGatewaySeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
 
@@ -41,11 +42,12 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Seed the 8 countries in the central database.
+     * Seed the 8 countries and their default payment gateways (MASTER_PLAN §4a)
+     * in the central database.
      */
     protected function setUpCountries(): void
     {
-        $this->seed(CountrySeeder::class);
+        $this->seed([CountrySeeder::class, PaymentGatewaySeeder::class]);
     }
 
     /**

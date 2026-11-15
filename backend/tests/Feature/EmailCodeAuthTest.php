@@ -111,3 +111,23 @@ it('throttles a 4th code request for the same email within a minute with 429', f
 
     $this->postJson('/api/v1/uae-en/auth/email-code/send', ['email' => 'sara@example.com'])->assertTooManyRequests();
 });
+
+it('QA-021: an email-change code is not a sign-in code, and a sign-in code does not replace it', function () {
+    [$customer, $token] = customerWithToken();
+    $this->withToken($token)->postJson('/api/v1/uae-en/me/email', ['email' => 'new@example.com'])->assertStatus(202);
+    $changeCode = null;
+    Notification::assertSentOnDemand(EmailLoginCodeNotification::class, function (EmailLoginCodeNotification $notification) use (&$changeCode): bool {
+        $changeCode = $notification->code;
+
+        return $notification->purpose === 'email_change';
+    });
+    app('auth')->forgetGuards();
+    $this->withoutToken();
+
+    $this->postJson('/api/v1/uae-en/auth/email-code/verify', ['email' => 'new@example.com', 'code' => $changeCode, 'device_name' => 'x'])->assertUnprocessable();
+    expect(User::query()->where('email', 'new@example.com')->exists())->toBeFalse();
+
+    $this->postJson('/api/v1/uae-en/auth/email-code/send', ['email' => 'new@example.com'])->assertStatus(202);
+    $this->withToken($token)->postJson('/api/v1/uae-en/me/email/verify', ['email' => 'new@example.com', 'code' => $changeCode])->assertOk();
+    expect($customer->refresh()->email)->toBe('new@example.com');
+});

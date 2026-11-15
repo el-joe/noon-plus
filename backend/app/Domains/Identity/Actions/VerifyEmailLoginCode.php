@@ -4,6 +4,7 @@ namespace App\Domains\Identity\Actions;
 
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Identity\Enums\MembershipRole;
+use App\Domains\Identity\Support\TokenScopes;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -44,7 +45,7 @@ class VerifyEmailLoginCode
                 ]);
             }
 
-            return ['user' => $user, 'token' => $user->createToken($deviceName)->plainTextToken];
+            return ['user' => $user, 'token' => $user->createToken($deviceName, app(TokenScopes::class)->customerAbilities(), app(TokenScopes::class)->expiresAt(TokenScopes::CUSTOMER))->plainTextToken];
         });
     }
 }

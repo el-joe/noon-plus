@@ -40,6 +40,7 @@ class SubOrder extends Model
         return [
             'status' => SubOrderStatus::class,
             'delivered_at' => 'immutable_datetime',
+            'cod_remittance_confirmed' => 'boolean',
             'estimated_delivery_from' => 'immutable_date',
             'estimated_delivery_by' => 'immutable_date',
         ];

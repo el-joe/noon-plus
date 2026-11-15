@@ -53,7 +53,8 @@
     "template-headers",
     "templates-store-campaign-brand",
     "timezone-components",
-    "account-all-pages"
+    "account-all-pages",
+    "wpd1-booking-requests"
   ],
   "pages": {
     "Cover": "0:1",
@@ -176,7 +177,8 @@
     "Map panel": "77:746",
     "App / Status bar": "80:3",
     "App / Top bar": "80:7",
-    "App / Tab bar": "80:91"
+    "App / Tab bar": "80:91",
+    "Booking status (chip, 7 states)": "145:6927"
   },
   "shells": {
     "Admin": "12:2",
@@ -221,7 +223,8 @@
     "Creator card": "53:172",
     "Seller box": "53:200",
     "Safety tips": "53:235",
-    "Shoppable video tile": "53:252"
+    "Shoppable video tile": "53:252",
+    "Booking status chip": "145:6927"
   },
   "webPages": {
     "Product detail desktop": "24:2",
@@ -243,7 +246,7 @@
     "Account returns": "49:1155",
     "Account disputes": "49:1706",
     "Account warranty": "49:2222",
-    "Account trip bookings": "49:2757",
+    "Account my bookings (request status chips)": "49:2757",
     "Account classified inquiries": "50:2352",
     "Account special requests": "50:2886",
     "Account wishlist": "50:3374",
@@ -279,7 +282,7 @@
     "Cart empty": "68:1014",
     "Travel home": "69:5767",
     "Trip detail": "69:6093",
-    "Trip booking travellers": "69:6370",
+    "Trip booking request form (D8, no payment)": "69:6370",
     "Real estate results": "70:6418",
     "Property detail": "70:6770",
     "Help centre": "71:10213",
@@ -516,7 +519,13 @@
       "51 Chats": "100:16496",
       "52 Contracts": "100:16528",
       "53 Gift cards": "100:16549",
-      "54 System states": "100:16592"
+      "54 System states": "100:16592",
+      "55 Travel request to book": "152:2650",
+      "56 Travel request sent": "152:2811",
+      "57 My bookings": "152:2866",
+      "58 Booking status": "152:2974",
+      "59 Souq viewing/reserve request": "153:2795",
+      "60 Souq request sent": "153:2881"
     }
   },
   "panelLayouts": {
@@ -563,9 +572,9 @@
   "webExtras": {
     "Seller storefront": "95:4090",
     "Travel destination Georgia": "96:3770",
-    "Travel booking payment": "96:4188",
-    "Travel confirmation + voucher": "96:4554",
-    "Travel manage booking": "98:10830",
+    "Travel booking request — guest + phone error (D8)": "96:4188",
+    "Travel booking request sent (D8)": "96:4554",
+    "Travel booking status (D8)": "98:10830",
     "Classifieds map view": "98:11315",
     "Wanted ads": "98:11480",
     "Inquiry contract gate modal": "98:11859",
@@ -605,6 +614,42 @@
     "Search suggestions": "107:17020",
     "Country & language selector": "107:17386",
     "Cookie consent": "107:17754",
-    "Affiliate referral PDP": "107:18117"
+    "Affiliate referral PDP": "107:18117",
+    "Classified viewing/reserve request form (D8)": "151:10194",
+    "Classified viewing/reserve request sent (D8)": "151:10399"
+  },
+  "wpd1": {
+    "decision": "D8 — travel and classified bookings take no payment on Nawy",
+    "changedFrames": {
+      "69:6370": "web travel request form (Oman)",
+      "96:4188": "web travel request form — guest + phone validation error (UAE)",
+      "96:4554": "web request sent",
+      "98:10830": "web booking status",
+      "49:2757": "web account My bookings",
+      "70:6945": "property viewing form: phone added",
+      "69:6093": "trip detail: CTA Request to book + no-payment policy line",
+      "69:5767": "travel home tagline",
+      "99:5907": "app account row renamed My bookings"
+    },
+    "newNodes": {
+      "145:6927": "Booking status component set",
+      "151:10194": "classified request modal",
+      "151:10399": "classified request sent modal",
+      "152:2650": "app 55",
+      "152:2811": "app 56",
+      "152:2866": "app 57",
+      "152:2974": "app 58",
+      "153:2795": "app 59",
+      "153:2881": "app 60"
+    },
+    "statusVariants": {
+      "Held": "145:6899",
+      "Requested": "145:6903",
+      "Confirmed": "145:6907",
+      "Completed": "145:6911",
+      "Rejected": "145:6915",
+      "Cancelled": "145:6919",
+      "Hold expired": "145:6923"
+    }
   }
 }

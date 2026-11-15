@@ -2,7 +2,7 @@
                  :panel="$panel" :navigation="$navigation" :breadcrumbs="[__('Dashboard'), __('Overview')]">
     <x-slot:actions>
         <x-ui.button variant="outline">{{ __('Export report') }}</x-ui.button>
-        <x-ui.button>{{ __('Open approvals') }}</x-ui.button>
+        <x-ui.button :href="route('admin.approvals')">{{ __('Open approvals') }}</x-ui.button>
     </x-slot:actions>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="{{ __('Key figures') }}">

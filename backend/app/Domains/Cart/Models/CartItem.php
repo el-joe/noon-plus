@@ -9,10 +9,20 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['cart_id', 'listing_id', 'quantity', 'warranty_plan_id'])]
+#[Fillable(['cart_id', 'listing_id', 'quantity', 'warranty_plan_id', 'measurements', 'measurement_note'])]
 class CartItem extends Model
 {
     use UsesCountryDatabase;
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['measurements' => 'array'];
+    }
 
     /**
      * @return BelongsTo<Listing, $this>

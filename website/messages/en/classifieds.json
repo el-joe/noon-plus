@@ -1,0 +1,352 @@
+{
+  "classifieds": {
+    "title": "Open Souq",
+    "allAds": "All ads",
+    "allCategories": "All categories",
+    "searchPlaceholder": "Cars, apartments, phones, jobs…",
+    "cityPlaceholder": "City",
+    "search": "Search",
+    "postAd": "Post an ad",
+    "postAdFree": "Post your ad — free",
+    "featured": "Featured",
+    "wanted": "Wanted",
+    "priceOnRequest": "Price on request",
+    "verifiedBusiness": "Verified business",
+    "save": "Save",
+    "unsave": "Remove from favourites",
+    "saved": "Saved",
+    "negotiable": "Negotiable",
+    "posted": "Posted {date}",
+    "adId": "Ad ID {number}",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "details": "Details",
+    "propertyDetails": "Property details",
+    "description": "Description",
+    "location": "Location",
+    "openMap": "Open in map",
+    "similar": "Similar ads",
+    "gallery": "Photos",
+    "previous": "Previous photo",
+    "next": "Next photo",
+    "showPhone": "Show phone number",
+    "chat": "Chat",
+    "requestShort": "Viewing / reserve",
+    "requestViewing": "Request a viewing",
+    "visitShop": "Visit shop",
+    "viewBroker": "View broker profile",
+    "notLive": "This ad is not live right now.",
+    "resultsFor": "Results for “{q}”",
+    "resultCount": "{count, plural, =0 {No ads} one {# ad} other {# ads}}",
+    "filters": "Filters",
+    "keyword": "Keyword",
+    "category": "Category",
+    "adType": "Ad type",
+    "any": "Any",
+    "city": "City",
+    "price": "Price ({currency})",
+    "min": "Min",
+    "max": "Max",
+    "verifiedOnly": "Verified businesses only",
+    "withVideo": "With video",
+    "applyFilters": "Apply filters",
+    "clearFilters": "Clear all filters",
+    "invalidFilters": "Some filters are not valid. Please adjust them.",
+    "noResults": "No ads match your search",
+    "noResultsHint": "Try fewer filters, another city, or save this search to get alerts.",
+    "pagination": "Pages",
+    "pageOf": "Page {page} of {last}",
+    "sortBy": "Sort by",
+    "sort": {
+      "recommended": "Recommended",
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low"
+    },
+    "kinds": {
+      "offer": "For sale / offered",
+      "wanted": "Wanted"
+    },
+    "saveSearch": "Save search",
+    "searchSaved": "Search saved",
+    "searchSavedHint": "Saved. We'll alert you when new ads match. Manage alerts in your account.",
+    "searchName": "Name this search",
+    "alertFrequency": "Alerts",
+    "alerts": {
+      "daily": "Daily summary",
+      "instant": "As soon as ads are posted"
+    },
+    "sellerType": {
+      "shop": "Shop",
+      "broker": "Broker",
+      "individual": "Private seller"
+    },
+    "home": {
+      "title": "Buy & sell anything near you",
+      "subtitle": "Cars, property, electronics, jobs, services and more — from people and verified shops near you.",
+      "postHint": "Snap, post, sell. Verified shops get more replies.",
+      "browse": "Browse categories",
+      "noCategories": "Categories will appear here soon.",
+      "featured": "Featured ads",
+      "newToday": "New today",
+      "wantedAds": "Wanted ads",
+      "featureTitle": "Feature your ad — up to 10× more views",
+      "featureBody": "Boost, republish to the top, or open a shop for your business.",
+      "featureCta": "Manage my ads",
+      "emptyTitle": "No ads yet",
+      "emptyBody": "Be the first to post an ad in your area."
+    },
+    "status": {
+      "draft": "Draft",
+      "pending_contract": "Contract needed",
+      "pending_review": "In review",
+      "active": "Live",
+      "paused": "Paused",
+      "sold": "Sold",
+      "expired": "Expired",
+      "rejected": "Rejected",
+      "archived": "Archived",
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "safety": {
+      "title": "Stay safe",
+      "meet": "Meet in a public place",
+      "deposit": "Never send money in advance",
+      "inspect": "Inspect the item before you pay",
+      "noPayment": "Nawy never takes payment for Open Souq ads"
+    },
+    "report": {
+      "cta": "Report this ad",
+      "title": "Report this ad",
+      "reason": "What's wrong with this ad?",
+      "details": "Details (optional)",
+      "submit": "Send report",
+      "thanks": "Thanks — our team will review this ad.",
+      "reasons": {
+        "fraud": "Fraud or scam",
+        "wrong_category": "Wrong category",
+        "duplicate": "Duplicate ad",
+        "sold": "Already sold",
+        "offensive": "Offensive content",
+        "other": "Something else"
+      }
+    },
+    "form": {
+      "name": "Full name",
+      "email": "Email",
+      "phone": "Mobile",
+      "phoneHint": "A mobile number in {country}",
+      "consent": "Share my name, email and mobile with {seller} for this request"
+    },
+    "inquiry": {
+      "title": "Message the seller",
+      "message": "Your message",
+      "placeholder": "e.g. Is it still available? Can I see it this week?",
+      "send": "Send message",
+      "sentTitle": "Message sent",
+      "sentBody": "{seller} will reply by email or in your inquiries.",
+      "openChat": "Open in my inquiries"
+    },
+    "request": {
+      "title": "Request a viewing or reserve",
+      "what": "What would you like?",
+      "types": {
+        "viewing": "Viewing — see it in person",
+        "reserve": "Reserve — the seller holds it for you"
+      },
+      "date": "Preferred date",
+      "time": "Preferred time",
+      "slots": {
+        "morning": "Morning (9:00–12:00)",
+        "afternoon": "Afternoon (12:00–17:00)",
+        "evening": "Evening (17:00–21:00)"
+      },
+      "message": "Message to the seller (optional)",
+      "noPaymentTitle": "No payment on Nawy — never send a deposit",
+      "noPaymentBody": "{seller} confirms the time. If you buy or reserve, you pay the seller directly when you meet.",
+      "send": "Send request",
+      "guestNote": "No account needed. Requests are free and you can cancel any time before the seller confirms.",
+      "prefix": {
+        "viewing": "Viewing request",
+        "reserve": "Reservation request"
+      },
+      "preferred": "Preferred: {date}, {slot}",
+      "sentTitle": "Request sent",
+      "sentBody": "{seller} has your request and will contact you to confirm.",
+      "reference": "Reference #{id}",
+      "noPayment": "Nothing to pay on Nawy. You settle with the seller directly.",
+      "backToAd": "Back to the ad",
+      "openRequests": "View my requests"
+    },
+    "contract": {
+      "title": "Accept the purchase terms",
+      "hint": "This category needs your agreement before you contact the seller.",
+      "read": "Read",
+      "unavailable": "The contract text is not available right now.",
+      "signInFirst": "Sign in to accept the terms and contact the seller.",
+      "signIn": "Sign in",
+      "fullName": "Your full name (signature)",
+      "accept": "I have read and accept these terms",
+      "acceptAndContinue": "Accept and continue"
+    },
+    "shop": {
+      "liveAds": "{count, plural, one {# live ad} other {# live ads}}",
+      "memberSince": "Member since {date}",
+      "ads": "Ads from this shop",
+      "empty": "This shop has no live ads right now.",
+      "follow": "Follow",
+      "following": "Following",
+      "followers": "{count, plural, one {# follower} other {# followers}}"
+    },
+    "compare": {
+      "title": "Compare ads",
+      "pickTwo": "Pick two or more ads of the same category to compare.",
+      "mismatch": "Compare two or more live ads of the same category.",
+      "price": "Price",
+      "cta": "Compare"
+    },
+    "inquiries": {
+      "title": "Inquiries",
+      "empty": "No inquiries yet. Message a seller from any ad.",
+      "pick": "Pick a conversation",
+      "role": {
+        "buyer": "You asked",
+        "seller": "About your ad"
+      },
+      "from": {
+        "buyer": "Buyer",
+        "seller": "Seller",
+        "system": "Nawy"
+      },
+      "close": "Close chat",
+      "closed": "This conversation is closed.",
+      "placeholder": "Write a reply…",
+      "send": "Send",
+      "tabs": {
+        "chats": "Chats",
+        "requests": "Viewing & reserve requests"
+      }
+    },
+    "favourites": {
+      "title": "Favourites",
+      "empty": "No favourites yet",
+      "emptyHint": "Tap the heart on any ad to keep it here.",
+      "browse": "Browse Open Souq"
+    },
+    "savedSearches": {
+      "title": "Saved searches",
+      "hint": "Get alerts when new ads match your searches.",
+      "empty": "No saved searches",
+      "start": "Search Open Souq",
+      "alertsOn": "Alerts on",
+      "alertsOff": "Alerts paused"
+    },
+    "myAds": {
+      "title": "My ads",
+      "post": "Post an ad",
+      "empty": "You haven't posted any ads yet.",
+      "views": "{count, plural, one {# view} other {# views}}",
+      "edit": "Edit",
+      "signContract": "Sign contract",
+      "markSold": "Mark as sold",
+      "finalPrice": "Final price ({currency})",
+      "confirmSold": "Confirm sold",
+      "actions": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "archive": "Archive",
+        "renew": "Renew",
+        "unsold": "Not sold"
+      }
+    },
+    "post": {
+      "title": "Post an ad",
+      "editTitle": "Edit your ad",
+      "subtitle": "Free to post. Every ad is checked by our team before it goes live.",
+      "progress": "Steps",
+      "steps": {
+        "category": "Category",
+        "details": "Details",
+        "location": "Location",
+        "photos": "Photos",
+        "review": "Review & submit"
+      },
+      "signInTitle": "Sign in to post an ad",
+      "signInBody": "We use your account to keep your ads, chats and alerts in one place.",
+      "notEditable": "This ad can't be edited right now.",
+      "toMyAds": "Go to my ads",
+      "backToSouq": "Back to Open Souq",
+      "submittedTitle": "Your ad is in review",
+      "submittedBody": "Ad {number} goes live as soon as our team approves it. We'll email you.",
+      "rejected": "This ad was rejected: {reason}. Fix it and submit again.",
+      "chooseCategory": "Choose a category",
+      "allCategories": "All categories",
+      "noCategories": "Categories are not available right now.",
+      "categoryUnavailable": "This category can't take new ads from the website yet. Please try again later.",
+      "kind": "Ad type",
+      "kinds": {
+        "offer": "I'm selling / offering",
+        "wanted": "I'm looking for"
+      },
+      "adTitle": "Title",
+      "adTitleHint": "Make, model and the most important detail.",
+      "description": "Description",
+      "price": "Price ({currency})",
+      "priceHint": "Leave empty for price on request.",
+      "negotiable": "Price is negotiable",
+      "choose": "Choose…",
+      "city": "City",
+      "area": "Area",
+      "contactPhone": "Contact mobile (optional)",
+      "contactPhoneHint": "Shown only when a signed-in buyer taps Show phone. Leave empty to use your account number.",
+      "saveContinue": "Save draft and continue",
+      "photosTitle": "Add photos",
+      "photosHint": "Ads with photos get many more replies. JPG, PNG or WebP.",
+      "addPhotos": "Add photos",
+      "reviewTitle": "Check your ad",
+      "contractNotice": "This category needs the seller contract. You'll sign it right after you submit.",
+      "submit": "Submit for review",
+      "fixErrors": "Please fix the highlighted fields.",
+      "contractTitle": "Seller contract",
+      "contractHint": "Sign the contract to send your ad for review.",
+      "contractUnavailable": "The contract text is not available right now.",
+      "fullName": "Your full name (signature)",
+      "contractAccept": "I have read and accept the contract",
+      "signAndSubmit": "Sign and send for review",
+      "duplicate": "Duplicate",
+      "duplicateHint": "Rejected ads stay final. Duplicate this ad to fix it and submit it again as a new ad."
+    },
+    "memberSince": "Member since {date}",
+    "shopRating": "Shop rating {rating} ({count})",
+    "vertical": "Section",
+    "verticals": {
+      "general": "General",
+      "property": "Property",
+      "motors": "Motors",
+      "jobs": "Jobs",
+      "services": "Services"
+    },
+    "bathrooms": "Bathrooms",
+    "bathroomsMin": "{count}+",
+    "area": "Area (m²)",
+    "requests": {
+      "empty": "You have not sent any viewing or reserve requests yet.",
+      "allTypes": "All",
+      "preferred": "Preferred: {date}",
+      "scheduled": "Confirmed for {date}",
+      "sent": "Sent {date}",
+      "note": "Note from the seller: {note}",
+      "status": {
+        "pending": "Pending",
+        "requested": "Requested",
+        "confirmed": "Confirmed",
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "declined": "Declined",
+        "rejected": "Declined",
+        "cancelled": "Cancelled",
+        "no_show": "No show"
+      }
+    }
+  }
+}

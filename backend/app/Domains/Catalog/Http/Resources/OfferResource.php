@@ -35,7 +35,7 @@ class OfferResource extends JsonResource
             'listing_id' => $this->id,
             'sku' => $this->variant->sku,
             'options' => $this->variant->option_values,
-            'seller' => ['slug' => $this->vendor->slug, 'name' => $this->vendor->store_name, 'rating' => $this->vendor->rating],
+            'seller' => ['slug' => $this->vendor->slug, 'name' => $this->vendor->store_name, 'rating' => $this->vendor->rating, 'rating_count' => (int) $this->vendor->rating_count],
             'price' => MoneyResource::make($this->flashDeal !== null ? (string) $this->flashDeal->flash_price : $regularPrice),
             'was_price' => match (true) {
                 $this->flashDeal !== null => MoneyResource::make($regularPrice),

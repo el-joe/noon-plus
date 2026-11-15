@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([CountrySeeder::class, CountryCalendarSeeder::class]);
+        $this->call([CountrySeeder::class, CountryCalendarSeeder::class, AdminRoleSeeder::class, PaymentGatewaySeeder::class]);
 
         User::factory()->create([
             'name' => 'Test User',

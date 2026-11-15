@@ -57,7 +57,7 @@ class PanelLoginController extends Controller
 
         if ($user->two_factor_enabled) {
             try {
-                $requestCode->handle($user->email);
+                $requestCode->handle($user->email, 'panel_2fa');
             } catch (EmailLoginCodeRejected $rejected) {
                 throw ValidationException::withMessages(['email' => $rejected->getMessage()]);
             }

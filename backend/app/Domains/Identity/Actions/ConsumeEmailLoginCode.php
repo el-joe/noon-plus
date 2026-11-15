@@ -13,12 +13,13 @@ use Illuminate\Support\Str;
  */
 class ConsumeEmailLoginCode
 {
-    public function handle(string $email, string $code): void
+    public function handle(string $email, string $code, string $purpose = 'login'): void
     {
         $email = Str::lower(trim($email));
 
         $loginCode = EmailLoginCode::query()
             ->where('email', $email)
+            ->where('purpose', $purpose)
             ->whereNull('consumed_at')
             ->latest('id')
             ->first();

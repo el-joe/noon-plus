@@ -95,7 +95,7 @@ class FlashSalePricing
 
         if ($quantity > $perCustomerLeft) {
             throw new CartRejected('flash_sale_customer_limit', trans_choice(
-                'This deal is limited to :max per customer; you can add :left more.|This deal is limited to :max per customer; you can add :left more.',
+                'This deal is limited to :max per customer; you can have up to :left in your cart.|This deal is limited to :max per customer; you can have up to :left in your cart.',
                 $perCustomerLeft,
                 ['max' => $deal->event->max_qty_per_customer, 'left' => $perCustomerLeft],
             ));
