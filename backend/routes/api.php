@@ -1,9 +1,11 @@
 <?php
 
 use App\Domains\Advertising\Http\Controllers\Api\AdController;
+use App\Domains\Advertising\Http\Controllers\Api\TravelPromotionOpsController;
 use App\Domains\Campaigns\Http\Controllers\Api\ReferralController;
 use App\Domains\Cart\Http\Controllers\CartController;
 use App\Domains\Catalog\Http\Controllers\CatalogController;
+use App\Domains\Catalog\Http\Controllers\DiscoveryController;
 use App\Domains\Classifieds\Http\Controllers\Api\BuyerController;
 use App\Domains\Classifieds\Http\Controllers\Api\ClassifiedController;
 use App\Domains\Classifieds\Http\Controllers\Api\MyClassifiedController;
@@ -12,24 +14,35 @@ use App\Domains\Contracts\Http\Controllers\Api\ContractApiController;
 use App\Domains\Contracts\Http\Controllers\Api\VendorAgreementApiController;
 use App\Domains\Contracts\Http\EnsureSellerAgreementSigned;
 use App\Domains\Countries\Http\Controllers\CountryController;
+use App\Domains\Countries\Http\Controllers\DomainController;
 use App\Domains\Countries\Http\Middleware\ResolveMarket;
+use App\Domains\Coupons\Http\Controllers\Api\OfferController;
 use App\Domains\Customers\Http\Controllers\AccountController;
 use App\Domains\Customers\Http\Controllers\AddressController;
 use App\Domains\Customers\Http\Controllers\NotificationController;
+use App\Domains\Customers\Http\Controllers\RecentlyViewedController;
 use App\Domains\Customers\Http\Controllers\WishlistController;
 use App\Domains\Delivery\Http\Controllers\Api\CarrierOpsController;
 use App\Domains\Delivery\Http\Controllers\Api\DeliveryAgentApiController;
 use App\Domains\Delivery\Http\Middleware\EnsureDeliveryAgent;
 use App\Domains\Disputes\Http\Controllers\DisputeController;
+use App\Domains\Documents\Http\Controllers\Api\OpsDocumentController;
 use App\Domains\Finance\Http\Controllers\Api\WalletController;
 use App\Domains\FlashSales\Http\Controllers\FlashSaleController;
+use App\Domains\Fulfilment\Http\Controllers\Api\VendorFbnController;
 use App\Domains\GiftCards\Http\Controllers\GiftCardController;
+use App\Domains\Identity\Http\Controllers\BroadcastAuthController;
 use App\Domains\Identity\Http\Controllers\EmailCodeAuthController;
+use App\Domains\Identity\Http\Controllers\PasswordAuthController;
+use App\Domains\Identity\Http\Controllers\PhoneCodeAuthController;
+use App\Domains\Identity\Http\Controllers\PushTokenController;
 use App\Domains\Identity\Http\Controllers\SecurityController;
+use App\Domains\Identity\Http\Controllers\SocialAuthController;
 use App\Domains\LiveMedia\Http\Controllers\Api\LiveStreamApiController;
 use App\Domains\Marketers\Http\Controllers\Api\CreatorDirectoryController;
 use App\Domains\Marketers\Http\Controllers\Api\MarketerOpsController;
 use App\Domains\Membership\Http\Controllers\MembershipController;
+use App\Domains\Migration\Http\Controllers\Api\LegacyRedirectController;
 use App\Domains\Newsletter\Http\Controllers\NewsletterController;
 use App\Domains\Onboarding\Http\Controllers\Api\PartnerApplicationController;
 use App\Domains\Onboarding\Http\Controllers\Api\PortalController;
@@ -39,18 +52,31 @@ use App\Domains\Panels\Http\Middleware\EnsureOpsWorkspace;
 use App\Domains\Payments\Http\Controllers\PaymentController;
 use App\Domains\Payments\Http\Controllers\PaymentMethodController;
 use App\Domains\Payments\Http\Controllers\PaymentWebhookController;
+use App\Domains\Payments\Http\Controllers\SavedCardController;
 use App\Domains\RealEstate\Http\Controllers\Api\RealEstateController;
 use App\Domains\Returns\Http\Controllers\ReturnController;
 use App\Domains\Reviews\Http\Controllers\QuestionController;
 use App\Domains\Reviews\Http\Controllers\ReviewController;
+use App\Domains\Support\Http\Controllers\Api\SupportTicketApiController;
 use App\Domains\Travel\Http\Controllers\Api\TravelController;
 use App\Domains\Travel\Http\Controllers\Api\TravelOpsController;
+use App\Domains\Vendors\Http\Controllers\Api\SellerStorefrontController;
 use App\Domains\Vendors\Http\Controllers\Api\VendorOpsController;
 use App\Domains\Warranty\Http\Controllers\WarrantyClaimController;
+use App\Shared\Http\Middleware\IdempotentRequest;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('countries', [CountryController::class, 'index'])->name('countries.index');
+    // QC-044: what a request host serves (custom storefront domains, panel aliases) for the website proxy.
+    Route::get('domains/resolve', [DomainController::class, 'resolve'])->middleware('throttle:120,1')->name('domains.resolve');
+
+    // WP11 extras: 301 target of an old-platform URL (website proxy, only for paths that would 404).
+    Route::get('legacy-redirects', [LegacyRedirectController::class, 'show'])->name('legacy-redirects.show');
+
+    // D9: the one OAuth callback URL per provider (Google GET, Apple form POST); the market travels in the state.
+    Route::match(['get', 'post'], 'auth/social/{provider}/callback', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['google', 'apple'])->middleware('throttle:social-auth')->name('auth.social.callback');
 
     Route::prefix('{market}')->middleware(ResolveMarket::class)->group(function (): void {
         Route::get('context', [CountryController::class, 'context'])->name('market.context');
@@ -62,6 +88,23 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('brands/{slug}', [CatalogController::class, 'brand'])->name('catalog.brands.show');
         Route::get('products', [CatalogController::class, 'products'])->name('catalog.products');
         Route::get('products/facets', [CatalogController::class, 'facets'])->name('catalog.products.facets');
+
+        /*
+        | QA wave 5a discovery and storefront (QC-008, QC-043, QC-057, QC-064, G-A1).
+        */
+        Route::get('products/compare', [DiscoveryController::class, 'compare'])->middleware('throttle:60,1')->name('catalog.products.compare');
+        Route::get('products/{slug}/frequently-bought-together', [DiscoveryController::class, 'frequentlyBoughtTogether'])->name('catalog.products.fbt');
+        Route::get('products/{slug}/coupons', [OfferController::class, 'forProduct'])->name('catalog.products.coupons');
+        Route::get('offers', [OfferController::class, 'index'])->name('offers.index');
+        Route::prefix('search')->name('search.')->group(function (): void {
+            Route::get('popular', [DiscoveryController::class, 'popular'])->name('popular');
+            Route::get('trending', [DiscoveryController::class, 'trending'])->name('trending');
+            Route::get('suggest', [DiscoveryController::class, 'suggest'])->middleware('throttle:120,1')->name('suggest');
+        });
+        Route::get('sellers/{slug}', [SellerStorefrontController::class, 'show'])->name('sellers.show');
+        Route::get('sellers/{slug}/products', [SellerStorefrontController::class, 'products'])->name('sellers.products');
+        Route::get('sellers/{slug}/products/facets', [SellerStorefrontController::class, 'facets'])->name('sellers.products.facets');
+        Route::match(['post', 'delete'], 'sellers/{slug}/follow', [SellerStorefrontController::class, 'follow'])->middleware(['auth:sanctum', 'throttle:60,1'])->name('sellers.follow');
         Route::get('products/{slug}', [CatalogController::class, 'product'])->name('catalog.product');
 
         /*
@@ -81,10 +124,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('auth/logout', [SecurityController::class, 'logout'])->name('auth.logout');
+            // D16: Reverb private-channel auth for token clients (website proxy, apps).
+            Route::post('broadcasting/auth', BroadcastAuthController::class)->middleware('throttle:60,1')->name('broadcasting.auth');
 
             Route::post('reviews', [ReviewController::class, 'store'])->middleware('throttle:10,1')->name('reviews.store');
             Route::post('reviews/{review}/helpful', [ReviewController::class, 'helpful'])->whereNumber('review')->middleware('throttle:60,1')->name('reviews.helpful');
             Route::delete('reviews/{review}/helpful', [ReviewController::class, 'unhelpful'])->whereNumber('review')->middleware('throttle:60,1')->name('reviews.unhelpful');
+            Route::post('reviews/{review}/report', [ReviewController::class, 'report'])->whereNumber('review')->middleware('throttle:10,1')->name('reviews.report');
             Route::get('me/reviews', [ReviewController::class, 'mine'])->name('reviews.mine');
             Route::get('me/reviewable-items', [ReviewController::class, 'reviewable'])->name('reviews.reviewable');
             Route::post('products/{slug}/questions', [QuestionController::class, 'store'])->middleware('throttle:10,1')->name('questions.store');
@@ -117,10 +163,16 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('merge', [CartController::class, 'merge'])->middleware('auth:sanctum')->name('merge');
         });
 
+        // Wave 5b apps: the invoice behind a signed, 30-minute link (opened in the system browser).
+        Route::get('orders/{number}/invoice/signed', [OrderController::class, 'signedInvoice'])->middleware(['signed', 'throttle:30,1'])->name('orders.invoice.signed');
         Route::middleware('auth:sanctum')->prefix('orders')->name('orders.')->group(function (): void {
-            Route::post('/', [OrderController::class, 'store'])->middleware('throttle:10,1')->name('store');
+            Route::post('/', [OrderController::class, 'store'])->middleware(['throttle:10,1', IdempotentRequest::class])->name('store');
             Route::get('/', [OrderController::class, 'index'])->name('index');
+            Route::get('cancel-reasons', [OrderController::class, 'cancelReasons'])->name('cancel-reasons');
             Route::get('{number}', [OrderController::class, 'show'])->name('show');
+            Route::get('{number}/invoice', [OrderController::class, 'invoice'])->middleware('throttle:30,1')->name('invoice');
+            Route::get('{number}/invoice/pdf', [OrderController::class, 'invoicePdf'])->middleware('throttle:30,1')->name('invoice.pdf');
+            Route::post('{number}/invoice-link', [OrderController::class, 'invoiceLink'])->middleware('throttle:30,1')->name('invoice-link');
             Route::post('{number}/shipments/{shipmentNumber}/cancel', [OrderController::class, 'cancelShipment'])->name('shipments.cancel');
             Route::post('{number}/payments', [PaymentController::class, 'retry'])->middleware('throttle:10,1')->name('payments.retry');
             Route::post('{number}/payments/verify', [PaymentController::class, 'verify'])->middleware('throttle:30,1')->name('payments.verify');
@@ -134,6 +186,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('creators/{slug}', [CreatorDirectoryController::class, 'show'])->name('creators.show');
         Route::get('referrals/{code}', [ReferralController::class, 'show'])->where('code', '[A-Za-z0-9]{6,16}')->middleware('throttle:60,1')->name('referrals.show');
         Route::get('contracts/{version}', [ContractApiController::class, 'show'])->whereNumber('version')->name('contracts.show');
+        Route::get('contracts/current/{kind}', [ContractApiController::class, 'current'])->name('contracts.current');
 
         /*
         | Verticals (WP6): classifieds, real estate, travel and ad delivery.
@@ -156,6 +209,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
             Route::middleware('auth:sanctum')->group(function (): void {
                 Route::get('mine', [MyClassifiedController::class, 'index'])->name('mine');
+                Route::get('mine/requests', [MyClassifiedController::class, 'requests'])->name('mine.requests');
                 Route::post('ads', [MyClassifiedController::class, 'store'])->middleware('throttle:20,1')->name('ads.store');
                 Route::put('ads/{number}', [MyClassifiedController::class, 'update'])->name('ads.update');
                 Route::post('ads/{number}/photos', [MyClassifiedController::class, 'photo'])->middleware('throttle:60,1')->name('ads.photos');
@@ -241,6 +295,26 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('send', [EmailCodeAuthController::class, 'send'])->name('send');
             Route::post('verify', [EmailCodeAuthController::class, 'verify'])->name('verify');
         });
+        // Legacy phone-only customers' first sign-in by SMS code (data-migration-plan §5.2); they then add an email.
+        Route::prefix('auth/phone-code')->name('auth.phone-code.')->middleware('throttle:phone-code')->group(function (): void {
+            Route::post('send', [PhoneCodeAuthController::class, 'send'])->name('send');
+            Route::post('verify', [PhoneCodeAuthController::class, 'verify'])->name('verify');
+        });
+
+        /*
+        | D9 (QC-005): optional customer password and Google / Apple sign-in.
+        | The email code above stays the default.
+        */
+        Route::prefix('auth/password')->name('auth.password.')->group(function (): void {
+            Route::post('login', [PasswordAuthController::class, 'login'])->middleware('throttle:password-login')->name('login');
+            Route::post('forgot', [PasswordAuthController::class, 'forgot'])->middleware('throttle:password-reset')->name('forgot');
+            Route::post('reset', [PasswordAuthController::class, 'reset'])->middleware('throttle:password-reset-submit')->name('reset');
+        });
+        Route::prefix('auth/social')->name('auth.social.')->middleware('throttle:social-auth')->group(function (): void {
+            Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])->whereIn('provider', ['google', 'apple'])->name('redirect');
+            Route::post('{provider}/token', [SocialAuthController::class, 'token'])->whereIn('provider', ['google', 'apple'])->name('token');
+            Route::post('exchange', [SocialAuthController::class, 'exchange'])->name('exchange');
+        });
 
         /*
         | Money (WP4): returns, Nawy Credits, gift cards & vouchers, Nawy One,
@@ -279,6 +353,21 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
 
         /*
+        | Support tickets (QC-007, SRS §15, lifecycle §9.3): the customer's
+        | own tickets; attachments open through signed, expiring links.
+        */
+        Route::get('support/attachments/{message}/{index}', [SupportTicketApiController::class, 'attachment'])->whereNumber(['message', 'index'])->middleware('signed')->name('support.attachment');
+        Route::middleware('auth:sanctum')->prefix('support')->name('support.')->group(function (): void {
+            Route::get('categories', [SupportTicketApiController::class, 'categories'])->name('categories');
+            Route::get('tickets', [SupportTicketApiController::class, 'index'])->name('tickets.index');
+            Route::post('tickets', [SupportTicketApiController::class, 'store'])->middleware('throttle:10,1')->name('tickets.store');
+            Route::get('tickets/{number}', [SupportTicketApiController::class, 'show'])->name('tickets.show');
+            Route::post('tickets/{number}/messages', [SupportTicketApiController::class, 'reply'])->middleware('throttle:30,1')->name('tickets.messages');
+            Route::post('tickets/{number}/reopen', [SupportTicketApiController::class, 'reopen'])->middleware('throttle:10,1')->name('tickets.reopen');
+            Route::post('tickets/{number}/rating', [SupportTicketApiController::class, 'rate'])->middleware('throttle:10,1')->name('tickets.rating');
+        });
+
+        /*
         | Content & live (WP7, SRS §14–15, ADR 16): published pages with
         | resolved blocks, app contexts, blog, help centre / knowledge hub,
         | static pages, footer, and admin-made live streams (public reads).
@@ -297,8 +386,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('static-pages/{slug}', [ContentApiController::class, 'staticPage'])->name('content.static-page');
         Route::get('footer', [ContentApiController::class, 'footer'])->name('content.footer');
         Route::get('live-streams', [LiveStreamApiController::class, 'index'])->name('live-streams.index');
+        Route::get('live-streams/floating', [LiveStreamApiController::class, 'floating'])->name('live-streams.floating');
         Route::get('live-streams/{slug}', [LiveStreamApiController::class, 'show'])->name('live-streams.show');
         Route::post('live-streams/{slug}/likes', [LiveStreamApiController::class, 'like'])->middleware('throttle:30,1')->name('live-streams.like');
+        Route::get('live-streams/{slug}/comments', [LiveStreamApiController::class, 'comments'])->middleware('throttle:120,1')->name('live-streams.comments');
+        Route::post('live-streams/{slug}/comments', [LiveStreamApiController::class, 'comment'])->middleware(['auth:sanctum', 'throttle:10,1'])->name('live-streams.comments.store');
+        Route::post('live-streams/{slug}/presence', [LiveStreamApiController::class, 'presence'])->middleware('throttle:12,1')->name('live-streams.presence');
 
         /*
         | Delivery app (WP7, SRS §4.6, ADR 15): agent sign-in, then the
@@ -313,6 +406,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::get('me/earnings', [DeliveryAgentApiController::class, 'earnings'])->name('earnings');
                 Route::get('me/cod', [DeliveryAgentApiController::class, 'cod'])->name('cod');
                 Route::get('me/documents', [DeliveryAgentApiController::class, 'documents'])->name('documents');
+                Route::post('me/documents', [DeliveryAgentApiController::class, 'storeDocument'])->middleware('throttle:20,1')->name('documents.store');
+                Route::get('me/documents/{document}/file', [DeliveryAgentApiController::class, 'documentFile'])->whereNumber('document')->name('documents.file');
+                Route::get('me/payslips', [DeliveryAgentApiController::class, 'payslips'])->name('payslips.index');
+                Route::get('me/payslips/{number}', [DeliveryAgentApiController::class, 'payslip'])->name('payslips.show');
+                Route::get('me/payslips/{number}/pdf', [DeliveryAgentApiController::class, 'payslipPdf'])->middleware('throttle:30,1')->name('payslips.pdf');
+                Route::get('me/wallet', [DeliveryAgentApiController::class, 'wallet'])->name('wallet');
+                Route::post('me/withdrawals', [DeliveryAgentApiController::class, 'withdraw'])->middleware('throttle:10,1')->name('withdrawals.store');
+                Route::post('me/withdrawals/{number}/cancel', [DeliveryAgentApiController::class, 'cancelWithdrawal'])->middleware('throttle:10,1')->name('withdrawals.cancel');
                 Route::post('me/availability', [DeliveryAgentApiController::class, 'availability'])->name('availability');
                 Route::post('me/location', [DeliveryAgentApiController::class, 'location'])->middleware('throttle:120,1')->name('location');
                 Route::get('assignments', [DeliveryAgentApiController::class, 'index'])->name('assignments.index');
@@ -325,6 +426,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     Route::post('assignments/{number}/proof', [DeliveryAgentApiController::class, 'proof'])->name('assignments.proof');
                     Route::post('assignments/{number}/confirm', [DeliveryAgentApiController::class, 'confirm'])->name('assignments.confirm');
                     Route::post('assignments/{number}/fail', [DeliveryAgentApiController::class, 'fail'])->name('assignments.fail');
+                    Route::post('assignments/{number}/scan', [DeliveryAgentApiController::class, 'scan'])->name('assignments.scan');
                 });
             });
         });
@@ -341,6 +443,24 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::prefix('vendor')->name('vendor.')->middleware(['auth:sanctum', EnsureOpsWorkspace::class.':vendor'])->group(function (): void {
                 Route::get('agreement', [VendorAgreementApiController::class, 'show'])->name('agreement');
                 Route::post('agreement/sign', [VendorAgreementApiController::class, 'sign'])->middleware('throttle:10,1')->name('agreement.sign');
+
+                // Documents (SRS §13.7) stay reachable before the Seller Agreement is signed, as in Seller Center.
+                Route::middleware('tenant.can:partner,documents')->group(function (): void {
+                    Route::get('documents', [OpsDocumentController::class, 'index'])->name('documents.index');
+                    Route::post('documents', [OpsDocumentController::class, 'store'])->middleware('throttle:20,1')->name('documents.store');
+                    Route::get('documents/{document}/file', [OpsDocumentController::class, 'file'])->whereNumber('document')->name('documents.file');
+                });
+
+                // QC-007: the store's support tickets stay reachable before the Seller Agreement is signed.
+                Route::prefix('support')->name('support.')->middleware('tenant.can:partner,support')->group(function (): void {
+                    Route::get('categories', [SupportTicketApiController::class, 'categories'])->name('categories');
+                    Route::get('tickets', [SupportTicketApiController::class, 'index'])->name('tickets.index');
+                    Route::post('tickets', [SupportTicketApiController::class, 'store'])->middleware('throttle:10,1')->name('tickets.store');
+                    Route::get('tickets/{number}', [SupportTicketApiController::class, 'show'])->name('tickets.show');
+                    Route::post('tickets/{number}/messages', [SupportTicketApiController::class, 'reply'])->middleware('throttle:30,1')->name('tickets.messages');
+                    Route::post('tickets/{number}/reopen', [SupportTicketApiController::class, 'reopen'])->middleware('throttle:10,1')->name('tickets.reopen');
+                    Route::post('tickets/{number}/rating', [SupportTicketApiController::class, 'rate'])->middleware('throttle:10,1')->name('tickets.rating');
+                });
             });
 
             /*
@@ -355,13 +475,31 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::post('orders/{subOrder}/cancel', [VendorOpsController::class, 'cancel'])->whereNumber('subOrder')->middleware('throttle:30,1')->middleware('tenant.can:partner,orders')->name('orders.cancel');
                 Route::get('stock', [VendorOpsController::class, 'stock'])->middleware('tenant.can:partner,listings')->name('stock.index');
                 Route::post('stock/{listing}', [VendorOpsController::class, 'adjustStock'])->whereNumber('listing')->middleware('throttle:60,1')->middleware('tenant.can:partner,listings')->name('stock.adjust');
+                // Fulfilled by Nawy: FBN stock and inbound plans (docs/project/storefront-api-additions.md).
+                Route::prefix('fbn')->name('fbn.')->middleware('tenant.can:partner,inventory')->group(function (): void {
+                    Route::get('stock', [VendorFbnController::class, 'stock'])->name('stock');
+                    Route::get('warehouses', [VendorFbnController::class, 'warehouses'])->name('warehouses');
+                    Route::get('inbound', [VendorFbnController::class, 'index'])->name('inbound.index');
+                    Route::post('inbound', [VendorFbnController::class, 'store'])->middleware('throttle:30,1')->name('inbound.store');
+                    Route::get('inbound/{shipment}', [VendorFbnController::class, 'show'])->whereNumber('shipment')->name('inbound.show');
+                    Route::post('inbound/{shipment}/{action}', [VendorFbnController::class, 'act'])->whereNumber('shipment')->whereIn('action', ['submit', 'ship', 'cancel'])->middleware('throttle:30,1')->name('inbound.act');
+                    Route::get('inbound/{shipment}/labels.pdf', [VendorFbnController::class, 'labels'])->whereNumber('shipment')->middleware('throttle:30,1')->name('inbound.labels');
+                    Route::get('listings', [VendorFbnController::class, 'listings'])->name('listings');
+                    Route::post('listings/{listing}/{action}', [VendorFbnController::class, 'enrolment'])->whereNumber('listing')->whereIn('action', ['enrol', 'leave'])->middleware('throttle:30,1')->name('listings.enrolment');
+                });
             });
 
             Route::prefix('marketer')->name('marketer.')->middleware(['auth:sanctum', EnsureOpsWorkspace::class.':marketer'])->group(function (): void {
                 Route::get('dashboard', [MarketerOpsController::class, 'dashboard'])->name('dashboard');
                 Route::get('campaigns', [MarketerOpsController::class, 'campaigns'])->name('campaigns');
                 Route::get('links', [MarketerOpsController::class, 'links'])->name('links');
+                Route::get('links/{invitation}/qr', [MarketerOpsController::class, 'linkQr'])->whereNumber('invitation')->middleware('throttle:60,1')->name('links.qr');
                 Route::get('conversions', [MarketerOpsController::class, 'conversions'])->name('conversions');
+                Route::middleware('tenant.can:marketer,profile')->group(function (): void {
+                    Route::get('documents', [OpsDocumentController::class, 'index'])->name('documents.index');
+                    Route::post('documents', [OpsDocumentController::class, 'store'])->middleware('throttle:20,1')->name('documents.store');
+                    Route::get('documents/{document}/file', [OpsDocumentController::class, 'file'])->whereNumber('document')->name('documents.file');
+                });
             });
 
             Route::prefix('supervisor')->name('supervisor.')->middleware(['auth:sanctum', EnsureOpsWorkspace::class.':supervisor'])->group(function (): void {
@@ -372,16 +510,37 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::post('failed/{shipment}/{action}', [CarrierOpsController::class, 'failedAction'])->whereNumber('shipment')
                     ->whereIn('action', ['reschedule', 'return', 'returned'])->middleware('throttle:60,1')->middleware('tenant.can:carrier,dispatch')->name('failed.act');
                 Route::get('drivers', [CarrierOpsController::class, 'drivers'])->middleware('tenant.can:carrier,agents')->name('drivers');
+                Route::post('drivers', [CarrierOpsController::class, 'inviteDriver'])->middleware('throttle:20,1')->middleware('tenant.can:carrier,agents')->name('drivers.invite');
                 Route::post('drivers/{agent}/status', [CarrierOpsController::class, 'driverStatus'])->whereNumber('agent')->middleware('throttle:30,1')->middleware('tenant.can:carrier,agents')->name('drivers.status');
+                // The shipping company's own documents (business type carrier).
+                Route::middleware('tenant.can:carrier,agents')->group(function (): void {
+                    Route::get('documents', [OpsDocumentController::class, 'index'])->name('documents.index');
+                    Route::post('documents', [OpsDocumentController::class, 'store'])->middleware('throttle:20,1')->name('documents.store');
+                    Route::get('documents/{document}/file', [OpsDocumentController::class, 'file'])->whereNumber('document')->name('documents.file');
+                });
             });
 
             Route::prefix('travel')->name('travel.')->middleware(['auth:sanctum', EnsureOpsWorkspace::class.':travel_agency'])->group(function (): void {
                 Route::get('dashboard', [TravelOpsController::class, 'dashboard'])->middleware('tenant.can:travel_agency,dashboard')->name('dashboard');
                 Route::get('bookings', [TravelOpsController::class, 'bookings'])->middleware('tenant.can:travel_agency,bookings')->name('bookings');
+                Route::get('promotions', [TravelPromotionOpsController::class, 'index'])->middleware('tenant.can:travel_agency,promotions')->name('promotions');
+                // D14 in-app purchase: options, buy (card payment in an in-app browser tab, return deep link), pay again, state after the return.
+                Route::middleware('tenant.can:travel_agency,promotions')->prefix('promotions')->name('promotions.')->group(function (): void {
+                    Route::get('options', [TravelPromotionOpsController::class, 'options'])->name('options');
+                    Route::post('/', [TravelPromotionOpsController::class, 'store'])->middleware('throttle:10,1')->name('store');
+                    Route::get('{promotion}', [TravelPromotionOpsController::class, 'show'])->whereNumber('promotion')->name('show');
+                    Route::post('{promotion}/pay', [TravelPromotionOpsController::class, 'pay'])->whereNumber('promotion')->middleware('throttle:10,1')->name('pay');
+                    Route::post('{promotion}/verify', [TravelPromotionOpsController::class, 'verify'])->whereNumber('promotion')->middleware('throttle:30,1')->name('verify');
+                });
                 Route::post('bookings/{booking}/confirm', [TravelOpsController::class, 'confirm'])->whereNumber('booking')->middleware('throttle:30,1')->middleware('tenant.can:travel_agency,bookings')->name('bookings.confirm');
                 Route::post('bookings/{booking}/reject', [TravelOpsController::class, 'reject'])->whereNumber('booking')->middleware('throttle:30,1')->middleware('tenant.can:travel_agency,bookings')->name('bookings.reject');
                 Route::get('departures', [TravelOpsController::class, 'departureList'])->middleware('tenant.can:travel_agency,packages')->name('departures');
                 Route::post('departures/{departure}/capacity', [TravelOpsController::class, 'capacity'])->whereNumber('departure')->middleware('throttle:30,1')->middleware('tenant.can:travel_agency,packages')->name('departures.capacity');
+                Route::middleware('tenant.can:travel_agency,packages')->group(function (): void {
+                    Route::get('documents', [OpsDocumentController::class, 'index'])->name('documents.index');
+                    Route::post('documents', [OpsDocumentController::class, 'store'])->middleware('throttle:20,1')->name('documents.store');
+                    Route::get('documents/{document}/file', [OpsDocumentController::class, 'file'])->whereNumber('document')->name('documents.file');
+                });
             });
         });
 
@@ -392,6 +551,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('join-options', [PortalController::class, 'joinOptions'])->name('portal.join-options');
         Route::get('advertise-requests/options', [PortalController::class, 'advertiseOptions'])->name('portal.advertise-requests.options');
         Route::post('advertise-requests', [PortalController::class, 'advertiseRequest'])->middleware('throttle:5,1')->name('portal.advertise-requests.store');
+        Route::post('portal/funnel', [PortalController::class, 'trackFunnel'])->middleware('throttle:120,1')->name('portal.funnel.store');
         Route::prefix('partner-applications')->name('applications.')->group(function (): void {
             Route::post('/', [PartnerApplicationController::class, 'store'])->middleware('throttle:10,1')->name('store');
             Route::get('check-slug', [PartnerApplicationController::class, 'checkSlug'])->middleware('throttle:60,1')->name('check-slug');
@@ -428,6 +588,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('devices', [SecurityController::class, 'devices'])->name('devices.index');
             Route::delete('devices/{tokenId}', [SecurityController::class, 'revokeDevice'])->whereNumber('tokenId')->name('devices.destroy');
             Route::get('login-history', [SecurityController::class, 'loginHistory'])->name('login-history');
+            Route::post('push-tokens', [PushTokenController::class, 'store'])->middleware('throttle:30,1')->name('push-tokens.store');
+            Route::delete('push-tokens', [PushTokenController::class, 'destroy'])->middleware('throttle:30,1')->name('push-tokens.destroy');
+            Route::get('cards', [SavedCardController::class, 'index'])->name('cards.index');
+            Route::post('cards/{card}/default', [SavedCardController::class, 'makeDefault'])->whereNumber('card')->name('cards.default');
+            Route::delete('cards/{card}', [SavedCardController::class, 'destroy'])->whereNumber('card')->name('cards.destroy');
+            Route::get('recently-viewed', [RecentlyViewedController::class, 'index'])->name('recently-viewed.index');
+            Route::post('recently-viewed', [RecentlyViewedController::class, 'sync'])->middleware('throttle:60,1')->name('recently-viewed.sync');
+            Route::delete('recently-viewed/{slug?}', [RecentlyViewedController::class, 'destroy'])->name('recently-viewed.destroy');
+            Route::get('followed-sellers', [SellerStorefrontController::class, 'followed'])->name('followed-sellers');
+            Route::post('password', [PasswordAuthController::class, 'update'])->middleware('throttle:password-change')->name('password.update');
+            Route::delete('social-accounts/{provider}', [SocialAuthController::class, 'unlink'])->whereIn('provider', ['google', 'apple'])->name('social-accounts.destroy');
         });
     });
 });

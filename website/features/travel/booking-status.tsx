@@ -25,7 +25,7 @@ import {
 import { formatDateTime, formatDay, formatMoney } from "@/lib/format";
 import { errorMessage, useSession } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
-import { fieldErrorsOf, marketPrice, roomTypeLabel } from "./shared";
+import { fieldErrorsOf, roomTypeLabel } from "./shared";
 import { BookingStatusChip } from "./status-chip";
 
 export const bookingKey = (market: string, number: string) => ["travel-booking", market, number] as const;
@@ -74,7 +74,7 @@ export function BookingStatusView({ number }: { number: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label="Breadcrumb">
+      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label={t("common.breadcrumb")}>
         <Link href={href("/")} aria-label={t("common.home")}>
           <Home className="size-3.5" />
         </Link>
@@ -105,7 +105,7 @@ export function BookingStatusView({ number }: { number: string }) {
                   <span className="text-secondary">
                     {r.travellers} × {roomTypeLabel(t, r.room_type)}
                   </span>
-                  {r.line_total ? <span dir="ltr">{marketPrice(r.line_total, market)}</span> : null}
+                  {r.line_total ? <span dir="ltr">{formatMoney(r.line_total)}</span> : null}
                 </li>
               ))}
             </ul>
@@ -181,7 +181,7 @@ function Details({ booking: b }: { booking: TravelBooking }) {
     [t("travel.status.phone"), b.contact.phone ?? ""],
     [t("travel.status.departure"), t("travel.detail.departsReturns", { from: formatDay(b.departs_on, market.locale, true), to: formatDay(b.returns_on, market.locale, true) })],
     [t("travel.status.rooms"), (b.rooms ?? []).map((r) => `${r.travellers} × ${roomTypeLabel(t, r.room_type)}`).join(", ")],
-    [t("travel.status.travellers"), t("travel.my.travellersCount", { count: b.seats })],
+    [t("travel.status.travellers"), b.children ? t("travel.book.adultsChildren", { adults: b.adults ?? b.seats - b.children, children: b.children }) : t("travel.my.travellersCount", { count: b.seats })],
   ];
   if (names.length) rows.push([t("travel.status.travellerNames"), names.join(", ")]);
   if (b.confirmation_number) rows.push([t("travel.status.confirmationNumber"), b.confirmation_number]);

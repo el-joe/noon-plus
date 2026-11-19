@@ -5,6 +5,8 @@ namespace App\Domains\Listings\Enums;
 /**
  * Listing lifecycle (SRS §5.2):
  * draft → pending_review → active ⇄ paused / out_of_stock; rejected; archived.
+ * Any non-terminal state may be archived (lifecycle §1.1, QC-033), including
+ * a listing still waiting for review.
  */
 enum ListingStatus: string
 {
@@ -23,7 +25,7 @@ enum ListingStatus: string
     {
         return match ($this) {
             self::Draft => [self::PendingReview, self::Archived],
-            self::PendingReview => [self::Active, self::Rejected],
+            self::PendingReview => [self::Active, self::Rejected, self::Archived],
             self::Rejected => [self::PendingReview, self::Archived],
             self::Active => [self::Paused, self::OutOfStock, self::Archived],
             self::Paused => [self::Active, self::Archived],

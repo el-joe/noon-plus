@@ -54,6 +54,7 @@
                 <div class="flex flex-col justify-end gap-2">
                     <x-ui.checkbox :label="__('First order only')" name="first_order_only" :checked="$coupon->first_order_only" />
                     <x-ui.checkbox :label="__('Active')" name="is_active" :checked="$coupon->is_active ?? true" />
+                    <x-ui.checkbox :label="__('Show in “Offers for you” and on product pages')" name="is_public" :checked="$coupon->is_public ?? false" />
                 </div>
             </div>
         </x-ui.card>

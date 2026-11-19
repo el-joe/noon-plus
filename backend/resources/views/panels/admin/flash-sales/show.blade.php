@@ -55,10 +55,32 @@
                 @endif
             @endcan
 
+            <x-ui.card :title="__('Marketer invites')" :subtitle="$event->marketer_bonus_type ? __('Bonus: :value :type for marketers who accept', ['value' => (string) $event->marketer_bonus_value, 'type' => $event->marketer_bonus_type->value === 'percent' ? '%' : __('per unit')]) : __('No event bonus; the country percent applies')" data-marketer-invites>
+                <ul class="mb-3 flex flex-col gap-2 text-sm">
+                    @forelse ($invites as $invite)
+                        <li class="flex items-center justify-between gap-2" data-invite="{{ $invite->marketer_profile_id }}">
+                            <span>{{ $invite->marketer?->display_name ?? '#'.$invite->marketer_profile_id }}</span>
+                            <x-ui.status-badge :status="$invite->status" />
+                        </li>
+                    @empty
+                        <li class="text-fg-secondary">{{ __('No marketers invited yet. Opening submissions invites every active marketer.') }}</li>
+                    @endforelse
+                </ul>
+                @can('flash_sales.manage')
+                    @if (! in_array($event->status->value, ['ended', 'cancelled'], true))
+                        <form method="POST" action="{{ route('admin.flash-sales.marketer-invites', $event->id) }}" class="flex flex-col gap-3">
+                            @csrf
+                            <x-ui.select :label="__('Invite a marketer')" name="marketer_profile_id" :options="['all' => __('All active marketers')] + $marketers" />
+                            <div><x-ui.button type="submit" size="sm" variant="outline">{{ __('Invite') }}</x-ui.button></div>
+                        </form>
+                    @endif
+                @endcan
+            </x-ui.card>
+
             <x-ui.state-timeline :title="__('Event history')" :subtitle="__('Oman time')"
                                  :steps="$event->statusHistory->map(fn ($change) => [
                                      'label' => str_replace('_', ' ', ucfirst($change->to_status->value)),
-                                     'meta' => ucfirst($change->actor_type->value).' · '.$clock->inAdminTime($change->created_at)->format('j M H:i').($change->reason ? ' · '.$change->reason : ''),
+                                     'meta' => ucfirst($change->actor_type->value).($change->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($change->actor_user_id) : '').' · '.$clock->inAdminTime($change->created_at)->format('j M H:i').($change->reason ? ' · '.$change->reason : ''),
                                      'state' => $change->to_status === \App\Domains\FlashSales\Enums\FlashSaleEventStatus::Cancelled ? 'stopped' : 'done',
                                  ])->all()" />
         </div>

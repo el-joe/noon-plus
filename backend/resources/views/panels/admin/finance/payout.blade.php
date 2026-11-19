@@ -19,7 +19,7 @@
             <x-ui.card :title="__('Maker-checker')">
                 <dl class="mb-4 grid grid-cols-2 gap-1 text-sm">
                     <dt class="text-fg-secondary">{{ __('Status') }}</dt><dd class="text-end"><x-ui.status-badge :status="$status" /></dd>
-                    <dt class="text-fg-secondary">{{ __('Prepared by') }}</dt><dd class="text-end">{{ $payout->generated_by_user_id ? __('Admin #:id', ['id' => $payout->generated_by_user_id]) : __('System') }}</dd>
+                    <dt class="text-fg-secondary">{{ __('Prepared by') }}</dt><dd class="text-end">{{ $payout->generated_by_user_id ? app(\App\Shared\Support\UserNames::class)->name($payout->generated_by_user_id) : __('System') }}</dd>
                     <dt class="text-fg-secondary">{{ __('Approved') }}</dt><dd class="text-end">{{ $payout->approved_at?->setTimezone(config('nawy.admin_timezone'))->format('j M H:i').($payout->approved_at ? ' '.__('Oman') : '') ?: '—' }}</dd>
                     @if ($payout->hold_reason)<dt class="text-fg-secondary">{{ __('Hold') }}</dt><dd class="text-end">{{ $payout->hold_reason }}</dd>@endif
                     @if ($payout->failure_reason)<dt class="text-fg-secondary">{{ __('Failure') }}</dt><dd class="text-end">{{ $payout->failure_reason }}</dd>@endif
@@ -59,7 +59,7 @@
             </x-ui.card>
 
             <x-ui.state-timeline :title="__('Audit log')" :subtitle="__('Oman time')"
-                                 :steps="$payout->transitions->values()->map(fn ($step, $index) => ['state' => $index === $payout->transitions->count() - 1 ? 'current' : 'done', 'label' => str_replace('_', ' ', ucfirst($step->to_status)).($step->reason ? ' — '.$step->reason : ''), 'meta' => $step->created_at->setTimezone(config('nawy.admin_timezone'))->format('j M, H:i').' · '.$step->actor_type])->all()" />
+                                 :steps="$payout->transitions->values()->map(fn ($step, $index) => ['state' => $index === $payout->transitions->count() - 1 ? 'current' : 'done', 'label' => str_replace('_', ' ', ucfirst($step->to_status)).($step->reason ? ' — '.$step->reason : ''), 'meta' => $step->created_at->setTimezone(config('nawy.admin_timezone'))->format('j M, H:i').' · '.$step->actor_type.($step->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($step->actor_user_id) : '')])->all()" />
         </div>
     </div>
 </x-layouts.panel>

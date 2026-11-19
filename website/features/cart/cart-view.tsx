@@ -1,6 +1,6 @@
 "use client";
 
-import { Minus, Plus, ShoppingCart, Store, Trash2, Truck } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingCart, Store, Trash2, Truck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -9,11 +9,14 @@ import { DeliveryPromise } from "@/features/product/delivery-promise";
 import * as api from "@/lib/api/endpoints";
 import type { Cart, CartLine } from "@/lib/api/schemas";
 import { formatAmount, formatMoney } from "@/lib/format";
-import { errorMessage, fieldErrors, useCart, useCartMutation, useMounted } from "@/lib/hooks";
+import { errorMessage, fieldErrors, queryKeys, useCart, useCartMutation, useLoginRedirect, useMounted, useSession } from "@/lib/hooks";
+import { useMarket } from "@/lib/market-context";
+import { useQueryClient } from "@tanstack/react-query";
 import { MeasurementsForm, measurementPayload, validateMeasurements, type MeasurementValues } from "@/features/product/measurements";
 import { useHref } from "@/lib/market-context";
 import Link from "next/link";
-import { CouponBox, Totals } from "./summary";
+import { FreeDeliveryBar } from "./free-delivery-bar";
+import { CartWarnings, CouponBox, Totals } from "./summary";
 
 /** `/cart` (Figma Cart desktop 25:275, empty 68:1014). */
 export function CartView() {
@@ -56,12 +59,14 @@ export function CartView() {
       </h1>
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
         <div className="flex flex-col gap-4">
-          {freeShipping ? (
+          {cart.free_delivery ? (
+            <FreeDeliveryBar freeDelivery={cart.free_delivery} />
+          ) : freeShipping ? (
             <Alert tone="success" className="flex items-center gap-2">
               <Truck className="size-4" /> {t("cart.freeShippingApplied")}
             </Alert>
           ) : null}
-          {cart.warnings.length > 0 ? <Alert tone="warning">{t("cart.warning")}</Alert> : null}
+          <CartWarnings cart={cart} />
           {shipments.map((shipment, index) => (
             <Card key={`${shipment.seller}-${index}`} className="p-0 md:p-0">
               <div className="flex items-center justify-between border-b border-line px-4 py-3 text-body-sm">
@@ -197,10 +202,13 @@ function CartLineRow({ line, delivery }: { line: CartLine; delivery: ReactNode }
           </label>
         ) : null}
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-          <button type="button" onClick={() => remove.mutate(line.listing_id)} disabled={busy} className="flex items-center gap-1 text-body-sm text-secondary hover:text-ink">
-            <Trash2 className="size-4" />
-            {t("common.remove")}
-          </button>
+          <span className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => remove.mutate(line.listing_id)} disabled={busy} className="flex items-center gap-1 text-body-sm text-secondary hover:text-ink">
+              <Trash2 className="size-4" />
+              {t("common.remove")}
+            </button>
+            {line.product_slug ? <MoveToWishlist slug={line.product_slug} listingId={line.listing_id} disabled={busy} /> : null}
+          </span>
           <div className="flex h-10 items-center rounded-md border border-line-strong" role="group" aria-label={t("product.quantity")}>
             <button type="button" className="px-3" disabled={busy} onClick={() => setQty.mutate({ id: line.listing_id, qty: line.quantity - 1 })} aria-label={t("cart.decrease")}>
               <Minus className="size-4" />
@@ -293,3 +301,38 @@ export function ShippingMethods({ cart }: { cart: Cart }) {
   );
 }
 
+
+/** QC-059 (Figma 25:275 "Remove · Move to wishlist"): save the product, then drop the line. */
+function MoveToWishlist({ slug, listingId, disabled }: { slug: string; listingId: number; disabled: boolean }) {
+  const t = useTranslations();
+  const market = useMarket();
+  const client = useQueryClient();
+  const toLogin = useLoginRedirect();
+  const { isSignedIn } = useSession();
+  const remove = useCartMutation((m, id: number) => api.removeCartItem(m, id));
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const move = async () => {
+    if (!isSignedIn) return toLogin();
+    setPending(true);
+    setError(null);
+    try {
+      await api.addToWishlist(market.slug, slug);
+      client.invalidateQueries({ queryKey: queryKeys.wishlist(market.slug) });
+      await remove.mutateAsync(listingId);
+    } catch (e) {
+      setError(errorMessage(e, t("common.error")));
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" onClick={move} disabled={disabled || pending} className="flex items-center gap-1 text-body-sm text-secondary hover:text-ink">
+        <Heart className="size-4" />
+        {t("cart.moveToWishlist")}
+      </button>
+      {error ? <span role="alert" className="text-body-sm text-danger-text">{error}</span> : null}
+    </>
+  );
+}

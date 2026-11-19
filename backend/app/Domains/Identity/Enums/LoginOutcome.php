@@ -10,4 +10,5 @@ enum LoginOutcome: string
     case SecondStepSent = 'second_step_sent';
     case WrongCode = 'wrong_code';
     case Locked = 'locked';
+    case Rejected = 'rejected';
 }

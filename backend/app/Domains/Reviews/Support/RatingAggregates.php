@@ -3,7 +3,7 @@
 namespace App\Domains\Reviews\Support;
 
 use App\Domains\Catalog\Models\Product;
-use App\Domains\Reviews\Enums\ModerationStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Models\ProductReview;
 use App\Domains\Vendors\Models\Vendor;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,7 +43,7 @@ class RatingAggregates
      */
     public function summary(Builder $reviews): array
     {
-        $counts = (clone $reviews)->where('status', ModerationStatus::Approved)
+        $counts = (clone $reviews)->whereIn('status', ReviewStatus::public())
             ->selectRaw('rating, count(*) as total')
             ->groupBy('rating')
             ->pluck('total', 'rating');

@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Container, Skeleton } from "@/components/ui/misc";
 import { ConfirmationView } from "@/features/checkout/confirmation-view";
+import { privatePageMetadata } from "@/lib/server-market";
 
-export const metadata: Metadata = { robots: { index: false } };
+export const generateMetadata = privatePageMetadata("meta.checkoutSuccess");
 
 export default function OrderConfirmationPage() {
   return (

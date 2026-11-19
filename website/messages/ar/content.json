@@ -61,7 +61,9 @@
     },
     "pages": {
       "updated": "آخر تحديث {date}",
-      "countrySpecific": "تنطبق في {country}"
+      "countrySpecific": "تنطبق في {country}",
+      "placeholderTitle": "صفحة مؤقتة.",
+      "placeholderBody": "لم تُنشر هذه الصفحة بعد. النص أدناه مؤقت ولا يحدد أي شروط."
     },
     "cookies": {
       "title": "خصوصيتك، اختيارك",

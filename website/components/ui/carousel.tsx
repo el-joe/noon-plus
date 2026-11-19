@@ -4,6 +4,7 @@ import clsx from "clsx";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Children, useCallback, useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { useMarket } from "@/lib/market-context";
 
 /**
@@ -26,6 +27,7 @@ export function Rail({
   loop?: boolean;
 }) {
   const market = useMarket();
+  const t = useTranslations("common");
   const [ref, api] = useEmblaCarousel({ align: "start", direction: market.dir, loop, dragFree: !loop, containScroll: "trimSnaps" });
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
@@ -68,12 +70,12 @@ export function Rail({
         </div>
       </div>
       {canPrev ? (
-        <button type="button" onClick={() => api?.scrollPrev()} aria-label="Previous" className="absolute start-1 top-1/2 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-sm md:flex">
+        <button type="button" onClick={() => api?.scrollPrev()} aria-label={t("previous")} className="absolute start-1 top-1/2 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-sm md:flex">
           <Prev className="size-5" />
         </button>
       ) : null}
       {canNext ? (
-        <button type="button" onClick={() => api?.scrollNext()} aria-label="Next" className="absolute end-1 top-1/2 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-sm md:flex">
+        <button type="button" onClick={() => api?.scrollNext()} aria-label={t("next")} className="absolute end-1 top-1/2 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-sm md:flex">
           <Next className="size-5" />
         </button>
       ) : null}
@@ -84,7 +86,8 @@ export function Rail({
               key={i}
               type="button"
               onClick={() => api?.scrollTo(i)}
-              aria-label={`${i + 1}`}
+              aria-label={t("slide", { n: i + 1 })}
+              aria-current={i === selected ? "true" : undefined}
               className={clsx("h-1.5 rounded-full transition-all", i === selected ? "w-5 bg-ink" : "w-1.5 bg-line-strong")}
             />
           ))}

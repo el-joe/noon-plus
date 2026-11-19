@@ -8,13 +8,20 @@ import { AUTH_HINT_COOKIE, TOKEN_COOKIE, VISITOR_COOKIE, cartCookie, cartHintCoo
  *
  * - Adds `Authorization: Bearer` from the httpOnly `nawy_token` cookie.
  * - Adds/stores the guest `X-Cart-Token` per country (CartController).
- * - On email-code verify, moves the Sanctum token into the cookie and strips
- *   it from the JSON the page sees; on cart merge, drops the guest cart.
+ * - On every sign-in (email code, password, password reset, social ticket
+ *   exchange), moves the Sanctum token into the cookie and strips it from the
+ *   JSON the page sees; on cart merge, drops the guest cart.
+ * - Passes `Retry-After` / `Content-Language` through; drops the session on
+ *   401 and on 403 `account_suspended` / `wrong_token`.
  * - Rejects cross-site writes (Origin check) on top of SameSite=Lax cookies.
  */
 
 const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1").replace(/\/$/, "");
 const YEAR = 60 * 60 * 24 * 365;
+/** Endpoints whose success answer carries a Sanctum token (D9 sign-in). */
+const SIGN_IN_ENDPOINTS = new Set(["auth/email-code/verify", "auth/phone-code/verify", "auth/password/login", "auth/password/reset", "auth/social/exchange"]);
+/** 403 codes that mean this browser's session is no longer usable. */
+const SESSION_ENDING_CODES = new Set(["account_suspended", "wrong_token"]);
 const secure = process.env.NODE_ENV === "production";
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -49,6 +56,8 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   if (contentType) headers["Content-Type"] = contentType;
   if (token) headers.Authorization = `Bearer ${token}`;
   if (cartToken) headers["X-Cart-Token"] = cartToken;
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
 
@@ -70,7 +79,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   let body: BodyInit | null = await upstream.arrayBuffer();
   let issuedToken: string | null = null;
 
-  if (upstream.ok && endpoint === "auth/email-code/verify") {
+  if (upstream.ok && SIGN_IN_ENDPOINTS.has(endpoint) && request.method === "POST") {
     try {
       const json = JSON.parse(new TextDecoder().decode(body as ArrayBuffer)) as { data?: { token?: string } };
       issuedToken = json.data?.token ?? null;
@@ -81,9 +90,23 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
     }
   }
 
+  let sessionEnded = upstream.status === 401;
+  if (upstream.status === 403 && token) {
+    try {
+      const json = JSON.parse(new TextDecoder().decode(body as ArrayBuffer)) as { error?: { code?: string } };
+      sessionEnded = SESSION_ENDING_CODES.has(json.error?.code ?? "");
+    } catch {
+      // Not an API envelope: keep the session.
+    }
+  }
+
   const response = new NextResponse(body, { status: upstream.status });
   response.headers.set("Content-Type", upstream.headers.get("content-type") ?? "application/json");
   response.headers.set("Cache-Control", "no-store");
+  for (const name of ["retry-after", "content-language", "x-ratelimit-limit", "x-ratelimit-remaining"]) {
+    const value = upstream.headers.get(name);
+    if (value) response.headers.set(name, value);
+  }
 
   if (newVisitor) {
     response.cookies.set(VISITOR_COOKIE, visitor, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: YEAR });
@@ -113,7 +136,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
     response.cookies.delete(cartHintCookie(countryCode));
   }
 
-  if (upstream.status === 401 && token) {
+  if (sessionEnded && token) {
     response.cookies.delete(TOKEN_COOKIE);
     response.cookies.delete(AUTH_HINT_COOKIE);
   }

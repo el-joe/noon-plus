@@ -115,7 +115,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     child: _Option(
                       key: ValueKey('country-${c.str('code')}'),
                       selected: _country == c.str('code'),
-                      title: c.str('name'),
+                      title: c.m('names')?.s(_language ?? 'en') ?? c.str('name'),
                       subtitle: '${c.m('currency')?.str('code') ?? ''} · ${c.str('phone_code')}',
                       leading: Text(_flag(c.str('iso2')), style: const TextStyle(fontSize: 22)),
                       onTap: () => setState(() {

@@ -7,13 +7,15 @@ use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\LiveMedia\Enums\StreamStatus;
 use App\Domains\LiveMedia\Models\LiveStream;
+use App\Domains\Travel\Support\TravelCatalog;
 use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
  * Server-side data for published blocks (page-builder-blocks.md rule 2):
  * drops blocks outside their visibility window, resolves product sources
- * (manual listing ids, new arrivals) and live streams; every other block is
+ * (manual listing ids, new arrivals), live streams and travel packages
+ * (promoted first, D14); every other block is
  * passed through with its settings for the client to render. Unknown types
  * are skipped (rule 4).
  */
@@ -80,6 +82,11 @@ class BlockResolver
     {
         return match ($type) {
             'product_carousel', 'product_grid' => ['products' => $this->products($settings)],
+            // D14: promoted trips first, labelled (the same list as `travel/packages`).
+            'travel_packages_carousel' => ['packages' => array_slice(app(TravelCatalog::class)->page(array_filter([
+                'trip_type' => is_string($settings['trip_type'] ?? null) ? $settings['trip_type'] : null,
+                'destination' => is_string($settings['destination'] ?? null) ? $settings['destination'] : null,
+            ]))['items'], 0, min(24, max(1, (int) ($settings['limit'] ?? 12))))],
             'live_streams_strip' => ['streams' => LiveStream::query()->whereIn('status', [StreamStatus::Live, StreamStatus::Scheduled])
                 ->orderByRaw("case status when 'live' then 0 else 1 end")->orderBy('scheduled_at')->limit(12)->get()
                 ->map(fn (LiveStream $stream): array => ['slug' => $stream->slug, 'title' => $stream->title(), 'status' => $stream->status->value, 'type' => $stream->source->value, 'scheduled_at' => $stream->scheduled_at?->toIso8601String()])->all()],

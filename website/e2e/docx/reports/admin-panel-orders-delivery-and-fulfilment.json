@@ -1,0 +1,591 @@
+{
+  "title": "Admin panel — orders, delivery & fulfilment — browser test report",
+  "area": "Admin panel: orders, sub-orders, invoices, refunds, returns, disputes, payments under review, support, warranty, delivery & dispatch, FBN inventory, packaging",
+  "date": "2026-11-19",
+  "summary": "Orders were filtered and opened (Oman time), the invoice PDF downloaded, sub-orders moved by state with reason and force-cancelled, a manual refund requested and approved under four-eyes by a second (finance) admin invited through Staff, returns approved/rejected, a dispute thread answered, a payment held under review resolved, a support ticket worked, delivery zones/areas/rates, shipping companies, agent invitations and carrier claims set up, a parcel brought to Packed and assigned on the dispatch board, and the FBN flow run end-to-end: new warehouse, seller inbound plan, arrive, start receiving, receive with damaged units and put-away bin, stock adjustments with audit note, inter-warehouse transfer, removals and pick & pack queues, FBN fees (all 0.00 by owner decision) and packaging supplies. One bug fixed (BT-ADM-002).",
+  "environment": [
+    "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
+    "Storefront http://localhost:3000 (next start) — not used by these flows",
+    "Dev databases (central noon-plus + nawy_uae …), MAIL_MAILER=log (2FA codes and invitation links read from storage/logs/laravel.log), NAWY_PAYMENTS_DRIVER=fake",
+    "Playwright 'areas' project, Desktop Chrome 1280×720, screenshots per step; servers shared with two other QA agents",
+    "Each worker signs the e2e admin in once with its own session (password + emailed code), cached in the OS temp dir; the shared e2e/.auth/admin.json is never used or rewritten (a shared session loses flash messages and validation errors to parallel requests)",
+    "Run: cd website && E2E_SKIP_SEED=1 npx playwright test --project=areas --no-deps e2e/specs/areas/admin --workers=2 (iteration used e2e/specs/areas/admin/.qa.config.ts, the same config without the global setup that signs the shared customer in and was rate-limited by parallel suites). Report JSON: node e2e/docx/admin-report.mjs <report>; .docx: node e2e/docx/build-docx.mjs e2e/docx/reports/<report>.json"
+  ],
+  "accounts": [
+    {
+      "role": "Super admin",
+      "login": "e2e-admin@nawy.test (E2eSeeder), own session per worker, password + emailed 2FA"
+    },
+    {
+      "role": "Finance admin (four-eyes approver)",
+      "login": "qa-fin-<run>@nawy.test, invited through Staff (role Finance)"
+    },
+    {
+      "role": "Seller (inbound plan)",
+      "login": "e2e-seller@nawy.test (E2E Store), own session"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/admin/orders-fulfilment.spec.ts"
+  ],
+  "issues": [
+    {
+      "id": "BT-ADM-002",
+      "severity": "major",
+      "area": "Delivery → Carrier claims",
+      "description": "Submitting a carrier claim with a parcel number that does not exist returned a bare 404 page (firstOrFail) instead of a form error.",
+      "status": "fixed",
+      "fix": "CarrierClaimController@store returns a sub_order_number error ('No parcel with this number in …'). Regression: DeliveryTest 'answers an unknown parcel number … (BT-ADM-002)'."
+    },
+    {
+      "id": "BT-ADM-001",
+      "severity": "major",
+      "area": "All panels (layout) / customers, classifieds, campaigns, blog, help",
+      "description": "A refused submit of a compact form (list-row status change with reason, classified reject, platform campaign create, blog post, help article) showed no message at all — the page just reloaded, so it looked like nothing happened. On Customers the status filter also picked up the row form's old 'status' input.",
+      "status": "fixed",
+      "fix": "x-layouts.panel now shows an error summary (role=alert) for every field error; pages with their own summary opt out (:error-summary=false); x-ui.select gets :use-old=false for GET filters (customers). Regression: QaWave3JobsAndLifecyclesTest 'suspends and bans customer accounts…' (alert + message + filter value)."
+    },
+    {
+      "id": "BT-ADM-007",
+      "severity": "minor",
+      "area": "Payouts, histories",
+      "description": "Actors are shown as 'Admin #37' (statement 'Prepared by', voucher/flash-sale history 'By') instead of the staff member's name.",
+      "status": "open",
+      "fix": "Resolve the user name in the views."
+    }
+  ],
+  "notes": [
+    "Orders used: NW-AE-1000002/3/5/6 from 15 Nov (old dev data). ADM-21 and ADM-24 change one-time data (cancel order 3, resolve payment 19): their latest run is the one that performed the action.",
+    "Pick & pack shows its empty state: no FBN customer order exists in dev (creating one needs a storefront checkout of an FBN listing, covered by the customer suite).",
+    "Warranty claims and agent withdrawals were only listed/filtered: no records in dev.",
+    "Totals and steps are the latest recorded run of each flow (e2e/docx/reports/_log/*.jsonl, generated by e2e/docx/admin-report.mjs). Earlier runs that failed were test-script fixes or the bugs listed in 'Issues found', all fixed before the final run.",
+    "All data created by these flows carries a run suffix (e.g. 'QA Brand 9abc12x'). Records of today's e2e suites (E2E Store parcels, E2E travel agency, listing 19, E2E Open Souq ads) were not decided or changed.",
+    "Backend fixes take effect immediately (PHP/Blade); no website or panel asset rebuild is needed for any fix in this report."
+  ],
+  "totals": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "ADM-20",
+      "name": "Orders list, detail and invoice PDF",
+      "goal": "Admin filters orders by country/status/date/search, opens an order (Oman time shown) and downloads the invoice PDF.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Orders",
+          "expected": "Order list with filters and Oman time",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-20-1.png"
+        },
+        {
+          "action": "Filter status Delivered, date range 2026-11-01..2026-11-30",
+          "expected": "Only delivered orders in range",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-20-2.png"
+        },
+        {
+          "action": "Search NW-AE-1000002",
+          "expected": "Exactly that order is found",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-20-3.png"
+        },
+        {
+          "action": "Open order NW-AE-1000002",
+          "expected": "Detail: sub-order timeline, payment & settlement, admin actions, customer & delivery",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-20-4.png"
+        },
+        {
+          "action": "Download the invoice PDF",
+          "expected": "200, application/pdf, starts with %PDF",
+          "result": "pass",
+          "note": "999608 bytes",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-20-5.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-21",
+      "name": "Sub-order state change and force-cancel",
+      "goal": "Admin moves a sub-order to the next allowed state (reason required) and force-cancels another (reason required).",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 07:48 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 07:48 UTC",
+      "steps": [
+        {
+          "action": "Order NW-AE-1000002: change state without reason",
+          "expected": "Refused: reason required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-1.png"
+        },
+        {
+          "action": "Change state to the next allowed state with a reason",
+          "expected": "Timeline shows the new state with actor and Oman time",
+          "result": "pass",
+          "note": "moved to confirmed",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-2.png"
+        },
+        {
+          "action": "Order NW-AE-1000003: force-cancel without a reason",
+          "expected": "Refused: reason required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-3.png"
+        },
+        {
+          "action": "Force-cancel with a reason",
+          "expected": "Sub-order Cancelled; force-cancel action gone",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-4.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-22",
+      "name": "Manual refund (four-eyes)",
+      "goal": "Admin A requests a refund on a paid order; A cannot approve own request; finance admin B (invited through Staff) approves it. Refunds list filters.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Order NW-AE-1000006: request refund with no amount/reason",
+          "expected": "Validation errors",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-1.png"
+        },
+        {
+          "action": "Request a refund of 1.00 to Nawy Credits with a reason",
+          "expected": "Refund goes to the refunds queue as Pending",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-2.png"
+        },
+        {
+          "action": "Refunds → Pending",
+          "expected": "The new refund is listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-3.png"
+        },
+        {
+          "action": "Requester tries to approve own refund",
+          "expected": "Refused (four-eyes) or approve button hidden",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-4.png"
+        },
+        {
+          "action": "Invite a Finance staff member and accept the invitation",
+          "expected": "Staff member created with role Finance",
+          "result": "pass",
+          "note": "qa-fin-9skpzyq-585490@nawy.test",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-5.png"
+        },
+        {
+          "action": "Finance admin signs in (2FA) and approves the refund",
+          "expected": "Refund approved/completed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-6.png"
+        },
+        {
+          "action": "Refunds: filter Completed / source Admin",
+          "expected": "Filtered list",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-7.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-23",
+      "name": "Returns",
+      "goal": "Admin filters return requests, approves one and rejects one with a reason (reason validated).",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Returns, filter Requested",
+          "expected": "Return requests listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-1.png"
+        },
+        {
+          "action": "Open the oldest requested return",
+          "expected": "Detail with items, reason and actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-2.png"
+        },
+        {
+          "action": "Approve the return",
+          "expected": "Status Approved; next steps (receive/inspect) offered",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-3.png"
+        },
+        {
+          "action": "Advance / inspect the approved return if offered",
+          "expected": "Next state saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-4.png"
+        },
+        {
+          "action": "Open the next return, reject without a reason",
+          "expected": "Refused: reason required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-5.png"
+        },
+        {
+          "action": "Reject with a reason",
+          "expected": "Status Rejected",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-23-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-24",
+      "name": "Disputes, payments under review, support tickets, warranty claims",
+      "goal": "Admin reviews the dispute queue and a dispute thread; resolves a payment held under review; works a support ticket (internal note, assign, priority, status); checks warranty claims filters.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 07:48 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 07:48 UTC",
+      "steps": [
+        {
+          "action": "Disputes: list and filter Resolved",
+          "expected": "Dispute DSP listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-1.png"
+        },
+        {
+          "action": "Open dispute #1 and post a message",
+          "expected": "Message appears in the thread",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-2.png"
+        },
+        {
+          "action": "Payments under review: open the held payment",
+          "expected": "Expected vs captured amounts and resolve actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-3.png"
+        },
+        {
+          "action": "Resolve without a note",
+          "expected": "Refused: note required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-4.png"
+        },
+        {
+          "action": "Resolve as 'Refund the captured amount' with a note",
+          "expected": "Payment leaves the review queue",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-5.png"
+        },
+        {
+          "action": "Support tickets: filter open + overdue, open a ticket",
+          "expected": "Ticket thread with reply, assign, priority, status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-6.png"
+        },
+        {
+          "action": "Post an internal note, assign to me, set priority High, move status",
+          "expected": "Each action saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-7.png"
+        },
+        {
+          "action": "Warranty claims: list and filter",
+          "expected": "List renders with status and coverage filters",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-24-8.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-25",
+      "name": "Delivery & logistics setup",
+      "goal": "Admin creates a shipping zone (validation first), adds an area and a rate, adds a shipping company, invites a delivery agent, files a carrier claim (validation) and opens the scorecard.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:11 UTC",
+      "steps": [
+        {
+          "action": "Open Delivery & logistics (zones & rates)",
+          "expected": "Zones listed with Create zone form",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-1.png"
+        },
+        {
+          "action": "Create zone empty",
+          "expected": "Refused: name and subsidy share required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-2.png"
+        },
+        {
+          "action": "Create zone \"QA Zone 9ubj3g1\" (inactive, 50% subsidy)",
+          "expected": "Zone created",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-3.png"
+        },
+        {
+          "action": "Add an area (Dubai / QA Area) and a standard rate",
+          "expected": "Area and rate listed on the zone",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-4.png"
+        },
+        {
+          "action": "Shipping companies: add one (validation first)",
+          "expected": "Company listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-5.png"
+        },
+        {
+          "action": "Agents: invite a delivery agent, then revoke the invitation",
+          "expected": "Invitation listed then revoked",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-6.png"
+        },
+        {
+          "action": "Carrier claims: submit with an unknown sub-order",
+          "expected": "Refused with a validation message",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-7.png"
+        },
+        {
+          "action": "Scorecard",
+          "expected": "Carrier scorecard renders",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-8.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-26",
+      "name": "Dispatch (live board)",
+      "goal": "Admin brings an old placed sub-order to Packed, sees it on the dispatch board, assigns an agent, opens assignments and the shipping label; agent withdrawals list.",
+      "preconditions": "Uses the first old SoundMax cash-on-delivery order that is not packed yet (NW-AE-10000xx, 15–18 Nov; unpaid card orders cannot be confirmed). Today's E2E Store parcels are not touched. Last run: 2026-11-19 08:14 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:14 UTC",
+      "steps": [
+        {
+          "action": "Pick an old placed SoundMax order and move its sub-order to Packed (state by state, with reasons)",
+          "expected": "Sub-order Packed",
+          "result": "pass",
+          "note": "NW-AE-1000002-1 moved to Packed",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-1.png"
+        },
+        {
+          "action": "Open Dispatch; filter Ready",
+          "expected": "Board lists ready parcels with agent pickers and Oman time",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-2.png"
+        },
+        {
+          "action": "Assign the parcel to QA2 Agent",
+          "expected": "Parcel leaves 'Ready to dispatch' and appears as assigned",
+          "result": "pass",
+          "note": "assigned to QA2 Agent",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-3.png"
+        },
+        {
+          "action": "Open an assignment detail",
+          "expected": "Assignment timeline, attempts and proof links",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-4.png"
+        },
+        {
+          "action": "Open the shipping label and label PDF of that shipment",
+          "expected": "Label HTML 200; PDF %PDF",
+          "result": "pass",
+          "note": "878912 bytes",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-5.png"
+        },
+        {
+          "action": "Agent withdrawals: filter scope and status",
+          "expected": "Withdrawals list renders",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-27",
+      "name": "Inventory & fulfilment (FBN)",
+      "goal": "Admin adds a warehouse, receives a seller's inbound shipment with put-away bins, adjusts stock, requests and moves a transfer, checks removals and pick & pack.",
+      "preconditions": "The inbound plan is created by an own E2E Store seller session into the admin's new QA warehouse. Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Inventory overview",
+          "expected": "KPIs: inbound, pick & pack, removals, transfers; warehouse table",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-1.png"
+        },
+        {
+          "action": "Warehouses: add empty → errors; add QA warehouse",
+          "expected": "Warehouse created and active",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-2.png"
+        },
+        {
+          "action": "Seller (E2E Store) submits an inbound plan of 5 units to the QA warehouse",
+          "expected": "Plan submitted",
+          "result": "pass",
+          "note": "plan submitted",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-3.png"
+        },
+        {
+          "action": "Receiving: filter by the QA warehouse and open the plan",
+          "expected": "Inbound detail with lines and actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-4.png"
+        },
+        {
+          "action": "Mark arrived, then Start receiving",
+          "expected": "Status Receiving; receive form per line",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-5.png"
+        },
+        {
+          "action": "Receive 4 good + 1 damaged with put-away bin QA-B1",
+          "expected": "Line received; stock on hand +4 and damaged +1 in the QA warehouse",
+          "result": "pass",
+          "note": "line fields: _token, good, damaged, bin_code",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-6.png"
+        },
+        {
+          "action": "Stock & adjustments: filter the QA warehouse",
+          "expected": "SKU shows on hand 4, damaged 1, bin QA-B1",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-7.png"
+        },
+        {
+          "action": "Adjust stock without a note",
+          "expected": "Refused: note required for the audit",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-8.png"
+        },
+        {
+          "action": "Cycle count +1 on a SoundMax SKU in AE-FC1 with a note, then -1 back",
+          "expected": "Two movements recorded with reason and note",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-9.png"
+        },
+        {
+          "action": "Transfers: request 1 unit AE-FC1 → AE-FC2, then act on it",
+          "expected": "Transfer created and moved to its next state",
+          "result": "pass",
+          "note": "http://admin.nawy.test:8000/inventory/transfers/2/receive",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-10.png"
+        },
+        {
+          "action": "Removals, Pick & pack",
+          "expected": "Both queues render (empty states allowed)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-11.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-28",
+      "name": "FBN fees and packaging supplies",
+      "goal": "FBN fee settings show the owner-decided 0.00 defaults and save; packaging supplies, packaging delivery fee and packaging orders.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open FBN fees",
+          "expected": "Every money field is 0.00 (owner decision)",
+          "result": "pass",
+          "note": "25 money fields, all 0.00",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-28-1.png"
+        },
+        {
+          "action": "Save fees unchanged",
+          "expected": "Saved message; values still 0.00",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-28-2.png"
+        },
+        {
+          "action": "Packaging: add supply empty → errors; add QA box",
+          "expected": "Supply listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-28-3.png"
+        },
+        {
+          "action": "Packaging delivery fee: save the current value",
+          "expected": "Saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-28-4.png"
+        },
+        {
+          "action": "Packaging orders: list and filter",
+          "expected": "Orders list renders",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-28-5.png"
+        }
+      ]
+    }
+  ]
+}

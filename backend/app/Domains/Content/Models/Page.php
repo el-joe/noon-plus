@@ -5,6 +5,8 @@ namespace App\Domains\Content\Models;
 use App\Domains\Content\Enums\PageStatus;
 use App\Domains\Content\Enums\PageTemplate;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Http\FlushesPublicCache;
+use App\Shared\Http\PublicCache;
 use App\Shared\StateMachine\HasStateTransitions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +21,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['template', 'slug', 'locale', 'title', 'status', 'publish_at', 'published_at', 'current_revision_id', 'published_revision_id', 'seo_title', 'seo_description', 'updated_by'])]
 class Page extends Model
 {
-    use HasStateTransitions, UsesCountryDatabase;
+    use FlushesPublicCache, HasStateTransitions, UsesCountryDatabase;
+
+    /**
+     * Public API answers built from this model (forgotten on every change).
+     *
+     * @return array<int, string>
+     */
+    public function publicCacheGroups(): array
+    {
+        return [PublicCache::APP_CONTEXTS];
+    }
 
     /**
      * @var array<string, mixed>

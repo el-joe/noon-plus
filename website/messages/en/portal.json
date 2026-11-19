@@ -109,7 +109,8 @@
       "agreement": "Agreement",
       "agency": "Agency",
       "profile": "Profile",
-      "company": "Company"
+      "company": "Company",
+      "email": "Confirm email"
     },
     "stepTitles": {
       "account": "Account information",
@@ -117,7 +118,8 @@
       "address": "Contact & business address",
       "agency": "Agency details",
       "profile": "Your profile",
-      "company": "Company details"
+      "company": "Company details",
+      "email": "Confirm your email"
     },
     "fields": {
       "name": "Full name",
@@ -408,6 +410,17 @@
         }
       },
       "ctaTitle": "Ready to start?"
+    },
+    "email": {
+      "sent": "We sent a 6-digit code to {email}. Enter it here to confirm the email for this application.",
+      "code": "6-digit code",
+      "verify": "Confirm email",
+      "resend": "Send a new code",
+      "resendIn": "Send a new code in {seconds}s",
+      "resent": "We sent you a new code.",
+      "hint": "The code is valid for 30 minutes. After 5 wrong tries, ask for a new code. If this email already has a Nawy account, the code also confirms you want to add this business to it.",
+      "verified": "{email} is confirmed.",
+      "required": "Confirm your email with the code we sent before you submit the application."
     }
   }
 }

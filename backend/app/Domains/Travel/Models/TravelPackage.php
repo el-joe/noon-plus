@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A trip package of a travel agency (vendor of type travel) with itinerary, inclusions and cancellation tiers.
  */
-#[Fillable(['vendor_id', 'slug', 'title_en', 'title_ar', 'description_en', 'description_ar', 'trip_type', 'destination_city', 'destination_country', 'nights', 'itinerary', 'inclusions', 'exclusions', 'cancellation_policy', 'cover_path', 'contract_path'])]
+#[Fillable(['vendor_id', 'slug', 'title_en', 'title_ar', 'description_en', 'description_ar', 'trip_type', 'destination_city', 'destination_country', 'nights', 'itinerary', 'inclusions', 'exclusions', 'cancellation_policy', 'cover_path', 'gallery', 'contract_path'])]
 class TravelPackage extends Model
 {
     use HasStateTransitions, UsesCountryDatabase;
@@ -34,6 +34,7 @@ class TravelPackage extends Model
             'inclusions' => 'array',
             'exclusions' => 'array',
             'cancellation_policy' => 'array',
+            'gallery' => 'array',
             'submitted_at' => 'immutable_datetime',
             'approved_at' => 'immutable_datetime',
         ];
@@ -53,5 +54,13 @@ class TravelPackage extends Model
     public function departures(): HasMany
     {
         return $this->hasMany(TravelDeparture::class);
+    }
+
+    /**
+     * The trip title in the current locale (QC-028), English as fallback.
+     */
+    public function localizedTitle(): string
+    {
+        return app()->getLocale() === 'ar' && filled($this->title_ar) ? $this->title_ar : $this->title_en;
     }
 }

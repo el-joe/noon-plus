@@ -23,11 +23,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ApplicationStatus $status
  */
 #[Fillable([
-    'number', 'type', 'status', 'token_hash', 'email', 'email_verified_at', 'name', 'phone', 'password_hash', 'locale', 'store_slug', 'data',
-    'completed_steps', 'logo_path', 'assigned_to_user_id', 'reviewed_by_user_id', 'decision_reason', 'requested_changes',
+    'number', 'type', 'status', 'token_hash', 'resume_token_hashes', 'email', 'email_verified_at', 'name', 'phone', 'password_hash', 'locale', 'store_slug', 'data',
+    'completed_steps', 'logo_path', 'assigned_to_user_id', 'acquired_by_user_id', 'referral_code', 'reviewed_by_user_id', 'decision_reason', 'requested_changes',
     'user_id', 'tenant_type', 'tenant_id', 'submitted_at', 'decided_at',
 ])]
-#[Hidden(['token_hash', 'password_hash', 'email_code_hash'])]
+#[Hidden(['token_hash', 'resume_token_hashes', 'password_hash', 'email_code_hash'])]
 class PartnerApplication extends Model
 {
     use HasStateTransitions, UsesCountryDatabase;
@@ -47,6 +47,7 @@ class PartnerApplication extends Model
             'data' => 'array',
             'completed_steps' => 'array',
             'requested_changes' => 'array',
+            'resume_token_hashes' => 'array',
             'submitted_at' => 'immutable_datetime',
             'email_verified_at' => 'immutable_datetime',
             'email_code_expires_at' => 'immutable_datetime',
@@ -75,8 +76,23 @@ class PartnerApplication extends Model
         return in_array($step, $this->completed_steps ?? [], true);
     }
 
+    /**
+     * The wizard's own token, or one of the tokens from a resume link (RT-006).
+     */
     public function matchesToken(string $token): bool
     {
-        return $token !== '' && hash_equals($this->token_hash, hash('sha256', $token));
+        if ($token === '') {
+            return false;
+        }
+
+        $hash = hash('sha256', $token);
+
+        foreach ([$this->token_hash, ...($this->resume_token_hashes ?? [])] as $known) {
+            if (is_string($known) && hash_equals($known, $hash)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

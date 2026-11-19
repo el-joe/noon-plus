@@ -12,6 +12,7 @@ use App\Domains\Contracts\Models\ContractVersion;
 use App\Domains\Contracts\Support\CheckoutContracts;
 use App\Domains\Contracts\Support\ContractGates;
 use App\Domains\Contracts\Support\ContractRenderer;
+use App\Domains\Contracts\Support\ContractResolver;
 use App\Domains\Contracts\Support\ContractSigner;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Marketers\Models\MarketerProfile;
@@ -44,6 +45,30 @@ class ContractApiController extends Controller
             'version' => $version->version,
             'mode' => $version->template->mode,
             'text' => $version->isFile() ? null : $renderer->text($version, app()->getLocale()),
+            'published_at' => $version->published_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * QC-042: the current published partner agreement of this market (the
+     * public `/legal/seller-agreement` page). Only partner-facing kinds;
+     * placeholders stay unfilled. 404 when none is published.
+     */
+    public function current(string $kind, ContractResolver $resolver, ContractRenderer $renderer): JsonResponse
+    {
+        $kind = ContractKind::tryFrom($kind);
+        abort_unless(in_array($kind, [ContractKind::SellerPlatform, ContractKind::TravelAgency, ContractKind::Broker, ContractKind::MarketerOnboarding, ContractKind::ShippingCompany], true), 404);
+        $version = $resolver->current($kind, $this->countryContext->current());
+        abort_if($version === null, 404);
+        $version->loadMissing('template');
+
+        return ApiResponse::success([
+            'id' => $version->id,
+            'kind' => $kind->value,
+            'title' => $kind->label(),
+            'version' => $version->version,
+            'has_file' => $version->isFile(),
+            'text' => $version->body_en !== null || $version->body_ar !== null ? $renderer->text($version, app()->getLocale()) : null,
             'published_at' => $version->published_at?->toIso8601String(),
         ]);
     }

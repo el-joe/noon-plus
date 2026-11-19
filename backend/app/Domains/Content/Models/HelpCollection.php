@@ -3,6 +3,8 @@
 namespace App\Domains\Content\Models;
 
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Http\FlushesPublicCache;
+use App\Shared\Http\PublicCache;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +16,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['hub', 'audience', 'slug', 'title_en', 'title_ar', 'description_en', 'description_ar', 'sort_order'])]
 class HelpCollection extends Model
 {
-    use UsesCountryDatabase;
+    use FlushesPublicCache, UsesCountryDatabase;
+
+    /**
+     * Public API answers built from this model (forgotten on every change).
+     *
+     * @return array<int, string>
+     */
+    public function publicCacheGroups(): array
+    {
+        return [PublicCache::HELP];
+    }
 
     public const HUBS = ['help_center', 'knowledge_hub'];
 

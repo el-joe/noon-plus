@@ -26,6 +26,14 @@ PaymentStep paymentStep(Json? payment) => switch (payment?.m('next_action')?.s('
 /// Payment states that count as paid.
 bool isPaid(String? status) => const {'authorized', 'captured', 'paid', 'partially_refunded'}.contains(status);
 
+/// The gateway captured a different amount (`failure_code: amount_mismatch`):
+/// not paid, not failed; Nawy staff capture, refund or fail it (QA-009).
+bool isUnderReview(String? status) => status == 'under_review';
+
+/// Payment states that end the attempt without money taken. `voided`: a COD
+/// payment whose parcels were all cancelled before collection (QA-016).
+bool isFailedPayment(String? status) => const {'failed', 'expired', 'voided'}.contains(status);
+
 /// Run the gateway step for an order or a non-order payment (gift card,
 /// Nawy One): open the hosted page in the system browser, then the waiting
 /// screen verifies when the app comes back.
@@ -98,7 +106,11 @@ class _PaymentWaitScreenState extends State<PaymentWaitScreen> with WidgetsBindi
       if (widget.order != null) {
         final order = asJson((await api.post('orders/${enc(widget.order!)}/payments/verify')).data);
         _payment = order.m('payment');
-        if (isPaid(order.s('payment_status')) || isPaid(_payment?.s('status')) || paymentStep(_payment) == PaymentStep.done) {
+        if (isUnderReview(order.s('payment_status')) || isUnderReview(_payment?.s('status'))) {
+          // Nothing more to poll: staff settle it.
+          _poll?.cancel();
+          _payment = {...?_payment, 'status': 'under_review'};
+        } else if (isPaid(order.s('payment_status')) || isPaid(_payment?.s('status')) || paymentStep(_payment) == PaymentStep.done) {
           _poll?.cancel();
           if (mounted) Navigator.of(context).pushNamedAndRemoveUntil(Routes.orderSuccess, (r) => r.settings.name == Routes.shell || r.isFirst, arguments: {'number': widget.order});
           return;
@@ -107,11 +119,11 @@ class _PaymentWaitScreenState extends State<PaymentWaitScreen> with WidgetsBindi
         final res = asJson((await api.post('payments/${enc(widget.reference!)}/verify')).data);
         _payment = res.m('payment');
         _subject = res.m('subject');
-        if (isPaid(_payment?.s('status'))) _poll?.cancel();
+        if (isPaid(_payment?.s('status')) || isUnderReview(_payment?.s('status'))) _poll?.cancel();
       }
       _error = null;
     } on ApiException catch (e) {
-      if (!silent) _error = e.message;
+      if (!silent && mounted) _error = errorMessage(context, e);
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -143,7 +155,8 @@ class _PaymentWaitScreenState extends State<PaymentWaitScreen> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
-    final failed = paymentStep(_payment) == PaymentStep.retry || const {'failed', 'expired'}.contains(_payment?.s('status'));
+    final review = isUnderReview(_payment?.s('status'));
+    final failed = !review && (paymentStep(_payment) == PaymentStep.retry || isFailedPayment(_payment?.s('status')));
     final paid = isPaid(_payment?.s('status'));
     final url = _payment?.m('next_action')?.s('url') ?? widget.url;
     return Scaffold(
@@ -151,19 +164,20 @@ class _PaymentWaitScreenState extends State<PaymentWaitScreen> with WidgetsBindi
       body: ListView(padding: const EdgeInsets.all(24), children: [
         const SizedBox(height: 24),
         Icon(
-          paid ? Icons.check_circle_rounded : (failed ? Icons.error_rounded : Icons.lock_clock_rounded),
+          paid ? Icons.check_circle_rounded : (review ? Icons.manage_search_rounded : (failed ? Icons.error_rounded : Icons.lock_clock_rounded)),
           size: 72,
           color: paid ? NawyColors.bgSuccess : (failed ? NawyColors.bgDanger : NawyColors.textBrand),
         ),
         const SizedBox(height: 16),
-        Text(context.t(paid ? 'payment.paid' : (failed ? 'payment.failed' : 'payment.waiting')), textAlign: TextAlign.center, style: NawyText.h3),
+        Text(context.t(paid ? 'payment.paid' : (review ? 'payment.underReview' : (failed ? 'payment.failed' : 'payment.waiting'))),
+            key: const ValueKey('payment-state'), textAlign: TextAlign.center, style: NawyText.h3),
         const SizedBox(height: 8),
         Text(
-          context.t(paid ? 'payment.paidHint' : (failed ? 'payment.failedHint' : 'payment.waitingHint')),
+          context.t(paid ? 'payment.paidHint' : (review ? 'payment.underReviewHint' : (failed ? 'payment.failedHint' : 'payment.waitingHint'))),
           textAlign: TextAlign.center,
           style: NawyText.body.copyWith(color: NawyColors.textSecondary),
         ),
-        if (_payment?.m('failure')?.s('message') != null)
+        if (!review && _payment?.m('failure')?.s('message') != null)
           Padding(padding: const EdgeInsets.only(top: 8), child: Text(_payment!.m('failure')!.str('message'), textAlign: TextAlign.center, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
         if (_subject != null && paid) ...[
           const SizedBox(height: 12),
@@ -180,6 +194,8 @@ class _PaymentWaitScreenState extends State<PaymentWaitScreen> with WidgetsBindi
         const SizedBox(height: 24),
         if (paid)
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(context.t('common.done')))
+        else if (review)
+          const SizedBox.shrink()
         else if (failed && widget.order != null)
           BusyButton(label: context.t('payment.tryAnother'), onPressed: _retry)
         else ...[

@@ -19,13 +19,11 @@ Schedule::command('nawy:flash-sales:transition')->everyFiveMinutes()->withoutOve
 Schedule::command('nawy:payments:expire-pending')->everyFiveMinutes()->withoutOverlapping();
 
 /*
-| AutoCompleteOrdersJob (SRS §17): settings key `order.auto_complete_time`,
-| a global time read in the admin (Oman) time zone.
+| AutoCompleteOrdersJob (SRS §17, QC-038): checked every 15 minutes; each
+| country runs once a day at its `order.auto_complete_time` setting (country
+| override through SettingsService, default 02:00), admin (Oman) time.
 */
-Schedule::command('nawy:orders:auto-complete')
-    ->dailyAt(config('nawy.orders.auto_complete_time'))
-    ->timezone(config('nawy.admin_timezone'))
-    ->withoutOverlapping();
+Schedule::command('nawy:orders:auto-complete --scheduled')->everyFifteenMinutes()->withoutOverlapping();
 
 /*
 | Money (WP4, MASTER_PLAN §11, SRS §17). Daily times are read in the admin
@@ -39,6 +37,7 @@ Schedule::command('nawy:payouts:generate')->dailyAt(config('nawy.finance.payout_
 Schedule::command('nawy:warranty:expire')->dailyAt('03:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
 Schedule::command('nawy:cod:generate-settlements')->dailyAt(config('nawy.finance.cod_settlement_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
 Schedule::command('nawy:membership:renew')->hourly()->withoutOverlapping();
+Schedule::command('nawy:delivery:issue-payslips')->dailyAt('02:30')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
 
 /*
 | Marketers, campaigns, contracts & documents (WP5, MASTER_PLAN §11, SRS
@@ -62,6 +61,7 @@ Schedule::command('nawy:marketers:evaluate-cross-promotion')->monthlyOn(1, '05:0
 */
 Schedule::command('nawy:travel:expire-holds')->everyMinute()->withoutOverlapping();
 Schedule::command('nawy:ads:schedule-bookings')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('nawy:travel:expire-promotions')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('nawy:coupons:close-participation-invitations')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('nawy:classifieds:saved-search-alerts')->hourly()->withoutOverlapping();
 Schedule::command('nawy:ad-packages:expire')->hourly()->withoutOverlapping();
@@ -82,3 +82,58 @@ Schedule::command('nawy:content:publish-scheduled')->everyFiveMinutes()->without
 
 // QC-047: expired API tokens (per-type `expires_at`, legacy tokens past `sanctum.expiration`) are deleted daily.
 Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('04:10')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+/*
+| QA wave 3 (QC-015): SRS jobs that were missing. Daily times in the admin
+| (Oman) time zone; every job runs per country through ForEachCountry and is
+| idempotent. Banner / page / homepage-media schedules are covered by the
+| page builder's per-block visibility window (checked on every render) and
+| `nawy:content:publish-scheduled`; FBN jobs are at the end of this file; reporting-ETL, acquisition
+| commissions, vendor subscriptions and the celebrity report belong to
+| modules that are not built yet (see docs/project/qa-issues-qc.md QC-015).
+*/
+Schedule::command('nawy:coupons:expire')->dailyAt('00:15')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:analytics:aggregate')->hourly()->withoutOverlapping();
+Schedule::command('nawy:analytics:prune')->dailyAt('04:30')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:catalog:rank-bestsellers')->weeklyOn(1, '03:30')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+// QC-007 (lifecycle §9.3): resolved support tickets close after `support.auto_close_days` (default 7).
+Schedule::command('nawy:support:auto-close')->hourly()->withoutOverlapping();
+
+/*
+| Fulfilled by Nawy (MASTER_PLAN §11): 01:00 storage snapshot + capacity
+| overage, 01:15 long-term / unsellable flags, weekly inbound reminder,
+| monthly storage invoices (previous month, on the 1st).
+*/
+Schedule::command('nawy:fbn:storage-snapshot')->dailyAt('01:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:fbn:flag-storage')->dailyAt('01:15')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:fbn:inbound-reminders')->weeklyOn(0, '09:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:fbn:invoice-storage')->monthlyOn(1, '02:30')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+/*
+| Reporting (FR-CTY-10, FR-ANL-2): nightly ETL into `nawy_reporting`
+| (yesterday in each country's own time zone) and the celebrity monthly
+| report for the previous month on the 1st, after the cross-promotion
+| evaluation at 05:00. Admin (Oman) time.
+*/
+Schedule::command('nawy:reporting:etl')->dailyAt(config('nawy.analytics.reporting_etl_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:marketers:celebrity-reports')->monthlyOn(1, config('nawy.analytics.celebrity_report_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+/*
+| Finance (FR-FIN-6, FR-FIN-7): acquisition commissions for the previous
+| month on the 1st at 02:00; vendor plan billing daily (renewals invoice each
+| subscription's own monthly / annual period, past_due after the due date,
+| expiry after `subscription.grace_days`). Admin (Oman) time, per country.
+*/
+Schedule::command('nawy:finance:acquisition-commissions')->monthlyOn(1, '02:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:subscriptions:bill')->dailyAt(config('nawy.finance.subscription_billing_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+/*
+| QC-015 search index rebuild: the products' normalised search text (Arabic
+| letter folding, brand / category names, SKUs and barcodes) is rebuilt
+| nightly per country; saves keep it current during the day.
+*/
+Schedule::command('nawy:search:rebuild-index')->dailyAt('04:20')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+// PayPal USD conversion: exchange rates from the configured provider (manual driver = admins only; nothing fetched).
+Schedule::command('nawy:exchange-rates:sync')->dailyAt(config('nawy.exchange_rates.sync_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();

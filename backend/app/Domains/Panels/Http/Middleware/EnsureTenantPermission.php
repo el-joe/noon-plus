@@ -11,7 +11,9 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * `tenant.can:{panel},{group}` (QC-020): the member's staff role must grant
  * the permission group — view for GET/HEAD, full for any change. Owners
- * pass. Refused with 403 (`forbidden` on the API).
+ * pass. Refused with 403 (`forbidden` on the API). `tenant.can:{panel},{group},write`
+ * asks for full access on a GET too: the page is only a form for a change
+ * (browser test BT-VEN-006: a read-only member could open "Add a product").
  */
 class EnsureTenantPermission
 {
@@ -20,9 +22,9 @@ class EnsureTenantPermission
     /**
      * @param  Closure(Request): Response  $next
      */
-    public function handle(Request $request, Closure $next, string $panel, string $group): Response
+    public function handle(Request $request, Closure $next, string $panel, string $group, ?string $mode = null): Response
     {
-        $write = ! in_array($request->method(), ['GET', 'HEAD'], true);
+        $write = $mode === 'write' || ! in_array($request->method(), ['GET', 'HEAD'], true);
 
         if (! $this->permissions->allows($request, $panel, $group, $write)) {
             $message = __('Your team role does not allow this. Ask the owner for access.');

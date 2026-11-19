@@ -163,16 +163,16 @@
       },
       "message": "Message to the seller (optional)",
       "noPaymentTitle": "No payment on Nawy — never send a deposit",
-      "noPaymentBody": "{seller} confirms the time. If you buy or reserve, you pay the seller directly when you meet.",
+      "noPaymentBody": "{seller} gets your details and contacts you directly. If you buy or reserve, you pay the seller directly when you meet.",
       "send": "Send request",
-      "guestNote": "No account needed. Requests are free and you can cancel any time before the seller confirms.",
+      "guestNote": "No account needed. Requests are free.",
       "prefix": {
         "viewing": "Viewing request",
         "reserve": "Reservation request"
       },
       "preferred": "Preferred: {date}, {slot}",
       "sentTitle": "Request sent",
-      "sentBody": "{seller} has your request and will contact you to confirm.",
+      "sentBody": "{seller} has your request and will contact you directly.",
       "reference": "Reference #{id}",
       "noPayment": "Nothing to pay on Nawy. You settle with the seller directly.",
       "backToAd": "Back to the ad",
@@ -303,6 +303,28 @@
       "photosTitle": "Add photos",
       "photosHint": "Ads with photos get many more replies. JPG, PNG or WebP.",
       "addPhotos": "Add photos",
+      "video": {
+        "title": "Short video (optional)",
+        "hint": "One video per ad, up to {seconds} seconds and {size}. MP4, WebM or MOV.",
+        "add": "Add a video",
+        "uploading": "Uploading video…",
+        "label": "Video",
+        "type": "Use an MP4, WebM or MOV video.",
+        "size": "This video is larger than {size}. Trim it or record at a lower quality.",
+        "duration": "Videos can be at most {seconds} seconds long. Trim it and try again.",
+        "unreadable": "We couldn't read this video. Try another file."
+      },
+      "photoLimits": {
+        "hint": "Up to {max} photos, {size} each. Large photos are resized automatically before upload.",
+        "count": "{count} of {max} photos",
+        "full": "This ad has the maximum of {max} photos. Remove one to add another.",
+        "tooMany": "You can add up to {max} photos to this ad, so {count, plural, one {# photo was} other {# photos were}} not added.",
+        "notPhoto": "{name} isn't a JPG, PNG or WebP photo.",
+        "tooLarge": "{name} is still larger than {size} after resizing. Try a smaller photo.",
+        "unreadable": "{name} couldn't be read as a photo.",
+        "preparing": "Resizing {current} of {total}…",
+        "uploading": "Uploading {current} of {total}…"
+      },
       "reviewTitle": "Check your ad",
       "contractNotice": "This category needs the seller contract. You'll sign it right after you submit.",
       "submit": "Submit for review",
@@ -332,21 +354,16 @@
     "requests": {
       "empty": "You have not sent any viewing or reserve requests yet.",
       "allTypes": "All",
-      "preferred": "Preferred: {date}",
-      "scheduled": "Confirmed for {date}",
+      "preferred": "Preferred time: {date}",
       "sent": "Sent {date}",
-      "note": "Note from the seller: {note}",
-      "status": {
-        "pending": "Pending",
-        "requested": "Requested",
-        "confirmed": "Confirmed",
-        "scheduled": "Scheduled",
-        "completed": "Completed",
-        "declined": "Declined",
-        "rejected": "Declined",
-        "cancelled": "Cancelled",
-        "no_show": "No show"
-      }
+      "message": "Message: {message}",
+      "box": "Requests",
+      "boxes": {
+        "sent": "Sent",
+        "received": "On my ads"
+      },
+      "emptyReceived": "Nobody has sent a request on your ads yet.",
+      "receivedHint": "Contact the customer directly by phone or email. Nawy keeps requests as records only."
     }
   }
 }

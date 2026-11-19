@@ -3,6 +3,7 @@
 namespace App\Domains\Shipping\Support;
 
 use App\Domains\Countries\Models\Country;
+use App\Domains\Fulfilment\Support\FbnSettings;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Settings\SettingsService;
 use App\Domains\Shipping\Enums\ShippingMethod;
@@ -63,13 +64,19 @@ class ShipmentQuoter
     }
 
     /**
-     * Seller handling days plus product lead time, the slowest item wins.
+     * Seller handling days plus product lead time, the slowest item wins. A
+     * Fulfilled-by-Nawy item ships from the warehouse, so it uses the
+     * warehouse handling days (`fbn.handling_days`, default 0) instead of
+     * the seller's — the faster FBN delivery promise.
      *
      * @param  array<int, array{listing: Listing, quantity: int}>  $lines
      */
     public function processingDays(array $lines): int
     {
-        return (int) collect($lines)->max(fn (array $line): int => (int) $line['listing']->handling_days + (int) $line['listing']->variant->product->lead_days);
+        $warehouseDays = app(FbnSettings::class)->int('handling_days');
+
+        return (int) collect($lines)->max(fn (array $line): int => ($line['listing']->fulfilment === 'fbn' ? $warehouseDays : (int) $line['listing']->handling_days)
+            + (int) $line['listing']->variant->product->lead_days);
     }
 
     /**

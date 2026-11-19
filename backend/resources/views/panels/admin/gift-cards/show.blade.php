@@ -7,10 +7,10 @@
 
     <x-ui.card :title="__('Details')">
         <dl class="grid gap-3 text-sm sm:grid-cols-3">
-            <div><dt class="text-fg-secondary">{{ __('Source') }}</dt><dd>{{ $card->source === 'admin' ? __('Issued by Nawy') : __('Bought by customer #:id', ['id' => $card->purchaser_user_id]) }}</dd></div>
+            <div><dt class="text-fg-secondary">{{ __('Source') }}</dt><dd>{{ $card->source === 'admin' ? __('Issued by Nawy') : __('Bought by :name', ['name' => app(\App\Shared\Support\UserNames::class)->name($card->purchaser_user_id)]) }}</dd></div>
             <div><dt class="text-fg-secondary">{{ __('Recipient') }}</dt><dd>{{ $card->recipient_name ?? '—' }} · {{ $card->recipient_email }}</dd></div>
             <div><dt class="text-fg-secondary">{{ __('Delivered') }}</dt><dd>{{ $card->delivered_at?->setTimezone(config('nawy.admin_timezone'))->format('j M Y, H:i') ?? ($card->send_at ? __('Scheduled for :at', ['at' => $card->send_at->setTimezone(config('nawy.admin_timezone'))->format('j M Y, H:i')]) : '—') }}</dd></div>
-            <div><dt class="text-fg-secondary">{{ __('Redeemed') }}</dt><dd>{{ $card->redeemed_at ? $card->redeemed_at->setTimezone(config('nawy.admin_timezone'))->format('j M Y, H:i').' · #'.$card->redeemed_by_user_id : '—' }}</dd></div>
+            <div><dt class="text-fg-secondary">{{ __('Redeemed') }}</dt><dd>{{ $card->redeemed_at ? $card->redeemed_at->setTimezone(config('nawy.admin_timezone'))->format('j M Y, H:i').' · '.app(\App\Shared\Support\UserNames::class)->name($card->redeemed_by_user_id) : '—' }}</dd></div>
             <div><dt class="text-fg-secondary">{{ __('Expires') }}</dt><dd>{{ $card->expires_at?->setTimezone(config('nawy.admin_timezone'))->format('j M Y') }}</dd></div>
             <div><dt class="text-fg-secondary">{{ __('Message') }}</dt><dd>{{ $card->message ?? '—' }}</dd></div>
         </dl>

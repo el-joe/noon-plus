@@ -18,6 +18,7 @@
             <a href="{{ route('admin.finance.cod-settlements') }}" class="px-2 pb-2 text-fg-secondary">{{ __('COD settlement') }}</a>
         @endcan
         <a href="{{ route('admin.finance.payouts', ['status' => 'on_hold']) }}" class="px-2 pb-2 text-fg-secondary">{{ __('Holds') }}</a>
+        @can('ledger.view')<a href="{{ route('admin.finance.ledger') }}" class="px-2 pb-2 text-fg-secondary">{{ __('Ledger') }}</a>@endcan
     </nav>
 
     <x-ui.card flush>

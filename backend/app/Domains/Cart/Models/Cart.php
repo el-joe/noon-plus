@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * cart identified by the `X-Cart-Token` header (FR-CHK-1). It remembers the
  * delivery city/area and the chosen shipping method for the live quote.
  */
-#[Fillable(['customer_user_id', 'guest_token', 'destination_city', 'destination_area', 'shipping_method'])]
+#[Fillable(['customer_user_id', 'guest_token', 'guest_ip_hash', 'destination_city', 'destination_area', 'shipping_method'])]
 class Cart extends Model
 {
     use UsesCountryDatabase;

@@ -1,0 +1,3 @@
+/* Usage descriptions (owner-review D16: image_picker). Keep in sync with ar.lproj. */
+"NSCameraUsageDescription" = "Nawy uses the camera so you can add photos to reviews, returns, ads, support tickets and your profile.";
+"NSPhotoLibraryUsageDescription" = "Nawy opens your photos so you can add them to reviews, returns, ads, support tickets and your profile.";

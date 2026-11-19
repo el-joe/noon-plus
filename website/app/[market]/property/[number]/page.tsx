@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Alert, Card, Container, Skeleton } from "@/components/ui/misc";
-import { propertyTypeLabel, purposeLabel, PropertyCardView, PropertyImage } from "@/features/real-estate/shared";
+import { furnishingLabel, propertyTypeLabel, purposeLabel, PropertyCardView, PropertyImage, rentPeriodLabel } from "@/features/real-estate/shared";
 import { ViewingRequestForm } from "@/features/real-estate/viewing-form";
 import type { MarketParams } from "@/features/travel/page-types";
 import { orNull } from "@/lib/api/client";
@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const market = parseMarket(slug);
   if (!market) return {};
   const ad = await orNull(getProperty(market.slug, decodeURIComponent(number)).then((r) => r.data)).catch(() => null);
-  return { title: ad?.title ?? getT(market.locale)("realEstate.title"), description: ad?.description?.slice(0, 160) ?? undefined };
+  // Only a property ad names this page (a car ad here is a 404, QA-012).
+  if (!ad?.property) return { title: getT(market.locale)("realEstate.title") };
+  return { title: ad.title, description: ad.description?.slice(0, 160) ?? undefined };
 }
 
 /** `/property/[number]` — property detail (Figma 70:6770) with the D8 viewing request. */
@@ -64,8 +66,8 @@ function PropertyView({ market, ad }: { market: Market; ad: PropertyDetail }) {
     [t("realEstate.detail.baths"), p.bathrooms ?? "—"],
     [t("realEstate.detail.size"), p.area_sqm ? t("realEstate.detail.sqm", { value: Number(p.area_sqm).toLocaleString("en") }) : "—"],
   ];
-  if (p.furnishing) facts.push([t("realEstate.detail.furnishing"), humanize(p.furnishing)]);
-  if (p.rent_period && p.purpose === "rent") facts.push([t("realEstate.detail.rentPeriod"), humanize(p.rent_period)]);
+  if (p.furnishing) facts.push([t("realEstate.detail.furnishing"), furnishingLabel(t, p.furnishing)]);
+  if (p.rent_period && p.purpose === "rent") facts.push([t("realEstate.detail.rentPeriod"), rentPeriodLabel(t, p.rent_period)]);
   const regulatory: [string, string][] = [
     [t("realEstate.detail.permit"), p.permit_number ?? ""],
     [t("realEstate.detail.authority"), p.permit_authority ?? ""],
@@ -79,7 +81,7 @@ function PropertyView({ market, ad }: { market: Market; ad: PropertyDetail }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label="Breadcrumb">
+      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label={t("common.breadcrumb")}>
         <Link href={`/${market.slug}`} aria-label={t("common.home")}>
           <Home className="size-3.5" />
         </Link>
@@ -129,7 +131,7 @@ function PropertyView({ market, ad }: { market: Market; ad: PropertyDetail }) {
             {ad.price ? (
               <p className="text-h2 font-bold" dir="ltr">
                 {formatMoney(ad.price)}
-                {p.purpose === "rent" && p.rent_period ? <span className="text-body font-normal text-secondary"> / {humanize(p.rent_period)}</span> : null}
+                {p.purpose === "rent" && p.rent_period ? <span className="text-body font-normal text-secondary"> / {rentPeriodLabel(t, p.rent_period)}</span> : null}
               </p>
             ) : null}
             {ad.is_negotiable ? <p className="text-body-sm text-secondary">{t("realEstate.negotiable")}</p> : null}

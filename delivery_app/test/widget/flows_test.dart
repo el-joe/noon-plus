@@ -89,7 +89,7 @@ void main() {
     });
 
     testWidgets('no camera: photo falls back to the signature', (tester) async {
-      await pumpScreen(tester, ProofScreen(assignment: Assignment(assignmentJson(proofRequired: true)), takePhoto: () async => null), FakeTransport());
+      await pumpScreen(tester, ProofScreen(assignment: Assignment(assignmentJson(proofRequired: true)), picker: FakeMediaPicker(hasCamera: false)), FakeTransport());
       await tester.tap(find.byKey(const Key('take-photo')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('camera-unavailable')), findsOneWidget);
@@ -97,8 +97,8 @@ void main() {
 
     testWidgets('a camera photo satisfies the proof and is sent as multipart', (tester) async {
       final transport = FakeTransport({'POST delivery/assignments/DA-1001/confirm': assignmentJson(status: 'delivered')});
-      final png = _tinyPng();
-      await pumpScreen(tester, ProofScreen(assignment: Assignment(assignmentJson(proofRequired: true, proofType: 'photo')), takePhoto: () async => png), transport);
+      final picker = FakeMediaPicker(cameraResults: [PickedMedia.fromBytes('IMG_0001.png', _tinyPng())]);
+      await pumpScreen(tester, ProofScreen(assignment: Assignment(assignmentJson(proofRequired: true, proofType: 'photo')), picker: picker), transport);
       await tester.tap(find.byKey(const Key('take-photo')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('complete-delivery')));
@@ -107,7 +107,19 @@ void main() {
       expect(sent.headers['Content-Type'], startsWith('multipart/form-data; boundary='));
       final text = latin1.decode(sent.body!);
       expect(text, contains('name="codes_match"'));
-      expect(text, contains('name="photo"; filename="proof.jpg"'));
+      expect(text, contains('name="photo"; filename="proof.png"'));
+      expect(text, contains('Content-Type: image/png'));
+      expect(picker.fullSizeRequests, [true]);
+    });
+
+    testWidgets('a photo over the proof limit is refused with the reason', (tester) async {
+      final picker = FakeMediaPicker(cameraResults: [fakePhoto('huge.jpg', size: 8192 * 1024 + 1)]);
+      await pumpScreen(tester, ProofScreen(assignment: Assignment(assignmentJson(proofRequired: true, proofType: 'photo')), picker: picker), FakeTransport());
+      await tester.tap(find.byKey(const Key('take-photo')));
+      await tester.pumpAndSettle();
+      expect(find.text('huge.jpg is larger than 8 MB.'), findsOneWidget);
+      expect(find.byKey(const Key('proof-photo')), findsNothing);
+      expect(tester.widget<FilledButton>(find.byKey(const Key('complete-delivery'))).onPressed, isNull);
     });
   });
 

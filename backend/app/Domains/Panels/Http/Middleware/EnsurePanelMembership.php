@@ -24,6 +24,13 @@ class EnsurePanelMembership
             abort(403, __('Your account has no access to this panel.'));
         }
 
+        // WP11: a suspended or banned person loses every panel session, whatever memberships they hold.
+        if (in_array($user->status, ['suspended', 'banned'], true)) {
+            auth()->guard('web')->logout();
+            $request->session()->invalidate();
+            abort(403, __('This account is suspended. Contact Nawy support.'));
+        }
+
         return $next($request);
     }
 }

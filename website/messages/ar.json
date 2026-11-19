@@ -27,14 +27,19 @@
     "notFoundBody": "قد يكون الرابط غير صحيح أو أن الصفحة نُقلت.",
     "goHome": "الذهاب إلى الصفحة الرئيسية",
     "errorTitle": "حدث خطأ من جهتنا",
-    "comingSoon": "قريبًا",
     "breadcrumb": "مسار التنقل",
     "signInToContinue": "سجّل الدخول للمتابعة",
     "loadMore": "عرض المزيد",
     "saving": "جارٍ الحفظ…",
     "edit": "تعديل",
     "delete": "حذف",
-    "optionalSuffix": "(اختياري)"
+    "optionalSuffix": "(اختياري)",
+    "tooManyAttempts": "محاولات كثيرة. حاول مرة أخرى بعد {seconds, plural, one {ثانية واحدة} two {ثانيتين} few {# ثوانٍ} many {# ثانية} other {# ثانية}}.",
+    "pagination": "التنقل بين الصفحات",
+    "progress": "مراحل التقدّم",
+    "previous": "السابق",
+    "next": "التالي",
+    "slide": "الشريحة {n}"
   },
   "header": {
     "deliverTo": "التوصيل إلى",
@@ -78,7 +83,10 @@
     "returnsPolicy": "سياسة الإرجاع",
     "orders": "طلباتك",
     "cart": "سلتك",
-    "cashOnDelivery": "الدفع عند الاستلام"
+    "cashOnDelivery": "الدفع عند الاستلام",
+    "social": "تواصل اجتماعي",
+    "paymentMethods": "طرق الدفع",
+    "countries": "الدول"
   },
   "switcher": {
     "title": "الدولة واللغة",
@@ -124,7 +132,7 @@
     "getItBy": "يصلك بحلول {date}",
     "getItBetween": "يصلك {from} – {to}",
     "orderWithin": "اطلب خلال {time}",
-    "express": "express",
+    "express": "إكسبرس",
     "warrantyTitle": "احمِ مشترياتك",
     "warrantyNone": "بدون ضمان إضافي",
     "warrantyMonths": "{months, plural, one {شهر واحد} two {شهران} few {# أشهر} many {# شهرًا} other {# شهر}}",
@@ -145,7 +153,7 @@
     "securePaymentsHint": "بطاقة، محفظة، الدفع عند الاستلام، الدفع لاحقًا",
     "options": "الخيارات",
     "notFound": "هذا المنتج لم يعد متوفرًا.",
-    "imageSoon": "الصور قريبًا",
+    "noImages": "لا تتوفر صور",
     "ratings": "{count, plural, one {تقييم واحد} other {# تقييم}}",
     "description": "الوصف",
     "tabOverview": "نظرة عامة",
@@ -165,7 +173,8 @@
       "recommended": "المقترح",
       "newest": "الأحدث",
       "price_asc": "السعر: من الأقل للأعلى",
-      "price_desc": "السعر: من الأعلى للأقل"
+      "price_desc": "السعر: من الأعلى للأقل",
+      "bestselling": "الأكثر مبيعًا"
     },
     "filters": "التصفية",
     "category": "الفئة",
@@ -225,7 +234,14 @@
     "decrease": "إنقاص الكمية",
     "increase": "زيادة الكمية",
     "warning": "تغيّرت بعض المنتجات منذ إضافتها. يرجى مراجعة سلتك.",
-    "vat": "ضريبة القيمة المضافة مشمولة"
+    "vat": "ضريبة القيمة المضافة مشمولة",
+    "mergeWarningsTitle": "لم نتمكن من نقل كل شيء من سلة الزائر",
+    "mergeWarningFallback": "تعذّرت إضافة منتج من سلة الزائر.",
+    "mergeWarningCounts": "(طلبت {requested}، وأُبقي {merged})",
+    "mergeWarningsReview": "راجع سلتك",
+    "mergeWarningsDismiss": "إغلاق",
+    "warningsTitle": "يُرجى مراجعة سلتك",
+    "moveToWishlist": "نقل إلى المفضلة"
   },
   "checkout": {
     "title": "إتمام الشراء",
@@ -290,6 +306,7 @@
       "gift_card": "بطاقة هدية",
       "membership_invoice": "عضوية نوي ون",
       "classified_package": "باقة إعلان",
+      "travel_promotion": "ترويج رحلة",
       "order": "طلب"
     },
     "paidTitle": "تم استلام الدفع",
@@ -306,7 +323,18 @@
       "membership_invoice": "عرض عضويتي",
       "classified_package": "عرض إعلاناتي"
     },
-    "notFound": "لم نتمكن من العثور على هذه الدفعة."
+    "notFound": "لم نتمكن من العثور على هذه الدفعة.",
+    "travelPartnerHint": "تُدار عروض ترويج الرحلات من لوحة شركاء السفر.",
+    "travelPromotion": {
+      "active": "ترويجك نشط الآن حتى {date}.",
+      "queued": "تأكّد ترويجك ويبدأ في {start} بعد انتهاء الترويج الجاري، وينتهي في {date}.",
+      "pending": "ترويجك بانتظار تأكيد الدفع. يبدأ عرضه فور تأكيد بوابة الدفع للدفعة.",
+      "notLive": "تم استلام الدفعة، لكن ترويجك غير نشط. تواصل مع دعم Nawy بشأن استرداد المبلغ.",
+      "failed": "لم تتم عملية الدفع، لذا ترويجك غير نشط. يمكنك المحاولة مرة أخرى من صفحة العروض الترويجية في لوحة شركاء السفر."
+    },
+    "underReviewTitle": "الدفع قيد المراجعة",
+    "underReviewHint": "أبلغ البنك عن مبلغ مختلف عن إجمالي طلبك، لذلك يراجع فريقنا عملية الدفع. طلبك معلّق حتى ذلك الحين، وسنرسل لك بريدًا إلكترونيًا فور تسويته.",
+    "viewOrder": "عرض الطلب"
   },
   "confirmation": {
     "title": "شكرًا لك! تم تأكيد طلبك.",
@@ -343,7 +371,56 @@
     "heroWalletHint": "تسوّق واحجز الرحلات وادفع للبائعين بأمان",
     "heroCountries": "هوية واحدة في 8 دول",
     "heroCountriesHint": "بياناتك تبقى في دولتك",
-    "signedInAs": "مسجّل الدخول باسم {email}"
+    "signedInAs": "مسجّل الدخول باسم {email}",
+    "or": "أو",
+    "usePassword": "تسجيل الدخول بكلمة المرور",
+    "useCode": "أرسل لي رمزًا بالبريد بدلًا من ذلك",
+    "password": "كلمة المرور",
+    "passwordSignIn": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول…",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "continueGoogle": "المتابعة باستخدام Google",
+    "continueApple": "المتابعة باستخدام Apple",
+    "redirecting": "جارٍ التحويل…",
+    "forgotTitle": "إعادة تعيين كلمة المرور",
+    "forgotHint": "أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة التعيين ورمزًا من 6 أرقام.",
+    "sendReset": "أرسل بريد إعادة التعيين",
+    "resetSent": "إذا كان لدى {email} حساب في ناوي، فقد أرسلنا رابطًا لإعادة التعيين ورمزًا. يعمل الرابط لمدة 60 دقيقة والرمز لمدة 10 دقائق.",
+    "haveCode": "لديّ رمز",
+    "backToSignIn": "العودة لتسجيل الدخول",
+    "resetTitle": "اختر كلمة مرور جديدة",
+    "resetHint": "استخدم 8 أحرف على الأقل.",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور الجديدة",
+    "savePassword": "احفظ وسجّل الدخول",
+    "saving": "جارٍ الحفظ…",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+    "passwordTooShort": "استخدم 8 أحرف على الأقل.",
+    "resetDone": "تم تعيين كلمة المرور. جارٍ تسجيل دخولك…",
+    "resetDoneSignIn": "تم تعيين كلمة المرور. يمكنك الآن تسجيل الدخول.",
+    "socialCompleteTitle": "جارٍ تسجيل دخولك",
+    "socialCompleting": "جارٍ إكمال تسجيل الدخول…",
+    "socialFailedTitle": "تعذّر تسجيل دخولك",
+    "socialError": {
+      "social_token_invalid": "تعذّر التحقق من تسجيل الدخول عبر هذا المزوّد. حاول مرة أخرى.",
+      "social_email_unverified": "لا يحتوي حسابك لدى هذا المزوّد على بريد إلكتروني مؤكَّد. سجّل الدخول برمز البريد الإلكتروني بدلًا من ذلك.",
+      "social_provider_unavailable": "خيار تسجيل الدخول هذا غير متاح حاليًا. استخدم بريدك الإلكتروني.",
+      "social_state_invalid": "انتهت صلاحية تسجيل الدخول هذا. حاول مرة أخرى.",
+      "social_ticket_invalid": "انتهت صلاحية تسجيل الدخول هذا. حاول مرة أخرى.",
+      "account_suspended": "هذا الحساب موقوف. تواصل مع دعم ناوي.",
+      "default": "لم يكتمل تسجيل الدخول. حاول مرة أخرى."
+    },
+    "usePhone": "هل كان لديك حساب في ناوي القديم برقم هاتف فقط؟",
+    "phoneTitle": "سجّل الدخول برقم هاتفك",
+    "phoneHint": "للحسابات من ناوي القديم التي ليس لها بريد إلكتروني بعد. سنرسل لك رمزًا لمرة واحدة برسالة نصية، ثم تضيف بريدك الإلكتروني.",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "+971 50 123 4567",
+    "sendSmsCode": "أرسل لي رمزًا",
+    "phoneCodeSent": "إذا كان الرقم {phone} مرتبطًا بحساب في ناوي القديم، فقد أرسلنا إليه رمزًا من 6 أرقام.",
+    "changePhone": "تغيير الرقم",
+    "addEmailTitle": "أضف بريدك الإلكتروني",
+    "addEmailHint": "من الآن ستسجّل الدخول ببريدك الإلكتروني. أدخله وسنرسل رمزًا لتأكيده.",
+    "addEmailConfirm": "تأكيد البريد الإلكتروني"
   },
   "account": {
     "hello": "هلا، {name}!",
@@ -373,7 +450,10 @@
       "membership": "ناوي ون",
       "profile": "الملف الشخصي",
       "contracts": "عقودي",
-      "notifications": "الإشعارات"
+      "notifications": "الإشعارات",
+      "support": "تذاكر الدعم",
+      "followedStores": "المتاجر المتابَعة",
+      "cards": "البطاقات المحفوظة"
     },
     "signInRequired": "سجّل الدخول لعرض حسابك",
     "overviewOrders": "أحدث الطلبات",
@@ -392,6 +472,7 @@
       "placedOn": "بتاريخ {date}",
       "shipment": "الشحنة {n} من {total}",
       "soldBy": "يباع من {seller}",
+      "fulfilledByNawy": "تشحنه ناوي من مستودعها",
       "deliveryCode": "رمز التوصيل",
       "readToCourier": "اقرأه للمندوب",
       "arriving": "يصل {date}",
@@ -404,7 +485,10 @@
       "address": "عنوان التوصيل",
       "payment": "الدفع",
       "payNow": "أكمل الدفع",
-      "help": "تحتاج مساعدة بخصوص هذا الطلب؟"
+      "help": "تحتاج مساعدة بخصوص هذا الطلب؟",
+      "disputeOpen": "يوجد نزاع مفتوح على هذا الطلب. سنحدّث الطلب بمجرد حلّه.",
+      "viewDisputes": "عرض النزاعات",
+      "paymentVoided": "لا يوجد مبلغ مستحق: أُلغي الدفع عند الاستلام لأن الطلب أُلغي."
     },
     "returns": {
       "title": "الإرجاع والاسترداد",
@@ -463,10 +547,43 @@
         "succeeded": "تم الدخول",
         "wrong_code": "رمز خاطئ",
         "locked": "مقفل",
-        "failed": "فشل"
+        "failed": "فشل",
+        "wrong_credentials": "كلمة مرور خاطئة",
+        "rejected": "مرفوض"
+      },
+      "password": "كلمة المرور",
+      "passwordSetHint": "تسجّل الدخول برمز يُرسل إلى بريدك. أضف كلمة مرور لتسجيل دخول أسرع.",
+      "passwordChangeHint": "تغيير كلمة المرور يسجّل خروجك من جميع الأجهزة الأخرى.",
+      "setPassword": "تعيين كلمة المرور",
+      "changePassword": "تغيير كلمة المرور",
+      "currentPassword": "كلمة المرور الحالية",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "passwordSaved": "تم حفظ كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "passwordTooShort": "استخدم 8 أحرف على الأقل.",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…",
+      "linked": "حسابات تسجيل الدخول المرتبطة",
+      "linkedHint": "الحسابات التي يمكنك استخدامها لتسجيل الدخول إلى ناوي.",
+      "notLinked": "غير مرتبط",
+      "linkedBadge": "مرتبط",
+      "unlink": "إلغاء الربط",
+      "unlinked": "تم إلغاء ربط {provider}.",
+      "provider": {
+        "google": "Google",
+        "apple": "Apple"
+      },
+      "method": {
+        "email_code": "رمز البريد الإلكتروني",
+        "password": "كلمة المرور",
+        "google": "Google",
+        "apple": "Apple"
       }
     },
-    "marketplace": "الحجوزات والسوق"
+    "marketplace": "الحجوزات والسوق",
+    "addEmailRequired": "أضف بريدك الإلكتروني للمتابعة",
+    "addEmailAction": "إضافة البريد الإلكتروني"
   },
   "status": {
     "pending": "قيد الانتظار",
@@ -496,7 +613,13 @@
     "partially_shipped": "شُحن جزئيًا",
     "partially_delivered": "وصل جزئيًا",
     "partially_refunded": "استُرد جزئيًا",
-    "cancel_requested": "طُلب الإلغاء"
+    "cancel_requested": "طُلب الإلغاء",
+    "under_review": "الدفع قيد المراجعة",
+    "voided": "ملغى",
+    "disputed": "نزاع مفتوح",
+    "published": "منشورة",
+    "flagged": "قيد المراجعة",
+    "hidden": "مخفية"
   },
   "blocks": {
     "endsIn": "ينتهي خلال",
@@ -541,7 +664,24 @@
     "helpful": "مفيد ({count})",
     "soldBy": "يبيعه {seller}",
     "noMatch": "لا توجد مراجعات تطابق هذا الفلتر.",
-    "voteError": "تعذّر تسجيل تصويتك."
+    "voteError": "تعذّر تسجيل تصويتك.",
+    "sellerReply": "رد البائع",
+    "sellerReplyFrom": "رد من {seller}",
+    "report": "إبلاغ",
+    "reportTitle": "الإبلاغ عن هذا التقييم",
+    "reportReason": "لماذا تبلغ عنه؟",
+    "reportReasons": {
+      "spam": "رسائل مزعجة أو إعلان",
+      "offensive": "مسيء أو مهين",
+      "fake": "مزيف أو مضلل",
+      "irrelevant": "لا يتعلق بهذا المنتج",
+      "personal_data": "يتضمن معلومات شخصية",
+      "other": "سبب آخر"
+    },
+    "reportNote": "أضف تفاصيل (اختياري)",
+    "reportCancel": "إلغاء",
+    "reportSend": "إرسال البلاغ",
+    "reported": "شكرًا — سيراجع فريقنا هذا البلاغ."
   },
   "writeReview": {
     "title": "ما رأيك في {product}؟",
@@ -579,7 +719,8 @@
     "empty": "لم تكتب أي مراجعة بعد.",
     "status": {
       "pending": "قيد المراجعة",
-      "approved": "منشورة",
+      "published": "منشورة",
+      "hidden": "مخفية",
       "rejected": "غير منشورة"
     },
     "rejectedReason": "السبب: {reason}",
@@ -693,5 +834,19 @@
     "allCategories": "الكل",
     "notFound": "العلامة التجارية غير موجودة",
     "metaDescription": "تسوّق {brand} على نوي: {count, plural, one {منتج واحد} other {# منتجات}}."
+  },
+  "meta": {
+    "orderDetail": "الطلب {number}",
+    "returnDetail": "الإرجاع {number}",
+    "newReturn": "طلب إرجاع",
+    "disputeDetail": "النزاع {number}",
+    "newDispute": "فتح نزاع",
+    "warrantyDetail": "مطالبة الضمان {number}",
+    "newWarranty": "مطالبة ضمان جديدة",
+    "checkoutPayment": "حالة الدفع",
+    "checkoutSuccess": "تم تأكيد الطلب",
+    "travelBookings": "حجوزات رحلاتي",
+    "travelBooking": "حجز الرحلة {number}",
+    "travelBookingSent": "تم إرسال طلب الحجز"
   }
 }

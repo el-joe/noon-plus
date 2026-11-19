@@ -78,11 +78,25 @@ class BookingCard extends StatelessWidget {
             [
               row.str('number'),
               if (row.s('departure_date') != null) context.t('bookings.departs', {'date': row.str('departure_date')}),
-              context.t('bookings.travellers', {'count': row.i('travellers') ?? 0}),
+              if (partyOf(row) case final party? when party.children > 0)
+                context.t('bookings.party', {'adults': party.adults, 'children': party.children})
+              else
+                context.t('bookings.travellers', {'count': row.i('travellers') ?? partyOf(row)?.adults ?? 0}),
             ].join(' · '),
             style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary),
           ),
-          Text([row.s('contact_name'), row.s('contact_phone')].whereType<String>().join(' · '), style: NawyText.body),
+          if (row.s('contact_name') != null) Text(row.str('contact_name'), style: NawyText.body),
+          if (row.s('contact_phone') != null) PhoneLink(row.str('contact_phone'), key: Key('call-contact-$id')),
+          for (final (i, room) in roomsOf(row).indexed)
+            Row(key: Key('room-$id-$i'), children: [
+              Expanded(
+                child: Text(
+                  context.t('bookings.room', {'room': context.l10n.status(room.s('room_type')), 'count': room.i('travellers') ?? 1, 'price': money(context, room['unit_price'])}),
+                  style: NawyText.bodySm,
+                ),
+              ),
+              Text(money(context, room['line_total']), style: NawyText.bodySm),
+            ]),
           if (row['total'] != null) Text(context.t('bookings.total', {'amount': money(context, row['total'])}), style: NawyText.bodyMedium),
           if (row.b('can_confirm') || row.b('can_reject')) ...[
             const SizedBox(height: 8),

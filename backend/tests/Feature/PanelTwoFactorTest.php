@@ -89,3 +89,29 @@ it('records wrong passwords and missing panel access in the login history', func
         ]);
     expect(LoginEvent::query()->where('user_id', $customer->id)->exists())->toBeTrue();
 });
+
+it('expires the pending two-step challenge after the configured minutes', function () {
+    config(['nawy.panel_auth.two_factor_challenge_minutes' => 10]);
+    $vendor = vendorWithTwoStep();
+
+    $this->post(partnerUrl('login'), ['email' => 'khalid@soundmax.ae', 'password' => 'a-long-password'])->assertRedirect(partnerUrl('two-factor'));
+    $code = emailedCode();
+
+    $this->travel(9)->minutes();
+    $this->get(partnerUrl('two-factor'))->assertOk();
+
+    $this->travel(2)->minutes();
+    $this->get(partnerUrl('two-factor'))->assertRedirect(partnerUrl('login'))->assertSessionHasErrors('email');
+    $this->post(partnerUrl('two-factor'), ['code' => $code])->assertRedirect(partnerUrl('login'));
+
+    $this->assertGuest();
+    expect(session()->has('two_factor'))->toBeFalse()
+        ->and($vendor->loginEvents()->pluck('outcome')->all())->toBe([LoginOutcome::SecondStepSent]);
+});
+
+it('treats a pending challenge without an expiry (older session) as expired', function () {
+    vendorWithTwoStep();
+
+    $this->withSession(['two_factor' => ['user_id' => User::query()->value('id'), 'panel' => 'partner', 'remember' => false]])
+        ->get(partnerUrl('two-factor'))->assertRedirect(partnerUrl('login'));
+});

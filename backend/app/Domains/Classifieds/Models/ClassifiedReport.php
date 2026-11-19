@@ -4,6 +4,7 @@ namespace App\Domains\Classifieds\Models;
 
 use App\Domains\Classifieds\Enums\ReportStatus;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\StateMachine\HasStateTransitions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['classified_ad_id', 'reporter_user_id', 'reason', 'details', 'status', 'resolution_note', 'handled_by_user_id'])]
 class ClassifiedReport extends Model
 {
-    use UsesCountryDatabase;
+    use HasStateTransitions, UsesCountryDatabase;
 
     protected $table = 'classified_reports';
 

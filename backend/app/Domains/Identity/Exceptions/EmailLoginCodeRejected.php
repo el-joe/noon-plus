@@ -15,6 +15,8 @@ class EmailLoginCodeRejected extends RuntimeException
 
     public const LOCKED = 'code_locked';
 
+    public const SUSPENDED = 'account_suspended';
+
     public function __construct(public readonly string $reason, string $message)
     {
         parent::__construct($message);
@@ -22,6 +24,10 @@ class EmailLoginCodeRejected extends RuntimeException
 
     public function status(): int
     {
-        return $this->reason === self::LOCKED ? 429 : 422;
+        return match ($this->reason) {
+            self::LOCKED => 429,
+            self::SUSPENDED => 403,
+            default => 422,
+        };
     }
 }

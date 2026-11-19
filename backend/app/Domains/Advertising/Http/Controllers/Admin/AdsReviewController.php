@@ -18,6 +18,7 @@ use App\Domains\Countries\Support\CountryClock;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Coupons\Models\Coupon;
 use App\Http\Controllers\Controller;
+use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -54,6 +55,22 @@ class AdsReviewController extends Controller
         $data['decision'] === 'approve' ? $bookings->approve($booking, $request->user()->id) : $bookings->reject($booking, $request->user()->id, (string) $data['reason']);
 
         return back()->with('status', __('Booking reviewed.'));
+    }
+
+    /**
+     * QC-018 (ADR 11): the admin uploads the sponsored video creative on a booking.
+     */
+    public function bookingVideo(Request $request, int $booking, AdBookings $bookings): RedirectResponse
+    {
+        $video = $request->validate(['video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime', 'max:51200']])['video'];
+
+        try {
+            $bookings->attachVideo(AdBooking::query()->findOrFail($booking), $video, $request->user()->id);
+        } catch (TransitionRefused $refused) {
+            return back()->withErrors(['action' => $refused->getMessage()]);
+        }
+
+        return back()->with('status', __('Video creative uploaded.'));
     }
 
     public function decideSubscription(Request $request, int $subscription, AdPackageSubscriptions $subscriptions): RedirectResponse

@@ -55,6 +55,14 @@ class FailedScreen extends StatelessWidget {
                             ].whereType<String>().join(' · '),
                             style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary),
                           ),
+                          if (lastFailedAt(row) case final at?)
+                            Text(
+                              context.t('failed.lastFailed', {
+                                'time': '${MaterialLocalizations.of(context).formatShortDate(at)} ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(at))}',
+                              }),
+                              key: Key('last-failed-$id'),
+                              style: NawyText.bodySm,
+                            ),
                           if (row.s('rescheduled_for') != null) Text(context.t('failed.rescheduledFor', {'date': row.str('rescheduled_for')}), style: NawyText.bodySm),
                           if (actions.isNotEmpty) const SizedBox(height: 8),
                           Wrap(spacing: 8, runSpacing: 8, children: [

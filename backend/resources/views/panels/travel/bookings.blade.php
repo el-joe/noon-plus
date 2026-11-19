@@ -1,3 +1,4 @@
+@php($canManage = app(\App\Domains\Panels\Support\TenantPermissions::class)->allows(request(), 'travel_agency', 'bookings', true))
 <x-layouts.panel :title="__('Bookings')" :subtitle="__('Booking requests — no payment on Nawy: confirm, then settle payment with the customer directly')" :breadcrumbs="[__('Bookings'), __('Bookings & documents')]">
     <nav class="flex gap-4 border-b border-line text-sm" aria-label="{{ __('Booking status') }}">
         @foreach (['' => __('All'), 'requested' => __('Requests'), 'confirmed' => __('Confirmed'), 'completed' => __('Completed'), 'rejected' => __('Rejected'), 'cancelled' => __('Cancelled')] as $key => $label)
@@ -20,10 +21,10 @@
                     <td class="px-5 py-3"><x-ui.money :amount="$booking->total" :currency="$booking->currency" /></td>
                     <td class="px-5 py-3"><x-ui.status-badge :status="$booking->status" /></td>
                     <td class="px-5 py-3">
-                        @if ($booking->status->value === 'requested')
+                        @if ($canManage && $booking->status->value === 'requested')
                             <form method="POST" action="{{ route('travel_agency.bookings.confirm', $booking->id) }}">@csrf<x-ui.button type="submit" size="sm">{{ __('Confirm') }}</x-ui.button></form>
                         @endif
-                        @if (in_array($booking->status->value, ['requested', 'confirmed'], true))
+                        @if ($canManage && in_array($booking->status->value, ['requested', 'confirmed'], true))
                             @php($stop = $booking->status->value === 'requested' ? 'reject' : 'cancel')
                             <form method="POST" action="{{ route('travel_agency.bookings.'.$stop, $booking->id) }}" class="mt-2 flex gap-2">
                                 @csrf
@@ -39,7 +40,7 @@
     </x-ui.card>
     {{ $bookings->links() }}
 
-    @if ($modifications->isNotEmpty())
+    @if ($canManage && $modifications->isNotEmpty())
         <x-ui.card :title="__('Change requests')" flush>
             <x-ui.table :headers="[__('Booking'), __('Change'), __('Details'), __('Decision')]">
                 @foreach ($modifications as $modification)

@@ -7,6 +7,7 @@ use App\Domains\Onboarding\Enums\AdvertiseInquiryStatus;
 use App\Domains\Onboarding\Models\AdvertiseInquiry;
 use App\Domains\Onboarding\Support\AdvertiseInquiries;
 use App\Domains\Onboarding\Support\JoinOptions;
+use App\Domains\Onboarding\Support\PortalFunnel;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\StateMachine\StateTransition;
@@ -17,8 +18,8 @@ use Illuminate\View\View;
 
 /**
  * Admin portal controls (role-permission matrix §11): join options per
- * country (`join_options`) and the advertise requests queue
- * (`advertise_inquiries`).
+ * country (`join_options`), the advertise requests queue
+ * (`advertise_inquiries`) and portal analytics (`portal_funnel_events`).
  */
 class PortalAdminController extends Controller
 {
@@ -39,6 +40,17 @@ class PortalAdminController extends Controller
         }
 
         return back()->with('status', __('Join options saved for :country.', ['country' => $this->countryContext->current()->name_en]));
+    }
+
+    /**
+     * Portal analytics (FR-POR-8): page views and unique visitors per portal
+     * page, and each registration wizard's funnel (visitors per step, submitted).
+     */
+    public function analytics(Request $request, PortalFunnel $funnel): View
+    {
+        $days = (int) ($request->validate(['days' => ['nullable', Rule::in([7, 30, 90])]])['days'] ?? 30);
+
+        return view('panels.admin.portal.analytics', ['report' => $funnel->report(now()->subDays($days)), 'days' => $days]);
     }
 
     public function inquiries(Request $request): View

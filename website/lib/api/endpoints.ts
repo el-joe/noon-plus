@@ -17,13 +17,17 @@ export type ProductFilters = {
   max_price?: string;
   seller?: string;
   rating?: string;
-  sort?: "recommended" | "price_asc" | "price_desc" | "newest" | "rating";
+  /** QC-027: `fbm,fbn`, `new,refurbished`, `1`. */
+  fulfilment?: string;
+  condition?: string;
+  deals?: string;
+  sort?: "recommended" | "price_asc" | "price_desc" | "newest" | "rating" | "bestselling";
   page?: number;
   per_page?: number;
   /** `attr[key]=v1,v2` variant option filters. */
   attr?: Record<string, string>;
 };
-function filterQuery(filters: ProductFilters): Query {
+export function filterQuery(filters: ProductFilters): Query {
   const { attr, ...rest } = filters;
   const query: Query = { ...rest };
   for (const [key, value] of Object.entries(attr ?? {})) if (value) query[`attr[${key}]`] = value;
@@ -45,6 +49,10 @@ export const getProductReviews = (market: string, slug: string, query: ReviewQue
 export const createReview = (market: string, form: FormData) => request(market, "reviews", s.review, { method: "POST", body: form });
 export const voteHelpful = (market: string, id: number, helpful: boolean) =>
   request(market, `reviews/${id}/helpful`, z.object({ id: z.number(), helpful_count: z.number(), voted_helpful: z.boolean() }), { method: helpful ? "POST" : "DELETE" });
+export const REVIEW_REPORT_REASONS = ["spam", "offensive", "fake", "irrelevant", "personal_data", "other"] as const;
+export type ReviewReportReason = (typeof REVIEW_REPORT_REASONS)[number];
+export const reportReview = (market: string, id: number, reason: ReviewReportReason, note?: string) =>
+  request(market, `reviews/${id}/report`, ok, { method: "POST", body: { reason, note: note || null } });
 export const getMyReviews = (market: string, page = 1) => get(market, "me/reviews", z.array(s.review), { page });
 export const getReviewableItems = (market: string) => get(market, "me/reviewable-items", z.array(s.reviewableItem));
 export const getQuestions = (market: string, slug: string, page = 1) => get(market, `products/${encodeURIComponent(slug)}/questions`, z.array(s.question), { page });
@@ -98,6 +106,26 @@ export const sendEmailCode = (market: string, email: string) => request(market, 
 export const verifyEmailCode = (market: string, email: string, code: string, deviceName: string) =>
   request(market, "auth/email-code/verify", s.signIn, { method: "POST", body: { email, code, device_name: deviceName } });
 export const getMe = (market: string) => get(market, "me", s.me);
+// Data-migration plan §5.2: an old Nawy account with a phone only signs in once by SMS code, then adds an email.
+export const sendPhoneCode = (market: string, phone: string) => request(market, "auth/phone-code/send", ok, { method: "POST", body: { phone } });
+export const verifyPhoneCode = (market: string, phone: string, code: string, deviceName: string) =>
+  request(market, "auth/phone-code/verify", s.signIn, { method: "POST", body: { phone, code, device_name: deviceName } });
+
+// D9: optional password, Google / Apple (QA fixes wave 3)
+export type SocialProvider = "google" | "apple";
+export const SOCIAL_PROVIDERS: SocialProvider[] = ["google", "apple"];
+export const passwordLogin = (market: string, email: string, password: string, deviceName: string) =>
+  request(market, "auth/password/login", s.signIn, { method: "POST", body: { email, password, device_name: deviceName } });
+export const forgotPassword = (market: string, email: string) => request(market, "auth/password/forgot", z.object({ sent: z.boolean() }), { method: "POST", body: { email } });
+export type PasswordResetInput = { email: string; token?: string; code?: string; password: string; password_confirmation: string; device_name?: string };
+export const resetPassword = (market: string, body: PasswordResetInput) => request(market, "auth/password/reset", s.passwordReset, { method: "POST", body });
+export const changePassword = (market: string, body: { current_password?: string; password: string; password_confirmation: string }) =>
+  request(market, "me/password", z.object({ has_password: z.boolean() }), { method: "POST", body });
+export const socialRedirectUrl = (market: string, provider: SocialProvider, returnTo?: string) =>
+  get(market, `auth/social/${provider}/redirect`, z.object({ url: z.string() }), { return_to: returnTo });
+export const exchangeSocialTicket = (market: string, ticket: string, deviceName: string) =>
+  request(market, "auth/social/exchange", s.signIn, { method: "POST", body: { ticket, device_name: deviceName } });
+export const unlinkSocialAccount = (market: string, provider: SocialProvider) => request(market, `me/social-accounts/${provider}`, ok, { method: "DELETE" });
 export const logout = (market: string) => request(market, "auth/logout", ok, { method: "POST" });
 
 // Cart (guest via X-Cart-Token, added by the proxy)
@@ -118,15 +146,21 @@ export const mergeCart = (market: string) => request(market, "cart/merge", s.car
 // Checkout & orders
 export const getPaymentMethods = (market: string, amount: string) => get(market, "checkout/payment-methods", z.array(s.paymentMethod), { amount });
 export type AddressInput = { name: string; phone?: string; city: string; area: string; street: string; building?: string };
-export const placeOrder = (market: string, body: { payment_method: string; address?: AddressInput; address_id?: number; referral_code?: string }) =>
-  request(market, "orders", s.order, { method: "POST", body });
-export const getOrders = (market: string, page = 1) => get(market, "orders", z.array(s.order), { page });
+/** `idempotencyKey` (QC-044): the same key on a retry returns the first answer instead of placing a second order. */
+export const placeOrder = (market: string, body: { payment_method: string; address?: AddressInput; address_id?: number; referral_code?: string }, idempotencyKey?: string) =>
+  request(market, "orders", s.order, { method: "POST", body, headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} });
+export type OrderTab = "all" | "in_progress" | "delivered" | "cancelled" | "returns";
+export const ORDER_TABS: OrderTab[] = ["all", "in_progress", "delivered", "cancelled", "returns"];
+export const getOrders = (market: string, page = 1, query: { tab?: OrderTab; q?: string; per_page?: number } = {}) =>
+  get(market, "orders", z.array(s.order), { page, tab: query.tab === "all" ? undefined : query.tab, q: query.q, per_page: query.per_page });
+export const getCancelReasons = (market: string) => get(market, "orders/cancel-reasons", z.array(z.object({ code: z.string(), label: z.string(), needs_note: z.boolean() })));
 export const getOrder = (market: string, number: string) => get(market, `orders/${encodeURIComponent(number)}`, s.order);
 export const verifyPayment = (market: string, number: string) => request(market, `orders/${encodeURIComponent(number)}/payments/verify`, s.order, { method: "POST" });
 export const retryPayment = (market: string, number: string, paymentMethod: string) =>
   request(market, `orders/${encodeURIComponent(number)}/payments`, s.order, { method: "POST", body: { payment_method: paymentMethod } });
-export const cancelShipment = (market: string, number: string, shipment: string, reason?: string) =>
-  request(market, `orders/${encodeURIComponent(number)}/shipments/${encodeURIComponent(shipment)}/cancel`, s.order, { method: "POST", body: { reason } });
+/** QA-041: `reason` is a code from `orders/cancel-reasons`; `other` needs a `note` (≤255). */
+export const cancelShipment = (market: string, number: string, shipment: string, reason?: string, note?: string) =>
+  request(market, `orders/${encodeURIComponent(number)}/shipments/${encodeURIComponent(shipment)}/cancel`, s.order, { method: "POST", body: { reason, note: note || undefined } });
 
 // Non-order payments (gift cards, Nawy One, ad packages): payer only.
 export const getPaymentByReference = (market: string, reference: string) => get(market, `payments/${encodeURIComponent(reference)}`, s.paymentStatus);
@@ -134,7 +168,7 @@ export const verifyPaymentByReference = (market: string, reference: string) =>
   request(market, `payments/${encodeURIComponent(reference)}/verify`, s.paymentStatus, { method: "POST" });
 
 // Returns
-export const getReturns = (market: string) => get(market, "returns", z.array(s.returnRequest));
+export const getReturns = (market: string, page = 1) => get(market, "returns", z.array(s.returnRequest), { page });
 export const getReturn = (market: string, number: string) => get(market, `returns/${encodeURIComponent(number)}`, s.returnRequest);
 export const createReturn = (market: string, form: FormData) => request(market, "returns", s.returnRequest, { method: "POST", body: form });
 export const cancelReturn = (market: string, number: string) => request(market, `returns/${encodeURIComponent(number)}/cancel`, s.returnRequest, { method: "POST" });

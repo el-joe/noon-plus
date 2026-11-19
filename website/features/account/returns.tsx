@@ -24,8 +24,13 @@ export function ReturnsList() {
   const t = useTranslations();
   const market = useMarket();
   const client = useQueryClient();
+  const [page, setPage] = useState(1);
   const key = ["returns", market.slug];
-  const { data, isLoading, error } = useQuery({ queryKey: key, queryFn: async () => (await api.getReturns(market.slug)).data });
+  const list = useQuery({ queryKey: [...key, page], queryFn: async () => api.getReturns(market.slug, page) });
+  const { isLoading, error } = list;
+  const data = list.data?.data;
+  // G-A4: paging from meta.last_page.
+  const pages = Math.max(1, Number(list.data?.meta.last_page ?? 1));
   const cancel = useMutation({
     mutationFn: async (number: string) => api.cancelReturn(market.slug, number),
     onSuccess: () => client.invalidateQueries({ queryKey: key }),
@@ -39,6 +44,17 @@ export function ReturnsList() {
       {cancel.error ? <Alert tone="danger">{errorMessage(cancel.error, t("common.error"))}</Alert> : null}
       {data && data.length === 0 ? <EmptyState icon={<RotateCcw className="size-10" />} title={t("account.returns.empty")} /> : null}
       {data?.map((r) => <ReturnCard key={r.number} item={r} onCancel={() => cancel.mutate(r.number)} cancelling={cancel.isPending} />)}
+      {pages > 1 ? (
+        <Card className="flex items-center justify-center gap-4 p-3 md:p-3">
+          <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="text-body text-link disabled:text-muted">
+            {t("listing.prev")}
+          </button>
+          <span className="text-body-sm text-secondary">{t("listing.page", { page, last: pages })}</span>
+          <button type="button" disabled={page >= pages} onClick={() => setPage(page + 1)} className="text-body text-link disabled:text-muted">
+            {t("listing.next")}
+          </button>
+        </Card>
+      ) : null}
     </div>
   );
 }

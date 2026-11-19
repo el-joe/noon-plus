@@ -1,0 +1,4 @@
+/* Usage descriptions (owner-review D16). Keep en.lproj and ar.lproj in sync. */
+"NSCameraUsageDescription" = "Nawy Delivery uses the camera to scan parcel labels at pickup and to take proof-of-delivery photos.";
+"NSPhotoLibraryUsageDescription" = "Nawy Delivery opens your photos only when you choose a proof-of-delivery photo.";
+"NSLocationWhenInUseUsageDescription" = "Nawy Delivery shares your location while you are online so dispatch can offer you the nearest parcels.";

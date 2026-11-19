@@ -14,16 +14,25 @@ use App\Domains\Delivery\Models\DeliveryAssignment;
 use App\Domains\Delivery\Models\Shipment;
 use App\Domains\Delivery\Support\AgentAssignments;
 use App\Domains\Delivery\Support\DeliveryDispatch;
+use App\Domains\Delivery\Support\ParcelLabels;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
+use App\Domains\Orders\Models\Order;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Shipping\Models\ShippingZone;
+use App\Domains\Vendors\Models\Vendor;
 use App\Http\Controllers\Controller;
+use App\Shared\Http\LikeSearch;
 use App\Shared\StateMachine\StateTransition;
+use Carbon\CarbonImmutable;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -38,14 +47,23 @@ class DeliveryDispatchController extends Controller
 
     public function index(Request $request): View
     {
-        $filters = $request->validate(['status' => ['nullable', Rule::enum(AssignmentStatus::class)]]);
-        $blocked = Shipment::query()->whereNotIn('status', [ShipmentStatus::LabelCreated->value, ShipmentStatus::Rescheduled->value])->select('sub_order_id');
-        $busy = DeliveryAssignment::query()->whereIn('status', AssignmentStatus::open())->select('sub_order_id');
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::enum(AssignmentStatus::class)],
+            // "Ready to dispatch" filters (QA-C08): paged board, not the 50 oldest.
+            'q' => ['nullable', 'string', 'max:60'],
+            'stage' => ['nullable', Rule::in([SubOrderStatus::Packed->value, SubOrderStatus::Shipped->value, SubOrderStatus::OutForDelivery->value])],
+            'zone' => ['nullable', 'integer'],
+            'city' => ['nullable', 'string', 'max:80'],
+            'seller' => ['nullable', 'integer'],
+            'carrier' => ['nullable', 'regex:/^(none|\d+)$/'],
+            'payment' => ['nullable', Rule::in(['cod', 'prepaid'])],
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
 
-        $ready = SubOrder::query()
-            ->whereIn('status', [SubOrderStatus::Packed, SubOrderStatus::Shipped, SubOrderStatus::OutForDelivery])
-            ->whereNotIn('id', $blocked)->whereNotIn('id', $busy)
-            ->with(['order', 'vendor'])->orderBy('id')->limit(50)->get();
+        $ready = $this->readyQuery($filters)
+            ->with(['order', 'vendor'])->orderBy('id')
+            ->paginate(25, ['*'], 'ready_page')->withQueryString();
 
         return view('panels.admin.delivery.dispatch', [
             'ready' => $ready,
@@ -56,10 +74,45 @@ class DeliveryDispatchController extends Controller
             'agents' => DeliveryAgent::query()->where('status', AgentStatus::Active)->orderBy('name')->get(),
             'carriers' => Carrier::query()->where('status', CarrierStatus::Active)->where('is_internal', false)->orderBy('name')->pluck('name', 'id'),
             'allocated' => Shipment::query()->whereIn('sub_order_id', $ready->pluck('id'))->whereNotNull('carrier_id')->pluck('carrier_id', 'sub_order_id'),
+            'zones' => ShippingZone::query()->orderBy('name')->pluck('name', 'id'),
+            'sellers' => Vendor::query()->whereIn('id', $this->readyQuery([])->select('vendor_id'))->orderBy('store_name')->pluck('store_name', 'id'),
+            'allCarriers' => Carrier::query()->where('is_internal', false)->orderBy('name')->pluck('name', 'id'),
             'filters' => $filters,
             'country' => $this->countryContext->current(),
             'clock' => app(CountryClock::class),
         ]);
+    }
+
+    /**
+     * Parcels waiting for an agent (packed or handed over, no open
+     * assignment, shipment not yet moving), narrowed by the board filters.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Builder<SubOrder>
+     */
+    private function readyQuery(array $filters): Builder
+    {
+        $blocked = Shipment::query()->whereNotIn('status', [ShipmentStatus::LabelCreated->value, ShipmentStatus::Rescheduled->value])->select('sub_order_id');
+        $busy = DeliveryAssignment::query()->whereIn('status', AssignmentStatus::open())->select('sub_order_id');
+        $adminZone = config('nawy.admin_timezone');
+        $orders = fn (Closure $scope) => fn (Builder $query) => $query->whereIn('order_id', $scope(Order::query())->select('id'));
+
+        return SubOrder::query()
+            ->whereIn('status', [SubOrderStatus::Packed, SubOrderStatus::Shipped, SubOrderStatus::OutForDelivery])
+            ->whereNotIn('id', $blocked)->whereNotIn('id', $busy)
+            ->when($filters['q'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $match) => $match
+                ->where('number', 'like', LikeSearch::contains($search))
+                ->orWhereIn('order_id', Order::query()->where('number', 'like', LikeSearch::contains($search))->select('id'))))
+            ->when($filters['stage'] ?? null, fn (Builder $query, string $stage) => $query->where('status', $stage))
+            ->when($filters['zone'] ?? null, fn (Builder $query, int|string $zone) => $query->where('shipping_zone_id', (int) $zone))
+            ->when($filters['seller'] ?? null, fn (Builder $query, int|string $seller) => $query->where('vendor_id', (int) $seller))
+            ->when($filters['city'] ?? null, $orders(fn (Builder $query) => $query->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(shipping_address, '$.city'))) like ?", [LikeSearch::contains(mb_strtolower($filters['city']))])))
+            ->when(($filters['payment'] ?? null) === 'cod', $orders(fn (Builder $query) => $query->where('payment_method', 'cod')))
+            ->when(($filters['payment'] ?? null) === 'prepaid', $orders(fn (Builder $query) => $query->where('payment_method', '!=', 'cod')))
+            ->when($filters['from'] ?? null, $orders(fn (Builder $query) => $query->where('placed_at', '>=', CarbonImmutable::parse($filters['from'], $adminZone)->startOfDay()->utc())))
+            ->when($filters['to'] ?? null, $orders(fn (Builder $query) => $query->where('placed_at', '<', CarbonImmutable::parse($filters['to'], $adminZone)->addDay()->startOfDay()->utc())))
+            ->when(($filters['carrier'] ?? null) === 'none', fn (Builder $query) => $query->whereNotIn('id', Shipment::query()->whereNotNull('carrier_id')->select('sub_order_id')))
+            ->when(($filters['carrier'] ?? 'none') !== 'none', fn (Builder $query) => $query->whereIn('id', Shipment::query()->where('carrier_id', (int) $filters['carrier'])->select('sub_order_id')));
     }
 
     public function show(int $assignment, AgentAssignments $agentAssignments): View
@@ -141,5 +194,15 @@ class DeliveryDispatchController extends Controller
         abort_if($path === null, 404);
 
         return Storage::disk(AgentAssignments::DISK)->response($path);
+    }
+
+    /**
+     * Parcel label of a shipment (HTML to print, or `.pdf`).
+     */
+    public function label(Request $request, int $shipment, ParcelLabels $labels): Response|\Illuminate\Contracts\View\View
+    {
+        $shipment = Shipment::query()->findOrFail($shipment);
+
+        return $request->routeIs('admin.delivery.shipments.label-pdf') ? $labels->pdf($shipment) : $labels->view($shipment);
     }
 }

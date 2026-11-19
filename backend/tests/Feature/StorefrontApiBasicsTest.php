@@ -36,7 +36,7 @@ it('signs out by revoking only the current token', function () {
 it('exposes the guest cart token to browsers on other origins', function () {
     $this->withHeaders(['Origin' => 'http://localhost:3000'])->getJson('/api/v1/uae-en/cart')
         ->assertOk()
-        ->assertHeader('Access-Control-Expose-Headers', 'X-Cart-Token, X-Booking-Token, X-Application-Token, Retry-After');
+        ->assertHeader('Access-Control-Expose-Headers', 'X-Cart-Token, X-Booking-Token, X-Application-Token, Retry-After, Content-Disposition');
 });
 
 it('answers a guest cart read without a token with an empty cart and no new cart row', function () {

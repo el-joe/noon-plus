@@ -1,4 +1,4 @@
-@props(['panel' => null, 'title', 'subtitle' => null, 'navigation' => null, 'breadcrumbs' => []])
+@props(['panel' => null, 'title', 'subtitle' => null, 'navigation' => null, 'breadcrumbs' => [], 'errorSummary' => true])
 
 @php
     $panel ??= \App\Domains\Panels\Support\Panel::fromRequest(request());
@@ -18,7 +18,8 @@
 </head>
 <body class="bg-page font-sans text-fg antialiased">
 <div class="flex min-h-screen">
-    <aside class="hidden w-64 shrink-0 flex-col gap-1 bg-sidebar px-4 py-5 lg:flex" aria-label="{{ __('Main navigation') }}">
+    {{-- QC-025: below 1024px the sidebar opens as a drawer from the topbar menu button. --}}
+    <aside id="panel-sidebar" data-panel-sidebar class="fixed inset-y-0 start-0 z-40 hidden w-64 shrink-0 flex-col gap-1 overflow-y-auto bg-sidebar px-4 py-5 lg:static lg:flex" aria-label="{{ __('Main navigation') }}">
         <div class="mb-4 flex items-center gap-2 px-2">
             <span class="grid size-9 place-items-center rounded-lg bg-brand font-bold text-fg-on-brand">N</span>
             <span class="flex flex-col leading-tight">
@@ -37,7 +38,11 @@
     </aside>
 
     <div class="flex min-w-0 grow flex-col">
-        <header class="flex h-16 items-center gap-4 border-b border-line bg-surface px-6">
+        <header class="flex h-16 items-center gap-3 border-b border-line bg-surface px-4 lg:px-6">
+            <button type="button" class="grid size-9 place-items-center rounded-lg border border-line lg:hidden" data-sidebar-toggle aria-controls="panel-sidebar" aria-expanded="false">
+                <span class="sr-only">{{ __('Open menu') }}</span>
+                <svg aria-hidden="true" viewBox="0 0 20 20" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+            </button>
             <div class="grow"></div>
             @if ($currentCountry && $panelCountries->count() > 1 && Route::has($panel->route('country')))
                 <form method="POST" action="{{ route($panel->route('country')) }}" class="flex items-center gap-2" data-country-switcher>
@@ -54,14 +59,48 @@
             @elseif ($currentCountry)
                 <x-ui.badge tone="neutral">{{ $currentCountry->name_en }} · {{ $currentCountry->currency }}</x-ui.badge>
             @endif
-            <span class="text-sm text-fg-secondary">{{ auth()->user()?->name }}</span>
+            @if (Route::has($panel->route('locale')))
+                <form method="POST" action="{{ route($panel->route('locale')) }}" class="flex items-center gap-2" data-locale-switcher>
+                    @csrf
+                    <label for="panel-locale" class="sr-only">{{ __('Language') }}</label>
+                    <select id="panel-locale" name="locale" onchange="this.form.submit()"
+                            class="h-9 rounded-lg border border-line bg-surface px-3 text-sm">
+                        <option value="en" @selected(app()->getLocale() === 'en')>English</option>
+                        <option value="ar" @selected(app()->getLocale() === 'ar')>العربية</option>
+                    </select>
+                    <noscript><x-ui.button type="submit" variant="outline" size="sm">{{ __('Switch') }}</x-ui.button></noscript>
+                </form>
+            @endif
+            @php($signedIn = auth()->user())
+            @if ($signedIn && Route::has($panel->route('notifications')))
+                @php($unreadNotifications = app(\App\Domains\Panels\Support\PanelNotifications::class)->unreadCount($signedIn->id, $panel->key))
+                {{-- QC-041: notification bell. --}}
+                <a href="{{ route($panel->route('notifications')) }}" class="relative grid size-9 place-items-center rounded-lg border border-line" data-panel-bell>
+                    <span class="sr-only">{{ __('Notifications') }}</span>
+                    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-5" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3a5 5 0 0 0-5 5v3l-1.5 2.5h13L15 11V8a5 5 0 0 0-5-5ZM8 16a2 2 0 0 0 4 0"/></svg>
+                    @if ($unreadNotifications > 0)
+                        <span class="absolute -end-1 -top-1 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] font-semibold text-white" data-unread-count>{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                    @endif
+                </a>
+            @endif
+            <span class="hidden items-center gap-2 sm:flex" data-panel-user>
+                <span class="grid size-8 place-items-center rounded-full bg-subtle text-xs font-semibold" aria-hidden="true">{{ mb_strtoupper(mb_substr((string) $signedIn?->name, 0, 1)) }}</span>
+                <span class="flex flex-col leading-tight">
+                    <span class="text-sm">{{ $signedIn?->name }}</span>
+                    @if (Route::has($panel->route('security')))
+                        <a href="{{ route($panel->route('security')) }}" class="text-xs text-fg-secondary hover:underline">{{ __('Sign-in history') }}</a>
+                    @else
+                        <span class="text-xs text-fg-secondary">{{ $panel->name }}</span>
+                    @endif
+                </span>
+            </span>
             <form method="POST" action="{{ route($panel->route('logout')) }}">
                 @csrf
                 <x-ui.button type="submit" variant="ghost" size="sm">{{ __('Sign out') }}</x-ui.button>
             </form>
         </header>
 
-        <main class="flex flex-col gap-6 px-8 py-6">
+        <main class="flex flex-col gap-6 px-4 py-6 lg:px-8">
             <div class="flex flex-wrap items-end justify-between gap-4">
                 <div class="flex flex-col gap-1">
                     @if ($breadcrumbs)
@@ -83,6 +122,16 @@
             @error('action')
                 <div role="alert" class="rounded-lg border border-line-danger bg-danger-subtle px-4 py-3 text-sm text-fg-danger">{{ $message }}</div>
             @enderror
+            {{-- Browser test BT-ADM-001: many list rows carry small forms (reason + button) with no room for an
+                 inline message, so a refused submit used to look like nothing happened. Every other error is
+                 summarised here; pages with their own summary pass :error-summary="false". --}}
+            @if ($errorSummary && $errors->hasAny(array_values(array_diff($errors->keys(), ['action']))))
+                <div role="alert" class="rounded-lg border border-line-danger bg-danger-subtle px-4 py-3 text-sm text-fg-danger" data-error-summary>
+                    @foreach (collect($errors->getMessages())->except('action')->flatten()->unique() as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
 
             {{ $slot }}
         </main>

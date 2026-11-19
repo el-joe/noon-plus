@@ -96,7 +96,7 @@ export function MegaDeals({ s, ctx }: { s: Settings; ctx: BlockContext }) {
         id={id}
         ctx={ctx}
         render={(sale) => (
-          <section className="rounded-lg p-4" style={{ backgroundColor: background(s) ?? "#fff8e6" }}>
+          <section className="rounded-lg p-4" style={{ backgroundColor: background(s) ?? "var(--color-brand-subtle)" }}>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <h2 className="text-h3 font-semibold">{str(s, "title", ctx.market.locale) ?? sale.name}</h2>
               <span className="text-body-sm text-secondary">{t("blocks.endsIn")}</span>
@@ -120,7 +120,7 @@ export function HeroOfferList({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const id = flashId(s);
   const offers = items(s, "items", ctx.market.locale);
   const band = (children: React.ReactNode) => (
-    <section className="grid gap-3 rounded-lg p-4 md:grid-cols-[280px_1fr]" style={{ backgroundColor: background(s) ?? "#fff8e6" }}>
+    <section className="grid gap-3 rounded-lg p-4 md:grid-cols-[280px_1fr]" style={{ backgroundColor: background(s) ?? "var(--color-brand-subtle)" }}>
       <ImageLink item={hero} ctx={ctx} className="aspect-[3/4] w-full md:aspect-auto md:h-full" />
       <div className="min-w-0">{children}</div>
     </section>
@@ -160,7 +160,7 @@ export function HeroOfferList({ s, ctx }: { s: Settings; ctx: BlockContext }) {
 
 /** 21 frenzy_deals — limited-quantity deals with claimed bar and timer. */
 export function FrenzyDeals({ s, ctx }: { s: Settings; ctx: BlockContext }) {
-  return <MegaDeals s={{ background: "#ffffff", ...s }} ctx={ctx} />;
+  return <MegaDeals s={{ background: "var(--color-surface)", ...s }} ctx={ctx} />;
 }
 
 /** 22 deal_grid — 2×2 mini deals + countdown + All deals. */

@@ -1,0 +1,164 @@
+{
+  "portalPlus": {
+    "nav": {
+      "marketers": "Marketers",
+      "travel": "Travel partners"
+    },
+    "common": {
+      "questions": "Questions",
+      "register": "Register"
+    },
+    "checkout": {
+      "stepReview": "Review",
+      "stepsLabel": "Checkout steps",
+      "state": {
+        "done": "Completed",
+        "current": "In progress",
+        "todo": "Not started"
+      },
+      "change": "Change",
+      "reviewItems": "Review your items",
+      "quantity": "{count, plural, one {Qty #} other {Qty #}}",
+      "continueToReview": "Continue to review"
+    },
+    "ad": {
+      "share": "Share",
+      "linkCopied": "Link copied",
+      "copyLink": "Copy this link",
+      "inCompare": "In compare",
+      "compareNow": "Compare ({count})",
+      "whatsApp": "WhatsApp",
+      "whatsAppHint": "Shows the seller's number, then opens WhatsApp",
+      "whatsAppText": "Hi, I'm interested in your ad \"{title}\" (#{number}) on Nawy.",
+      "requestViewingOrReserve": "Request a viewing or reserve",
+      "financeMonthly": "Est. {amount} / month",
+      "financeTerms": "{months} months · {down}% down · {rate}% a year · indicative only, not a finance offer"
+    },
+    "marketers": {
+      "metaTitle": "Nawy marketers",
+      "eyebrow": "Nawy marketers",
+      "title": "Earn by promoting products, listings and trips",
+      "subtitle": "Three ways to work with Nawy sellers. One account, contracts handled for you, payouts per country.",
+      "chooseType": "Choose your type",
+      "contracts": "How contracts work",
+      "seeAll": "See all types",
+      "howYouEarn": "How you earn"
+    },
+    "roles": {
+      "influencer": {
+        "name": "Influencer · مؤثّر",
+        "summary": "Promote products and listings for a fixed amount per campaign.",
+        "title": "Become a Nawy influencer",
+        "register": "Register as influencer",
+        "cta": "Start as an influencer today",
+        "earn1": "Brands invite you, or you apply from the campaign marketplace",
+        "earn2": "Contract and brief before you post",
+        "earn3": "Free product samples",
+        "earn4": "Paid when the campaign is completed",
+        "q1": "Who can join?",
+        "a1": "Creators with an active audience on at least one social platform. Each application is reviewed by the Nawy team.",
+        "q2": "How and when am I paid?",
+        "a2": "The fixed campaign fee is released to your Nawy wallet once the campaign is completed, in the currency of the campaign's country.",
+        "q3": "Do I need a trade licence?",
+        "a3": "It depends on the country. The registration form asks only for the documents your country requires."
+      },
+      "affiliate": {
+        "name": "Affiliate · مسوّق بالعمولة",
+        "summary": "Earn a percentage of every sale made through your links and code.",
+        "title": "Become a Nawy affiliate",
+        "register": "Register as affiliate",
+        "cta": "Start earning as an affiliate",
+        "earn1": "Share your personal links and code",
+        "earn2": "Earn a percentage of every paid sale",
+        "earn3": "Commission released after the return window",
+        "earn4": "Withdraw to your bank account",
+        "q1": "Who can join?",
+        "a1": "Anyone with an audience: bloggers, content sites, communities and deal pages. Applications are reviewed by the Nawy team.",
+        "q2": "How and when am I paid?",
+        "a2": "Commission on a paid sale is released once the return window has passed. You can withdraw your balance from Creator Studio.",
+        "q3": "Which products can I promote?",
+        "a3": "Any product of a seller that runs an affiliate campaign in your country. Each campaign shows its commission rate."
+      },
+      "broker": {
+        "name": "Broker · وسيط",
+        "summary": "Connect buyers and sellers for a fixed amount, a percentage, or both.",
+        "title": "Become a Nawy broker",
+        "register": "Register as broker",
+        "cta": "Start as a broker today",
+        "earn1": "Connect buyers with property and listings",
+        "earn2": "Verified broker profile with your live listings",
+        "earn3": "Contracts signed on Nawy",
+        "earn4": "Fixed fee, a percentage, or both",
+        "q1": "Who can join?",
+        "a1": "Licensed brokers and agencies. The registration asks for your broker licence and identity documents.",
+        "q2": "How and when am I paid?",
+        "a2": "Your agreement with each seller sets the fee: a fixed amount, a percentage, or both.",
+        "q3": "Can I get exclusive listings?",
+        "a3": "Yes. Nawy can grant you an exclusive contract on a listing; it then shows you as the exclusive marketer."
+      }
+    },
+    "travel": {
+      "metaTitle": "Sell trips on Nawy",
+      "eyebrow": "Travel partners",
+      "title": "Sell Umrah, Hajj and holiday packages to millions",
+      "subtitle": "List trips with departures and seat capacity. Travellers send booking requests on Nawy; you confirm them and collect documents in one panel.",
+      "register": "Register your agency",
+      "agreement": "Read the agency agreement",
+      "whyTitle": "Why agencies choose Nawy",
+      "why": {
+        "seats": {
+          "title": "Seat capacity control",
+          "body": "Departures, room types and live seat counts"
+        },
+        "documents": {
+          "title": "Documents collected for you",
+          "body": "Passports and visas uploaded by travellers"
+        },
+        "contracts": {
+          "title": "Contracts built in",
+          "body": "Travellers accept your trip contract before they book"
+        },
+        "requests": {
+          "title": "Booking requests",
+          "body": "Confirm or decline requests from the Travel Partner panel"
+        },
+        "promotions": {
+          "title": "Promotions",
+          "body": "Join seasonal campaigns and featured placements"
+        },
+        "reviews": {
+          "title": "Reviews",
+          "body": "Verified traveller reviews build trust"
+        }
+      },
+      "q1": "Which licences do I need?",
+      "a1": "A valid tourism or travel agency licence for your country. The registration asks for the licence number and your logo.",
+      "q2": "How long does approval take?",
+      "a2": "The Nawy team reviews new agencies, usually within a few working days. You can follow your application on the status page.",
+      "q3": "How are payments handled?",
+      "a3": "Nawy does not take payment for trips. Travellers send a booking request and you agree the payment with them directly.",
+      "ctaTitle": "Grow your agency with Nawy",
+      "ctaButton": "Register in 2 steps"
+    },
+    "legal": {
+      "legal": "Legal",
+      "subtitle": "The terms between Nawy and its partners. The agreement differs by country: choose yours below.",
+      "country": "Country",
+      "language": "Language",
+      "current": "Current version",
+      "version": "Version",
+      "effective": "Effective",
+      "noVersion": "No version is published for this country yet.",
+      "notPublished": "The agreement for {country} has not been published yet.",
+      "fileOnly": "This agreement is published as a document. Ask your account manager for a copy.",
+      "otherAgreements": "Other partner agreements",
+      "kinds": {
+        "seller_platform": "Seller Agreement",
+        "travel_agency": "Travel agency agreement",
+        "broker": "Broker agreement",
+        "marketer_onboarding": "Marketer agreement",
+        "shipping_company": "Shipping company agreement"
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Delivery\Models\Carrier;
 use App\Domains\Delivery\Support\DeliveryAgents;
 use App\Domains\Identity\Enums\MembershipRole;
+use App\Domains\Identity\Support\AdminRoleLabels;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Panels\Models\TeamInvitation;
 use App\Domains\Panels\Notifications\TeamInvitationNotification;
@@ -70,6 +71,7 @@ class TeamInvitations
             $this->roleLabel($role, $tenantRole),
             route($panelKey.'.team-invitations.show', ['country' => $this->countryContext->current()->code, 'token' => $token]),
             self::VALID_DAYS,
+            $tenantType === self::PLATFORM_TENANT ? $panelKey : null,
         ));
 
         return $invitation;
@@ -143,7 +145,7 @@ class TeamInvitations
         return match ($role) {
             MembershipRole::DeliveryAgent => __('delivery driver'),
             MembershipRole::CarrierSupervisor => __('shipping supervisor'),
-            MembershipRole::Admin => __('Nawy admin (:role)', ['role' => str_replace('_', ' ', (string) $tenantRole)]),
+            MembershipRole::Admin => __('Nawy admin (:role)', ['role' => app(AdminRoleLabels::class)->label($tenantRole)]),
             default => $tenantRole === null ? __('team member') : TenantPermissions::roleLabel($tenantRole),
         };
     }

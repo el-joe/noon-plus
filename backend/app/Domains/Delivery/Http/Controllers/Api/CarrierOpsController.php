@@ -15,15 +15,19 @@ use App\Domains\Delivery\Support\DeliveryAgents;
 use App\Domains\Delivery\Support\DeliveryDispatch;
 use App\Domains\Delivery\Support\DeliverySettings;
 use App\Domains\Finance\Models\CodCollection;
+use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Models\SubOrder;
 use App\Domains\Panels\Http\Controllers\Api\Concerns\RefusesTransitions;
+use App\Domains\Panels\Support\TeamInvitations;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
 use App\Shared\StateMachine\TransitionRefused;
+use App\Shared\Validation\CountryPhone;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -111,7 +115,7 @@ class CarrierOpsController extends Controller
         $maxAttempts = $settings->maxAttempts();
 
         return ApiResponse::success($this->board->exceptions($this->carrier($request))
-            ->with(['subOrder.order', 'assignments' => fn ($query) => $query->latest('id')])->orderBy('updated_at')->get()
+            ->with(['subOrder.order', 'assignments' => fn ($query) => $query->reorder('id', 'desc')])->orderBy('updated_at')->get()
             ->map(fn (Shipment $shipment): array => $this->failedRow($shipment, $maxAttempts))->all());
     }
 
@@ -137,7 +141,7 @@ class CarrierOpsController extends Controller
                 'returned' => $this->dispatch->confirmReturned($shipment, ActorType::Carrier, $userId, $carrier),
             };
 
-            $shipment = $shipment->refresh()->load(['subOrder.order', 'assignments' => fn ($query) => $query->latest('id')]);
+            $shipment = $shipment->refresh()->load(['subOrder.order', 'assignments' => fn ($query) => $query->reorder('id', 'desc')]);
 
             return ApiResponse::success($this->failedRow($shipment, $settings->maxAttempts()));
         });
@@ -153,6 +157,32 @@ class CarrierOpsController extends Controller
             ->selectRaw('agent_user_id, sum(amount) as total')->groupBy('agent_user_id')->pluck('total', 'agent_user_id');
 
         return ApiResponse::success($agents->map(fn (DeliveryAgent $agent): array => $this->driverRow($agent, (string) ($cod[$agent->user_id] ?? '0')))->all());
+    }
+
+    /**
+     * Add a driver the same way as the Shipping panel (QA-003): a team
+     * invitation the driver accepts by email. Nothing is attached and no
+     * stored name is revealed before that, so the answer is only `invited`.
+     */
+    public function inviteDriver(Request $request, TeamInvitations $invitations): JsonResponse
+    {
+        $carrier = $this->carrier($request);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:24', new CountryPhone],
+            'vehicle_type' => ['nullable', Rule::in(['bike', 'car', 'van', 'truck'])],
+            'vehicle_plate' => ['nullable', 'string', 'max:24'],
+        ]);
+        $data['phone'] = isset($data['phone']) ? CountryPhone::normalize($data['phone']) : null;
+        $invitations->invite('carrier', Carrier::TENANT, $carrier->id, $carrier->name, MembershipRole::DeliveryAgent, null, $data['email'], $data['name'],
+            array_filter(['phone' => $data['phone'], 'vehicle_type' => $data['vehicle_type'] ?? null, 'vehicle_plate' => $data['vehicle_plate'] ?? null]), $request->user()->id);
+
+        return ApiResponse::success([
+            'invited' => true,
+            'email' => Str::lower($data['email']),
+            'message' => __('We emailed an invitation to :email. The driver appears here once they accept; Nawy checks their documents before the first delivery.', ['email' => Str::lower($data['email'])]),
+        ], status: 202);
     }
 
     /**

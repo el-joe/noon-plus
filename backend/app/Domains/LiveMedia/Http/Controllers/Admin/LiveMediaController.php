@@ -5,10 +5,14 @@ namespace App\Domains\LiveMedia\Http\Controllers\Admin;
 use App\Domains\Countries\Support\CountryClock;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
+use App\Domains\LiveMedia\Enums\StreamCommentStatus;
 use App\Domains\LiveMedia\Enums\StreamSource;
 use App\Domains\LiveMedia\Enums\StreamStatus;
 use App\Domains\LiveMedia\Models\LiveStream;
+use App\Domains\LiveMedia\Models\LiveStreamComment;
+use App\Domains\LiveMedia\Support\LiveStreamEngagement;
 use App\Domains\LiveMedia\Support\LiveStreams;
+use App\Domains\Settings\SettingsService;
 use App\Http\Controllers\Controller;
 use App\Shared\StateMachine\StateTransition;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +47,7 @@ class LiveMediaController extends Controller
             'country' => $this->countryContext->current(),
             'clock' => $this->clock,
             'formats' => config('nawy.streams.recorded_formats'),
+            'floating' => app(LiveStreams::class)->floatingSetting($this->countryContext->current()),
         ]);
     }
 
@@ -85,7 +90,41 @@ class LiveMediaController extends Controller
                 : null,
             'country' => $this->countryContext->current(),
             'clock' => $this->clock,
+            'comments' => LiveStreamComment::query()->where('live_stream_id', $stream->id)->latest('id')->limit(100)->get(),
+            'viewersNow' => app(LiveStreamEngagement::class)->currentViewers($stream),
         ]);
+    }
+
+    /**
+     * QC-063: the home floating player is a country setting, not a page
+     * block — off, the stream that is live now (`auto`), or one stream.
+     */
+    public function floating(Request $request, SettingsService $settings): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(LiveStreams::FLOATING_MODES)],
+            'stream' => ['nullable', 'required_if:mode,stream', 'string', Rule::exists(LiveStream::class, 'slug')],
+        ]);
+        $country = $this->countryContext->current();
+        $settings->set('live.floating_mode', $data['mode'], $country, $request->user()->id);
+        $settings->set('live.floating_stream', $data['mode'] === 'stream' ? $data['stream'] : '', $country, $request->user()->id);
+
+        return back()->with('status', __('Home floating player saved.'));
+    }
+
+    /**
+     * QC-040: show a held comment, or hide one (admin-only moderation).
+     */
+    public function moderateComment(Request $request, int $stream, int $comment, LiveStreamEngagement $engagement): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::in([StreamCommentStatus::Visible->value, StreamCommentStatus::Hidden->value])],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+        $model = LiveStreamComment::query()->where('live_stream_id', $stream)->findOrFail($comment);
+        $engagement->moderate($model, StreamCommentStatus::from($data['status']), $request->user()->id, $data['reason'] ?? null);
+
+        return back()->with('status', $data['status'] === 'hidden' ? __('The comment is hidden.') : __('The comment is shown.'));
     }
 
     public function update(Request $request, int $stream): RedirectResponse

@@ -4,7 +4,7 @@ namespace App\Domains\Reviews\Models;
 
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Orders\Models\OrderItem;
-use App\Domains\Reviews\Enums\ModerationStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Vendors\Models\Vendor;
 use App\Shared\Database\UsesCountryDatabase;
 use App\Shared\StateMachine\HasStateTransitions;
@@ -12,14 +12,15 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A verified-buyer review of one delivered order item (G-W3, SRS §7.8):
- * 1–5 stars, optional title, text and photos; public once approved.
+ * 1–5 stars, optional title, text and photos; public once published (QC-012 states).
  */
 #[Fillable([
     'product_id', 'vendor_id', 'order_item_id', 'customer_user_id', 'customer_name', 'rating', 'title', 'body', 'locale',
-    'status', 'rejection_reason', 'helpful_count', 'moderated_at', 'moderated_by_user_id',
+    'status', 'rejection_reason', 'flag_reason', 'helpful_count', 'report_count', 'moderated_at', 'moderated_by_user_id',
 ])]
 class ProductReview extends Model
 {
@@ -33,9 +34,10 @@ class ProductReview extends Model
     protected function casts(): array
     {
         return [
-            'status' => ModerationStatus::class,
+            'status' => ReviewStatus::class,
             'rating' => 'integer',
             'helpful_count' => 'integer',
+            'report_count' => 'integer',
             'moderated_at' => 'immutable_datetime',
         ];
     }
@@ -78,5 +80,21 @@ class ProductReview extends Model
     public function votes(): HasMany
     {
         return $this->hasMany(ProductReviewVote::class);
+    }
+
+    /**
+     * @return HasOne<ProductReviewReply, $this>
+     */
+    public function reply(): HasOne
+    {
+        return $this->hasOne(ProductReviewReply::class);
+    }
+
+    /**
+     * @return HasMany<ProductReviewReport, $this>
+     */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(ProductReviewReport::class);
     }
 }

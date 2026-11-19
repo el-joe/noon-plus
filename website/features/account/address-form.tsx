@@ -59,7 +59,8 @@ export function AddressFormModal({ address, onClose, onSaved }: { address?: Addr
       label: v("label") || null,
       name: v("name"),
       phone: v("phone"),
-      city: cityMode === "list" ? city : v("city_free"),
+      // E2E-004: with no delivery areas the free-text city field is shown even in "list" mode.
+      city: useList ? city : v("city_free"),
       area: v("area"),
       street: v("street"),
       building: v("building") || null,

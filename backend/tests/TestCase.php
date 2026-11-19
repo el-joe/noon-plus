@@ -21,6 +21,7 @@ abstract class TestCase extends BaseTestCase
         null,
         'country_uae', 'country_omn', 'country_ksa', 'country_egy',
         'country_kwt', 'country_qat', 'country_bhr', 'country_jor',
+        'reporting',
     ];
 
     private static bool $countryDatabasesMigrated = false;
@@ -35,6 +36,7 @@ abstract class TestCase extends BaseTestCase
     {
         if (! self::$countryDatabasesMigrated) {
             Artisan::call('nawy:countries:migrate', ['--fresh' => true]);
+            Artisan::call('nawy:reporting:migrate', ['--fresh' => true]);
             self::$countryDatabasesMigrated = true;
         }
 

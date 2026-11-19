@@ -29,8 +29,13 @@ class FlashSaleSubmissionMachine
         return DB::connection($event->getConnectionName())->transaction(function () use ($event, $listing, $flashPrice, $quantityCap, $actorUserId): FlashSaleSubmission {
             $submission = FlashSaleSubmission::query()->firstOrNew(['flash_sale_event_id' => $event->id, 'listing_id' => $listing->id]);
 
+            // A withdrawn offer is final for its event: the listing can never be offered to that event again.
+            if ($submission->exists && $submission->status === FlashSaleSubmissionStatus::Withdrawn) {
+                throw FlashSaleTransitionRefused::because(__('You withdrew this listing from this flash sale; a withdrawal is final, so it cannot be offered to the same event again.'));
+            }
+
             if ($submission->exists && $submission->status !== FlashSaleSubmissionStatus::Draft) {
-                throw FlashSaleTransitionRefused::because('This listing is already in the flash sale.');
+                throw FlashSaleTransitionRefused::because(__('This listing is already in the flash sale.'));
             }
 
             $submission->fill([

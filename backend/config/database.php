@@ -99,6 +99,58 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        /*
+        | WP11: the old platform's database snapshot (`nawy_legacy_snapshot`),
+        | read by `legacy:migrate` / `legacy:reconcile` only. Every session is
+        | opened READ ONLY, so a write through this connection fails in MySQL.
+        | Never point it at the old live database.
+        */
+        'legacy' => [
+            'driver' => 'mysql',
+            'host' => env('DB_LEGACY_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_LEGACY_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_LEGACY_DATABASE', 'nawy_legacy_snapshot'),
+            'username' => env('DB_LEGACY_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_LEGACY_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? [
+                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET SESSION TRANSACTION READ ONLY',
+            ] : [],
+        ],
+
+        /*
+        | FR-CTY-10 / ADR 2: the reporting database (`nawy_reporting`), loaded
+        | nightly from the 8 country databases by `nawy:reporting:etl`.
+        | Cross-country admin reports read only from here.
+        */
+        'reporting' => env('NAWY_COUNTRY_DB_DRIVER', env('DB_CONNECTION', 'sqlite') === 'sqlite' ? 'sqlite' : 'mysql') === 'sqlite'
+            ? [
+                'driver' => 'sqlite',
+                'database' => env('DB_REPORTING_SQLITE_DATABASE') ?: database_path('reporting.sqlite'),
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ]
+            : [
+                'driver' => 'mysql',
+                'host' => env('DB_REPORTING_HOST', env('DB_HOST', '127.0.0.1')),
+                'port' => env('DB_REPORTING_PORT', env('DB_PORT', '3306')),
+                'database' => env('DB_REPORTING_DATABASE', 'nawy_reporting'),
+                'username' => env('DB_REPORTING_USERNAME', env('DB_USERNAME', 'root')),
+                'password' => env('DB_REPORTING_PASSWORD', env('DB_PASSWORD', '')),
+                'unix_socket' => env('DB_SOCKET', ''),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'prefix_indexes' => true,
+                'strict' => true,
+                'engine' => null,
+            ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

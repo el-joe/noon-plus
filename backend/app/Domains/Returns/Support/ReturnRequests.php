@@ -11,6 +11,7 @@ use App\Domains\Orders\Models\OrderItem;
 use App\Domains\Orders\Models\SubOrder;
 use App\Domains\Orders\Support\ReturnWindow;
 use App\Domains\Orders\Support\SubOrderStateMachine;
+use App\Domains\Panels\Listeners\NotifySellerOfStateChange;
 use App\Domains\Refunds\Enums\RefundDestination;
 use App\Domains\Refunds\Enums\RefundSource;
 use App\Domains\Refunds\Support\Refunds;
@@ -22,6 +23,7 @@ use App\Domains\Returns\Models\ReturnItem;
 use App\Domains\Returns\Models\ReturnRequest;
 use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Domains\Warranty\Models\WarrantyPurchase;
+use App\Shared\Localization\Label;
 use App\Shared\Money\MoneyFactory;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
@@ -129,6 +131,7 @@ class ReturnRequests
             }
 
             $this->machine->created($return, ActorType::Customer, $customerUserId, $reason->value);
+            NotifySellerOfStateChange::notifyVendor($locked->vendor_id, 'return.requested', __('Return :number requested', ['number' => $return->number]), Label::of($reason), '/returns/'.$return->id);
 
             return $return->load('items');
         });

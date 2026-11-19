@@ -10,12 +10,8 @@ import 'state/app_state.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = await createDefaultStore();
-  late final AppState state;
-  final api = ApiClient(
-    baseUrl: AppConfig.apiUrl,
-    transport: createTransport(),
-    onUnauthenticated: () => state.signOut(revoke: false),
-  );
-  state = AppState(api: api, store: store);
+  // AppState signs out on 401 / 403 `account_suspended` with a message.
+  final api = ApiClient(baseUrl: AppConfig.apiUrl, transport: createTransport());
+  final state = AppState(api: api, store: store);
   runApp(NawyApp(state: state));
 }

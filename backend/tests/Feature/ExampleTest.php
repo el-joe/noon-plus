@@ -1,7 +1,5 @@
 <?php
 
-test('the application returns a successful response', function () {
-    $response = $this->get('/');
-
-    $response->assertStatus(200);
+test('the API host root sends visitors to the storefront (QC-076)', function () {
+    $this->get('/')->assertRedirect(config('nawy.payments.storefront_url'));
 });

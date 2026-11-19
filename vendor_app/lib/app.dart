@@ -3,7 +3,7 @@ import 'package:nawy_core/nawy_core.dart';
 
 import 'data/vendor_api.dart';
 import 'l10n/strings.dart';
-import 'screens/shell.dart';
+import 'screens/agreement.dart';
 
 class VendorApp extends StatelessWidget {
   const VendorApp({super.key, required this.session});
@@ -25,6 +25,6 @@ class VendorApp extends StatelessWidget {
             await s.signedInWith(result.str('token'), {...?result.m('user'), 'workspace': result.m('workspace')});
           },
         ),
-        home: (context) => const VendorShell(),
+        home: (context) => const VendorGate(),
       );
 }

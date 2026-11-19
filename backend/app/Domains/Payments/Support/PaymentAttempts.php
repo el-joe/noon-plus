@@ -13,8 +13,11 @@ use App\Domains\Payments\Exceptions\PaymentMethodUnavailable;
 use App\Domains\Payments\Exceptions\PaymentRetryRefused;
 use App\Domains\Payments\Exceptions\PaymentTransitionRefused;
 use App\Domains\Payments\Models\Payment;
+use App\Domains\Payments\Models\SavedPaymentCard;
 use App\Domains\Payments\Support\Data\GatewayOutcome;
 use App\Domains\Payments\Support\Data\PaymentRequest;
+use App\Domains\Payments\Support\Gateways\ChargesSavedCards;
+use App\Domains\Payments\Support\Gateways\ConvertedCurrencyGateway;
 use App\Domains\Payments\Support\Gateways\GatewayFactory;
 use App\Domains\Payments\Support\Gateways\PaymentGateway;
 use App\Domains\Settings\SettingsService;
@@ -45,6 +48,7 @@ class PaymentAttempts
         private OrderPaymentStatus $orderPaymentStatus,
         private SettingsService $settings,
         private MoneyFactory $money,
+        private PaymentCurrencyConversion $conversion,
     ) {}
 
     public function start(Order $order, PaymentMethod $method, User $customer): Payment
@@ -79,12 +83,68 @@ class PaymentAttempts
      * invoice — WP4). Card gateways and Nawy Credits only; the payable is
      * told when the payment is captured ({@see PaymentCaptured}).
      */
-    public function startForPayable(string $payableType, int $payableId, string $number, Money $amount, PaymentMethod $method, User $customer, string $description): Payment
+    public function startForPayable(string $payableType, int $payableId, string $number, Money $amount, PaymentMethod $method, User $customer, string $description, ?string $returnUrl = null): Payment
     {
         if ($method === PaymentMethod::Cod || $method === PaymentMethod::GiftCard) {
             throw new PaymentMethodUnavailable(__('This payment method is not available here.'));
         }
 
+        $payment = $this->newPayablePayment($payableType, $payableId, $amount, $method, $customer, ActorType::Customer, $payableType, $returnUrl);
+
+        return $this->begin($payment, $this->paymentRequest($payment, $customer, $number, $description), $customer);
+    }
+
+    /**
+     * Merchant-initiated charge of a saved card (gateway token only) for a
+     * payable, e.g. a vendor plan renewal invoice. The provider's answer is
+     * applied at once through {@see applyOutcome()} (captured → the payable
+     * is told; declined → the attempt fails). A gateway that cannot charge
+     * saved cards, a disabled gateway or an expired card fail the attempt
+     * without calling the provider.
+     */
+    public function chargeSavedCard(string $payableType, int $payableId, string $number, Money $amount, SavedPaymentCard $card, User $customer, string $description): Payment
+    {
+        $method = PaymentMethod::tryFrom($card->gateway) ?? throw new PaymentMethodUnavailable(__('This saved card cannot be charged.'));
+        $payment = $this->newPayablePayment($payableType, $payableId, $amount, $method, $customer, ActorType::System, 'auto_charge');
+        $fail = function (string $code, string $message) use ($payment): Payment {
+            $this->machine->transition($payment, PaymentStatus::Failed, ActorType::System, source: 'auto_charge', reason: $message, attributes: ['failure_code' => $code, 'failure_message' => $message]);
+
+            return $payment->refresh();
+        };
+
+        if ($card->isExpired()) {
+            return $fail('card_expired', __('The saved card has expired.'));
+        }
+
+        try {
+            $config = $this->catalog->config($this->countryContext->current(), $method);
+
+            if ($config === null || ! $config->is_enabled) {
+                throw new PaymentMethodUnavailable(__(':method is not configured for this country.', ['method' => $method->label()]));
+            }
+
+            $this->conversion->apply($payment);
+            $gateway = $this->gateway($payment);
+
+            if (! $gateway instanceof ChargesSavedCards) {
+                return $fail('not_supported', __(':method cannot charge saved cards.', ['method' => $method->label()]));
+            }
+
+            $outcome = $gateway->chargeSavedCard($this->forGateway($this->paymentRequest($payment, $customer, $number, $description), $payment), $card);
+        } catch (GatewayError|PaymentMethodUnavailable $error) {
+            Log::warning('Saved card charge failed', ['payment' => $payment->reference, 'method' => $method->value, 'error' => $error->getMessage()]);
+
+            return $fail('gateway_unavailable', __('The card could not be charged right now.'));
+        }
+
+        $payment->forceFill(['gateway_reference' => $outcome->gatewayReference])->save();
+        $card->forceFill(['last_used_at' => now()])->save();
+
+        return $this->applyOutcome($payment, $outcome, 'auto_charge');
+    }
+
+    private function newPayablePayment(string $payableType, int $payableId, Money $amount, PaymentMethod $method, User $customer, ActorType $actorType, string $source, ?string $returnUrl = null): Payment
+    {
         $config = $method->isGateway() ? $this->catalog->config($this->countryContext->current(), $method) : null;
         $payment = Payment::query()->create([
             'reference' => (string) Str::uuid(),
@@ -96,11 +156,12 @@ class PaymentAttempts
             'currency' => $amount->getCurrency()->getCurrencyCode(),
             'amount' => $this->money->toStorage($amount),
             'idempotency_key' => "{$payableType}:{$payableId}:".Str::uuid(),
+            'return_url' => $returnUrl,
             'expires_at' => now()->addMinutes((int) $this->settings->get('payment.pending_expiry_minutes', config('nawy.payments.pending_expiry_minutes'))),
         ]);
-        $payment->statusHistory()->create(['to_status' => PaymentStatus::Pending, 'actor_type' => ActorType::Customer, 'actor_user_id' => $customer->id, 'source' => $payableType]);
+        $payment->statusHistory()->create(['to_status' => PaymentStatus::Pending, 'actor_type' => $actorType, 'actor_user_id' => $actorType === ActorType::System ? null : $customer->id, 'source' => $source]);
 
-        return $this->begin($payment, $this->paymentRequest($payment, $customer, $number, $description), $customer);
+        return $payment;
     }
 
     /**
@@ -112,6 +173,9 @@ class PaymentAttempts
         $method = $payment->method;
 
         try {
+            // PayPal USD conversion: the provider is asked for the converted amount at the current rate (stored on the payment).
+            $this->conversion->apply($payment);
+            $request = $this->forGateway($request, $payment);
             $session = $this->gateway($payment)->createPayment($request);
             $payment->forceFill([
                 'gateway_reference' => $session->gatewayReference,
@@ -205,6 +269,12 @@ class PaymentAttempts
     {
         $payment->refresh();
 
+        if ($payment->charge_currency !== null && $outcome->amount !== null) {
+            // The provider reports the charge currency (USD); money on Nawy stays in the country currency.
+            $outcome = new GatewayOutcome($outcome->status, $outcome->gatewayReference, $this->conversion->toLocal($payment, $outcome->amount),
+                $outcome->failureCode, $outcome->failureMessage, $outcome->card);
+        }
+
         if ($outcome->status === PaymentStatus::Pending || $outcome->status === $payment->status) {
             return $payment;
         }
@@ -239,14 +309,33 @@ class PaymentAttempts
             $this->captureAuthorized($payment, $source);
         }
 
+        if ($outcome->card !== null && $outcome->status->isSuccessful() && $payment->customer_user_id !== null) {
+            app(SavedCards::class)->remember((int) $payment->customer_user_id, $payment->method->value, $outcome->card);
+        }
+
         return $payment->refresh();
     }
 
     public function gateway(Payment $payment): PaymentGateway
     {
         $config = $payment->method->isGateway() ? $this->catalog->config($this->countryContext->current(), $payment->method) : null;
+        $gateway = $this->gateways->make($payment->method, $config);
 
-        return $this->gateways->make($payment->method, $config);
+        return $payment->charge_currency === null ? $gateway : new ConvertedCurrencyGateway($gateway, $this->conversion);
+    }
+
+    /**
+     * The request with the amount the provider is charged (converted for PayPal USD).
+     */
+    private function forGateway(PaymentRequest $request, Payment $payment): PaymentRequest
+    {
+        if ($payment->charge_currency === null) {
+            return $request;
+        }
+
+        return new PaymentRequest($request->reference, $request->orderNumber, $this->conversion->gatewayAmount($payment), $request->description,
+            $request->customerEmail, $request->customerName, $request->customerPhone, $request->countryIso2, $request->locale,
+            $request->returnUrl, $request->cancelUrl, $request->notifyUrl, $request->idempotencyKey, $request->shippingAddress);
     }
 
     private function captureAuthorized(Payment $payment, string $source): void

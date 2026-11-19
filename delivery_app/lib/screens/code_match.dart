@@ -3,6 +3,7 @@ import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
 import '../data/models.dart';
+import '../ui/run_step.dart';
 import 'proof.dart';
 
 /// Figma "05 Delivery code" (ADR 15): the agent SEES the 4-digit code, the
@@ -29,7 +30,7 @@ class _CodeMatchScreenState extends State<CodeMatchScreen> {
       return;
     }
     setState(() => _busy = true);
-    final done = await runAction(context, () => DeliveryApi(context.api).confirm(a.number, const ConfirmRequest()), success: context.t('proof.delivered'));
+    final done = await runStep(context, () => DeliveryApi(context.api).confirm(a.number, const ConfirmRequest()), success: context.t('proof.delivered'), onRefused: () => Navigator.maybePop(context));
     if (!mounted) return;
     setState(() => _busy = false);
     if (done != null) nav.pop(done);

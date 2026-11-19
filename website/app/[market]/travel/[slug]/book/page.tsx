@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: market ? getT(market.locale)("travel.book.title") : undefined, robots: { index: false } };
 }
 
-/** `/travel/[slug]/book?departure=&room=&travellers=` — booking request form (D8, no payment). */
+/** `/travel/[slug]/book?departure=&room=&travellers=&children=` — booking request form (D8, no payment). */
 export default function BookTripPage({ params, searchParams }: Props) {
   return (
     <Container className="py-4">
@@ -38,7 +38,7 @@ async function BookContent({ params, searchParams }: Props) {
   return (
     <BookingForm
       pkg={pkg}
-      initial={{ departure: Number(one(raw.departure)) || undefined, room: one(raw.room) || undefined, travellers: Number(one(raw.travellers)) || undefined }}
+      initial={{ departure: Number(one(raw.departure)) || undefined, room: one(raw.room) || undefined, travellers: Number(one(raw.travellers)) || undefined, children: Number(one(raw.children)) || undefined }}
     />
   );
 }

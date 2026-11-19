@@ -30,7 +30,7 @@ it('shows the store dashboard with KPIs from its own orders and listings', funct
         ->assertSee('SoundMax')
         ->assertSeeInOrder(['Sales today', 'AED 200.00'])
         ->assertSeeInOrder(['Orders to confirm', '1'])
-        ->assertSeeInOrder(['Active listings', '3'])
+        ->assertSeeInOrder(['Returns open', '0'])
         ->assertSee('95 / 100')
         ->assertSee('1 order to confirm');
 });

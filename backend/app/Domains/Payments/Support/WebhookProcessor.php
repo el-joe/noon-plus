@@ -3,6 +3,7 @@
 namespace App\Domains\Payments\Support;
 
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Payments\Enums\PaymentMethod;
 use App\Domains\Payments\Enums\WebhookEventStatus;
 use App\Domains\Payments\Exceptions\InvalidWebhookSignature;
@@ -19,7 +20,9 @@ use Throwable;
  * adapter, the event is stored once per (gateway, provider event id) — a
  * redelivery is reported as a duplicate and changes nothing (unless the
  * first delivery failed, then it is processed again) — and the outcome goes
- * through the payment state machine, which ignores backward moves.
+ * through the payment state machine, which ignores backward moves. The
+ * event row follows received → verified → processed | duplicate | failed
+ * (QC-032); history rows name the `gateway` actor (QC-031).
  */
 class WebhookProcessor
 {
@@ -53,6 +56,8 @@ class WebhookProcessor
         } catch (UniqueConstraintViolationException) {
             $event = PaymentWebhookEvent::query()->where('gateway', $gateway)->where('event_id', $notification->eventId)->firstOrFail();
 
+            $event->increment('deliveries');
+
             if ($event->status !== WebhookEventStatus::Failed) {
                 return 'duplicate';
             }
@@ -72,16 +77,20 @@ class WebhookProcessor
             return 'ignored';
         }
 
+        $event->forceFill(['status' => WebhookEventStatus::Verified, 'payment_id' => $payment->id])->save();
+        $before = $payment->status;
+
         try {
-            $this->attempts->applyOutcome($payment, $notification->outcome, 'webhook');
+            $payment = $this->attempts->applyOutcome($payment, $notification->outcome, 'webhook', ActorType::Gateway);
         } catch (Throwable $exception) {
             $event->forceFill(['status' => WebhookEventStatus::Failed, 'payment_id' => $payment->id, 'error' => mb_substr($exception->getMessage(), 0, 255)])->save();
 
             throw $exception;
         }
 
-        $event->forceFill(['status' => WebhookEventStatus::Processed, 'payment_id' => $payment->id, 'error' => null, 'processed_at' => now()])->save();
+        $changed = $payment->status !== $before;
+        $event->forceFill(['status' => $changed ? WebhookEventStatus::Processed : WebhookEventStatus::Duplicate, 'error' => null, 'processed_at' => now()])->save();
 
-        return 'processed';
+        return $changed ? 'processed' : 'duplicate';
     }
 }

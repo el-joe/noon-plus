@@ -1,5 +1,16 @@
 <x-layouts.panel :title="__('Live & videos')" :subtitle="__(':country · admin-only live broadcasts and scheduled audio/video channels (ADR 11) · times typed in :zone', ['country' => $country->name_en, 'zone' => $country->timezone])" :breadcrumbs="[__('Content'), __('Live & videos')]">
     @include('panels.admin.content._nav')
+    @can('live_media.manage')
+        {{-- QC-063: the home floating player is a setting, not a page block. --}}
+        <x-ui.card :title="__('Home floating player')" :subtitle="__('Shown over the storefront home page in :country.', ['country' => $country->name_en])">
+            <form method="POST" action="{{ route('admin.media.floating') }}" class="flex flex-wrap items-end gap-3">
+                @csrf
+                <x-ui.select :label="__('Show')" name="mode" :options="['auto' => __('The stream that is live now'), 'stream' => __('One stream'), 'off' => __('Nothing')]" :selected="$floating['mode']" />
+                <x-ui.input :label="__('Stream address (slug)')" name="stream" :value="$floating['stream']" />
+                <x-ui.button type="submit" size="sm">{{ __('Save') }}</x-ui.button>
+            </form>
+        </x-ui.card>
+    @endcan
     <x-ui.card flush>
         <x-slot:actions>
             <form method="GET" class="flex items-end gap-2">

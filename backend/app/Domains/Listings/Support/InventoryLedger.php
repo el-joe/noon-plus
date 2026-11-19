@@ -2,6 +2,7 @@
 
 namespace App\Domains\Listings\Support;
 
+use App\Domains\Fulfilment\Support\WarehouseStockService;
 use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Exceptions\InsufficientStock;
 use App\Domains\Listings\Models\Listing;
@@ -10,7 +11,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Records stock movements and keeps the listing status in step with stock:
  * selling the last unit moves an active listing to out_of_stock, restocking
- * an out_of_stock listing makes it active again.
+ * an out_of_stock listing makes it active again. For an FBN listing the
+ * move is mirrored on the warehouse stock ({@see WarehouseStockService}).
  */
 class InventoryLedger
 {
@@ -49,6 +51,10 @@ class InventoryLedger
             ]);
 
             $balance = $available + $quantity;
+
+            if ($locked->fulfilment === 'fbn') {
+                app(WarehouseStockService::class)->mirror($locked, $quantity, $reason, $referenceType, $referenceId, $actorUserId);
+            }
 
             if ($balance === 0 && $locked->status === ListingStatus::Active) {
                 $this->stateMachine->transition($locked, ListingStatus::OutOfStock, $actorUserId, 'Sold out');

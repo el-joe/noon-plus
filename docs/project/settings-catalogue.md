@@ -94,7 +94,7 @@ Storage (proposed): central `settings (key, scope_type, scope_id, value json, up
 | `return_window_days` | Cat (inherits parent; C default) | int | *proposed* 14 (OQ7) | Ops | Return eligibility, auto-complete, conversion approval | MP §7a, SRS §7.1 |
 | `return.excluded_custom_items` | Cat | bool | true for made-to-order | Ops | Return wizard | `design-coverage.md` (modest PDP) |
 | `payment.pending_expiry_minutes` | G | int | *proposed* 30 | Finance | ExpirePendingPaymentsJob | SRS §6 |
-| `order.auto_complete_time` | G | time | 02:00 | Super | AutoCompleteOrdersJob | SRS §7.1 |
+| `order.auto_complete_time` | G (country override) | time | 02:00 | Super | AutoCompleteOrdersJob (`nawy:orders:auto-complete --scheduled`, checked every 15 min; each country runs once a day at or after its time, admin/Oman time zone; QC-038) | SRS §7.1 |
 | `order.vendor_cancel_strike` | G | bool | true | Ops | Seller score | SRS §4.3 |
 | `catalog.compare_max_items` | G | int | *proposed* 4 | Content | Product compare (N) | MP §3 |
 | `reviews.require_verified_purchase` | G | bool | *proposed* true | Content | Write review | SRS §7.8 |
@@ -220,7 +220,7 @@ Storage (proposed): central `settings (key, scope_type, scope_id, value json, up
 | Influencer overrides / profile commission rules | Marketer × category or vertical | fixed, %, fee override | Marketing | FR-MKT-2 |
 | Marketing Fees — fixed | C | amount and/or % | Marketing, Finance | Campaign fee |
 | Marketing Fees — variable | C × category × FBM/FBN/FBP | amount + % | Marketing, Finance | Campaign fee |
-| Marketing Fees — vertical | C × classified/travel | amount + % | Marketing, Finance | Campaign fee |
+| Marketing Fees — vertical | C × classified (travel removed by D11: no campaign fees) | amount + % | Marketing, Finance | Campaign fee |
 
 ### 10.4 MP §7a / §8 marketing settings (new)
 | Key | Scope | Type | Default | Edits | Where used | Source |
@@ -274,7 +274,7 @@ Storage (proposed): central `settings (key, scope_type, scope_id, value json, up
 | `travel.seat_hold_minutes` | C | int | *proposed* 10 | Ops | Seat-hold expiry job | MP §11 |
 | `travel.documents_deadline_days` | C | int | *proposed* 7 before departure | Ops | `pending_documents` reminders | SRS §12.2 |
 | `travel.cancellation_policy` | E (package) | json tiers | per package | Agency | Refund on cancel | Spec §5.3 |
-| `travel.platform_commission_percent` | C × travel category | percent | TBD | Finance | Booking settlement | Spec §12.1 |
+| ~~`travel.platform_commission_percent`~~ | — | — | — | — | **Withdrawn** by owner decision D11 (2026-11-18): travel pays no commission | Spec §12.1 |
 
 ## 13. Contracts & documents (SRS §13)
 

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A booking request on a departure with the customer's contact details (no payment on Nawy); lifecycle in TravelBookings.
  */
-#[Fillable(['number', 'customer_user_id', 'contact_name', 'contact_email', 'contact_phone', 'message', 'access_token', 'vendor_id', 'travel_package_id', 'travel_departure_id', 'rooms', 'seats', 'currency', 'total', 'hold_expires_at', 'marketer_profile_id', 'referral_code'])]
+#[Fillable(['number', 'customer_user_id', 'contact_name', 'contact_email', 'contact_phone', 'message', 'access_token', 'vendor_id', 'travel_package_id', 'travel_departure_id', 'rooms', 'seats', 'currency', 'total', 'hold_expires_at', 'marketer_profile_id', 'referral_code', 'locale'])]
 class TravelBooking extends Model
 {
     use HasStateTransitions, UsesCountryDatabase;

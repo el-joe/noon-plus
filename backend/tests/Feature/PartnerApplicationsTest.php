@@ -21,6 +21,7 @@ use App\Domains\Onboarding\Models\AdvertiseInquiry;
 use App\Domains\Onboarding\Models\PartnerApplication;
 use App\Domains\Onboarding\Notifications\ApplicationEmailCodeNotification;
 use App\Domains\Onboarding\Notifications\PartnerWelcomeNotification;
+use App\Domains\Onboarding\Support\AcquirerReferrals;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Shared\Notifications\RequestNotification;
@@ -250,7 +251,18 @@ describe('vendor wizard (5 steps)', function () {
         Notification::assertNothingSent();
         $this->postJson(applicationsUrl('resume-link'), ['email' => 'sara@example.com', 'type' => 'vendor'])->assertStatus(202);
         Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'partner_application.resume' && str_contains($mail->lines[0], $number));
-        $this->getJson(applicationsUrl($number), ['X-Application-Token' => $token])->assertNotFound();
+
+        // RT-006: the open wizard keeps working; the link adds a token of its own.
+        $this->getJson(applicationsUrl($number), ['X-Application-Token' => $token])->assertOk();
+        $linkToken = null;
+        Notification::assertSentOnDemand(RequestNotification::class, function (RequestNotification $mail) use (&$linkToken): bool {
+            parse_str((string) parse_url((string) $mail->actionUrl, PHP_URL_QUERY), $query);
+            $linkToken = $query['token'] ?? null;
+
+            return true;
+        });
+        $this->getJson(applicationsUrl($number), ['X-Application-Token' => (string) $linkToken])->assertOk();
+        $this->getJson(applicationsUrl($number), ['X-Application-Token' => 'not-a-token'])->assertNotFound();
     });
 });
 
@@ -395,7 +407,8 @@ describe('admin review', function () {
         $application->refresh();
         expect($application->status)->toBe(ApplicationStatus::ChangesRequested)->and($application->hasCompleted('address'))->toBeFalse()
             ->and($application->hasCompleted('documents'))->toBeFalse()->and($document->refresh()->status)->toBe(DocumentStatus::Rejected);
-        $this->getJson(applicationsUrl($application->number), ['X-Application-Token' => $oldToken])->assertNotFound();
+        // RT-006: the mailed link adds a token; the applicant's open wizard keeps working.
+        $this->getJson(applicationsUrl($application->number), ['X-Application-Token' => $oldToken])->assertOk();
 
         $token = null;
         Notification::assertSentOnDemand(RequestNotification::class, function (RequestNotification $mail) use (&$token): bool {
@@ -449,5 +462,56 @@ describe('admin review', function () {
             ->and($existing->hasMembership(MembershipRole::ProductVendor, $this->country))->toBeTrue()
             ->and(User::query()->where('email', 'sara@example.com')->count())->toBe(1);
         Notification::assertSentTo($existing, PartnerWelcomeNotification::class, fn (PartnerWelcomeNotification $mail): bool => $mail->existingAccount);
+    });
+});
+
+describe('acquirer (FR-FIN-6)', function () {
+    it('records the account manager from a referral link and credits the approved store to them', function () {
+        $manager = adminAccount('uae', 'vendor_relations');
+        $code = app(AcquirerReferrals::class)->code($manager);
+        $this->actingAs($manager)->get(onPanel('admin', 'my-acquisition-commissions'))->assertOk()->assertSee('?ref='.$code, false);
+        app('auth')->forgetGuards();
+
+        [$application] = submittedVendorApplication(['ref' => $code]);
+        expect($application->acquired_by_user_id)->toBe($manager->id)->and($application->referral_code)->toBe(mb_strtoupper($code));
+
+        $reviewer = adminAccount('uae', 'vendor_relations');
+        $this->actingAs($reviewer)->get(onPanel('admin', "applications/{$application->id}"))->assertOk()->assertSee($manager->email)->assertSee('From referral link');
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/decide"), ['decision' => 'approve'])->assertRedirect();
+
+        $vendor = Vendor::query()->sole();
+        expect($vendor->acquired_by_user_id)->toBe($manager->id)->and($vendor->acquired_at)->not->toBeNull();
+    });
+
+    it('ignores forged codes and lets the reviewer set, clear and approve with an acquirer', function () {
+        $manager = adminAccount('uae', 'vendor_relations');
+        $forged = 'AM'.$manager->id.'-00000000';
+
+        [$application] = submittedVendorApplication(['ref' => $forged]);
+        expect($application->acquired_by_user_id)->toBeNull()->and($application->referral_code)->toBeNull();
+
+        $reviewer = adminAccount('uae', 'vendor_relations');
+        $customer = User::factory()->create();
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/acquirer"), ['acquired_by_user_id' => $customer->id])->assertSessionHasErrors('action');
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/acquirer"), ['acquired_by_user_id' => $manager->id])->assertSessionHasNoErrors();
+        expect($application->refresh()->acquired_by_user_id)->toBe($manager->id)
+            ->and($application->transitions()->where('meta->event', 'acquirer')->count())->toBe(1);
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/acquirer"), ['acquired_by_user_id' => ''])->assertSessionHasNoErrors();
+        expect($application->refresh()->acquired_by_user_id)->toBeNull();
+
+        // Set while approving (the decision form's select).
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/decide"), ['decision' => 'approve', 'acquired_by_user_id' => $reviewer->id])->assertRedirect();
+        expect(Vendor::query()->sole()->acquired_by_user_id)->toBe($reviewer->id);
+
+        // Decided: the seller page owns it now.
+        $this->actingAs($reviewer)->post(onPanel('admin', "applications/{$application->id}/acquirer"), ['acquired_by_user_id' => $manager->id])->assertSessionHasErrors('action');
+        $this->actingAs(adminAccount('uae', 'marketing'))->post(onPanel('admin', "applications/{$application->id}/acquirer"), ['acquired_by_user_id' => $manager->id])->assertForbidden();
+    });
+
+    it('approves without an acquirer when nobody was recorded', function () {
+        [$application] = submittedVendorApplication();
+        $this->actingAs(adminAccount('uae', 'vendor_relations'))->post(onPanel('admin', "applications/{$application->id}/decide"), ['decision' => 'approve'])->assertRedirect();
+
+        expect(Vendor::query()->sole()->acquired_by_user_id)->toBeNull();
     });
 });

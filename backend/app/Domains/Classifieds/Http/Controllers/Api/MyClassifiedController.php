@@ -11,13 +11,19 @@ use App\Domains\Classifieds\Support\ClassifiedAdMachine;
 use App\Domains\Classifieds\Support\ClassifiedAds;
 use App\Domains\Classifieds\Support\ClassifiedPackages;
 use App\Domains\Contracts\Support\ContractRenderer;
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Marketers\Models\MarketerProfile;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Payments\Http\Resources\PaymentResource;
+use App\Domains\RealEstate\Http\ViewingPresenter;
+use App\Domains\RealEstate\Models\PropertyViewing;
+use App\Domains\RealEstate\Support\Viewings;
 use App\Domains\Vendors\Models\Vendor;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
 use App\Shared\Settings\VerticalSettings;
+use App\Shared\Validation\CountryPhone;
+use Brick\Money\Currency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,7 +41,20 @@ class MyClassifiedController extends Controller
     {
         $ads = ClassifiedAd::query()->where('owner_user_id', $request->user()->id)->with(['media', 'category', 'vendor'])->latest('id')->paginate(24);
 
-        return ApiResponse::success(collect($ads->items())->map(fn (ClassifiedAd $ad): array => ClassifiedPresenter::card($ad) + ['views' => $ad->views])->all(), ['total' => $ads->total(), 'page' => $ads->currentPage()]);
+        return ApiResponse::success(collect($ads->items())->map(fn (ClassifiedAd $ad): array => ClassifiedPresenter::card($ad) + ['views' => $ad->views])->all(), ['total' => $ads->total(), 'page' => $ads->currentPage(), 'per_page' => $ads->perPage(), 'last_page' => $ads->lastPage()]);
+    }
+
+    /**
+     * Viewing / reserve requests received on the owner's ads, newest first,
+     * with the customer's contact details (owner decision D12: a record
+     * only; the owner contacts the customer outside Nawy).
+     */
+    public function requests(Request $request, Viewings $viewings): JsonResponse
+    {
+        $requests = $viewings->received(['owner_user_id' => $request->user()->id], $request->query('type') === null ? null : (string) $request->query('type'))
+            ->with(['ad.media', 'ad.category', 'ad.vendor'])->paginate(min(50, max(1, $request->integer('per_page', 20))));
+
+        return ApiResponse::success(collect($requests->items())->map(fn (PropertyViewing $viewing): array => ViewingPresenter::record($viewing, withContact: true))->all(), ['total' => $requests->total(), 'page' => $requests->currentPage(), 'per_page' => $requests->perPage(), 'last_page' => $requests->lastPage()]);
     }
 
     public function store(Request $request): JsonResponse
@@ -63,8 +82,10 @@ class MyClassifiedController extends Controller
 
     public function photo(Request $request, string $number, VerticalSettings $settings): JsonResponse
     {
-        $file = $request->validate(['photo' => ['required', 'image', 'max:'.$settings->int('classified.photo_max_kb')]])['photo'];
-        $media = $this->ads->addPhoto($this->ad($request, $number), $file);
+        $ad = $this->ad($request, $number);
+        // The category's own limit (photoLimits); the count is checked by addPhoto (max_photos).
+        $file = $request->validate(['photo' => ['required', 'image', 'max:'.($ad->category?->photoLimits()['photo_max_kb'] ?? $settings->int('classified.photo_max_kb'))]])['photo'];
+        $media = $this->ads->addPhoto($ad, $file);
 
         return ApiResponse::success(['id' => $media->id, 'type' => 'photo'], status: 201);
     }
@@ -197,22 +218,27 @@ class MyClassifiedController extends Controller
     }
 
     /**
+     * QA-020: the contact phone is a number of the market (stored E.164);
+     * QA-040: the price has at most the currency's decimals.
+     *
      * @return array<string, mixed>
      */
     private function validated(Request $request, bool $creating): array
     {
-        return $request->validate([
+        $decimals = Currency::of(app(CountryContext::class)->current()->currency)->getDefaultFractionDigits();
+
+        $data = $request->validate([
             'category_id' => [$creating ? 'required' : 'sometimes', 'integer'],
             'kind' => ['sometimes', 'in:offer,wanted'],
             'title' => [$creating ? 'required' : 'sometimes', 'string', 'max:160'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['nullable', 'numeric', 'min:0', 'decimal:0,'.$decimals],
             'is_negotiable' => ['sometimes', 'boolean'],
             'city' => ['nullable', 'string', 'max:80'],
             'area' => ['nullable', 'string', 'max:80'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'contact_phone' => ['nullable', 'string', 'max:24'],
+            'contact_phone' => ['nullable', 'string', 'max:24', new CountryPhone],
             'specs' => ['nullable', 'array'],
             'as_shop' => ['sometimes', 'boolean'],
             'as_broker' => ['sometimes', 'boolean'],
@@ -232,5 +258,11 @@ class MyClassifiedController extends Controller
             'property.payment_plan' => ['nullable', 'array'],
             'property.features' => ['nullable', 'array'],
         ]);
+
+        if (filled($data['contact_phone'] ?? null)) {
+            $data['contact_phone'] = CountryPhone::normalize($data['contact_phone']);
+        }
+
+        return $data;
     }
 }

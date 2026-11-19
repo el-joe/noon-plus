@@ -242,3 +242,18 @@ describe('booking requests (owner decision: no payment)', function () {
         Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_inquiry.sent');
     });
 });
+
+it('QC-028: sends the D4 confirmation in the language the customer booked in, whatever the agency panel uses', function () {
+    [, $departure] = activeTrip(capacity: 4);
+    app()->setLocale('ar');
+    $booking = bookingRequest($departure, 2);
+    app()->setLocale('en');
+
+    app(TravelBookings::class)->confirm($booking, 1);
+
+    expect($booking->refresh()->locale)->toBe('ar');
+    Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.confirmed'
+        && $mail->subject === 'تم تأكيد حجز رحلتك '.$booking->number
+        && $mail->locale === 'ar'
+        && str_contains($mail->lines[0], 'عمرة ٧ ليال'));
+});

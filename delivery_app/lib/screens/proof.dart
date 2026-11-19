@@ -1,24 +1,25 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
 import '../data/models.dart';
+import '../ui/run_step.dart';
 import '../ui/signature_pad.dart';
 
 /// Figma "06 Proof of delivery" (+ "08 COD" cash step): photo, customer
 /// signature and cash collected, then "Complete delivery" sends
 /// `codes_match` with the proof (W5).
 ///
-/// Photo: Android camera intent through `nawy/platform` (`takePhoto`, the
-/// preview-size image). Elsewhere the camera is not reachable without the
-/// `image_picker` package (owner review WP10), so the signature is used.
+/// Photo: the full-size camera photo from `image_picker` (owner-review D16,
+/// P8) through [MediaPicker], checked against the API limit
+/// (`delivery.proof_max_kb`). Without a camera the customer signs instead.
 class ProofScreen extends StatefulWidget {
-  const ProofScreen({super.key, required this.assignment, this.takePhoto = PlatformBridge.takePhoto});
+  const ProofScreen({super.key, required this.assignment, this.picker});
 
   final Assignment assignment;
-  final Future<Uint8List?> Function() takePhoto;
+
+  /// Defaults to [MediaPicker.current] (tests pass a fake).
+  final MediaPicker? picker;
 
   @override
   State<ProofScreen> createState() => _ProofScreenState();
@@ -28,8 +29,9 @@ class _ProofScreenState extends State<ProofScreen> {
   final _signature = SignatureController();
   final _received = TextEditingController();
   Size _padSize = const Size(340, 160);
-  Uint8List? _photo;
+  PickedMedia? _photo;
   bool _photoUnavailable = false;
+  String? _photoError;
   bool _cashCollected = false;
   bool _busy = false;
 
@@ -47,11 +49,14 @@ class _ProofScreenState extends State<ProofScreen> {
   }
 
   Future<void> _capture() async {
-    final bytes = await widget.takePhoto();
+    final picker = widget.picker ?? MediaPicker.current;
+    final shot = picker.hasCamera ? await picker.camera(fullSize: true) : null;
     if (!mounted) return;
+    final check = shot == null ? null : UploadRules.proofPhoto.check(const [], [shot]);
     setState(() {
-      _photo = bytes ?? _photo;
-      _photoUnavailable = bytes == null;
+      _photoUnavailable = !picker.hasCamera;
+      _photoError = check == null || check.rejected.isEmpty ? null : rejectionMessages(check.rejected, UploadRules.proofPhoto, context.t).join('\n');
+      if (check != null && check.accepted.isNotEmpty) _photo = check.accepted.single;
     });
   }
 
@@ -64,8 +69,12 @@ class _ProofScreenState extends State<ProofScreen> {
     setState(() => _busy = true);
     final signature = _signature.isEmpty ? null : await _signature.toDataUrl(_padSize);
     if (!mounted) return;
-    final request = ConfirmRequest(signatureDataUrl: signature, photo: _photo);
-    final done = await runAction(context, () => DeliveryApi(context.api).confirm(widget.assignment.number, request), success: context.t('proof.delivered'));
+    final request = ConfirmRequest(signatureDataUrl: signature, photo: _photo?.bytes, photoType: _photo?.mimeType ?? 'image/jpeg');
+    final done = await runStep(context, () => DeliveryApi(context.api).confirm(widget.assignment.number, request),
+        success: context.t('proof.delivered'),
+        // Refused: leave the code screen too (it pops on any result); the
+        // stop reloads the assignment.
+        onRefused: () => Navigator.maybePop(context, widget.assignment));
     if (!mounted) return;
     setState(() => _busy = false);
     if (done != null) Navigator.pop(context, done);
@@ -93,7 +102,7 @@ class _ProofScreenState extends State<ProofScreen> {
             child: SizedBox(
               height: 150,
               child: _photo != null
-                  ? Image.memory(_photo!, fit: BoxFit.contain)
+                  ? Image.memory(_photo!.bytes, key: const Key('proof-photo'), fit: BoxFit.contain)
                   : Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.photo_camera_outlined, size: 36, color: NawyColors.textSecondary),
@@ -104,6 +113,11 @@ class _ProofScreenState extends State<ProofScreen> {
           ),
         ),
         if (_photo != null) TextButton(onPressed: _capture, child: Text(context.t('proof.retake'))),
+        if (_photoError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_photoError!, key: const Key('photo-error'), style: NawyText.bodySm.copyWith(color: NawyColors.textDanger)),
+          ),
         if (_photoUnavailable)
           Padding(
             padding: const EdgeInsets.only(top: 6),

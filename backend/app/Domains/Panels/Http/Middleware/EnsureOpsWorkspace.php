@@ -32,7 +32,7 @@ class EnsureOpsWorkspace
             : null;
 
         if ($workspace === null) {
-            return ApiResponse::error('no_workspace', __('This account has no :role workspace in this country.', ['role' => str_replace('_', ' ', $role)]), 403);
+            return ApiResponse::error('no_workspace', __('This account has no :role workspace in this country.', ['role' => OpsWorkspaces::roleLabel($role)]), 403);
         }
 
         $request->attributes->set('ops_workspace', $workspace);

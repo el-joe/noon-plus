@@ -359,6 +359,8 @@ describe('saved searches, favourites and reports', function () {
         [, $token] = customerWithToken();
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/favourites/{$ad->number}")->assertOk();
         $this->withToken($token)->getJson('/api/v1/uae-en/classifieds/favourites')->assertOk()->assertJsonPath('data.0.number', $ad->number);
+        // QC-061: the ad detail counts its saves for the "Save (n)" button.
+        $this->getJson("/api/v1/uae-en/classifieds/ads/{$ad->number}")->assertOk()->assertJsonPath('data.saves', 1);
 
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/reports", ['reason' => 'fraud', 'details' => 'Asks for a deposit'])->assertCreated();
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/reports", ['reason' => 'fraud'])->assertStatus(422);

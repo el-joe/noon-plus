@@ -12,19 +12,49 @@ import * as api from "@/lib/api/account";
 import { formatDateTime } from "@/lib/format";
 import { errorMessage, useSession } from "@/lib/hooks";
 import { useMarket } from "@/lib/market-context";
+import { useRealtimeChannel } from "@/lib/realtime";
 
 export const unreadKey = (market: string) => ["notifications-unread", market] as const;
 const listKey = (market: string) => ["notifications", market] as const;
 
-/** Unread notification count for the header badge (signed-in customers only, refreshed every minute). */
+/**
+ * D16: new notifications pushed over Reverb on the customer's private channel
+ * `App.Models.User.{id}` (`notification.created`). Refreshes the bell and the
+ * centre, and the order the notification is about. Returns true while the
+ * socket is subscribed.
+ */
+export function useNotificationPush(): boolean {
+  const market = useMarket();
+  const client = useQueryClient();
+  const { user } = useSession();
+  return useRealtimeChannel({
+    market: market.slug,
+    channel: user ? `App.Models.User.${user.id}` : null,
+    private: true,
+    events: {
+      "notification.created": (payload) => {
+        void client.invalidateQueries({ queryKey: unreadKey(market.slug) });
+        void client.invalidateQueries({ queryKey: listKey(market.slug) });
+        const order = (payload as { order?: unknown } | null)?.order;
+        if (typeof order === "string" && order) {
+          void client.invalidateQueries({ queryKey: ["order", market.slug, order] });
+          void client.invalidateQueries({ queryKey: ["orders", market.slug] });
+        }
+      },
+    },
+  });
+}
+
+/** Unread notification count for the header badge (signed-in customers only, refreshed every minute; every 5 with a socket). */
 export function useUnreadNotifications() {
   const market = useMarket();
   const { isSignedIn } = useSession();
+  const pushed = useNotificationPush();
   return useQuery({
     queryKey: unreadKey(market.slug),
     enabled: isSignedIn,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pushed ? 5 * 60_000 : 60_000,
     queryFn: async () => (await api.getUnreadCount(market.slug)).data.unread,
   });
 }

@@ -28,6 +28,11 @@ class SupervisorApi {
 
   Future<List<Json>> drivers() async => (await api.getList('ops/supervisor/drivers')).data;
 
+  /// Adds a driver as a team invitation (QA-003): 202 `{invited, email,
+  /// message}`. The driver shows in the list once they accept by email.
+  Future<Json> inviteDriver({required String name, required String email, String? phone, String? vehicleType, String? plate}) async =>
+      asJson((await api.post('ops/supervisor/drivers', body: {'name': name, 'email': email, 'phone': ?phone, 'vehicle_type': ?vehicleType, 'vehicle_plate': ?plate})).data);
+
   Future<Json> setDriverStatus(int agentId, String status, {String? reason}) async =>
       asJson((await api.post('ops/supervisor/drivers/$agentId/status', body: {'status': status, 'reason': ?reason})).data);
 }
@@ -38,3 +43,7 @@ String ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toStri
 /// Attempts label ("2/3") and whether another attempt is still allowed.
 String attemptsLabel(Json row) => '${row.i('attempts') ?? 0}/${row.i('max_attempts') ?? 0}';
 bool attemptsLeft(Json row) => (row.i('attempts') ?? 0) < (row.i('max_attempts') ?? 0);
+
+/// The latest failed attempt (`last_failed_at`, QA-026: the newest one, not
+/// the first), in local time. Null when absent or unreadable.
+DateTime? lastFailedAt(Json row) => DateTime.tryParse(row.str('last_failed_at'))?.toLocal();

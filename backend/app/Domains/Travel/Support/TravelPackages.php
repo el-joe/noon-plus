@@ -48,7 +48,7 @@ class TravelPackages
         $this->assertAgency($agency);
         $package = new TravelPackage($this->packageData($data) + ['vendor_id' => $agency->id, 'slug' => Str::slug($data['title_en']).'-'.Str::lower(Str::random(6))]);
         $package->forceFill(['status' => PackageStatus::Draft])->save();
-        $this->machine->created($package, ActorType::Vendor, $userId);
+        $this->machine->created($package, ActorType::Agency, $userId);
 
         return $package;
     }
@@ -151,7 +151,7 @@ class TravelPackages
             throw new TransitionRefused(__('Upload the trip contract file.'));
         }
 
-        return $this->machine->move($package, PackageStatus::PendingReview, ActorType::Vendor, $userId, null, ['submitted_at' => now()]);
+        return $this->machine->move($package, PackageStatus::PendingReview, ActorType::Agency, $userId, null, ['submitted_at' => now()]);
     }
 
     public function approve(TravelPackage $package, int $adminUserId): TravelPackage

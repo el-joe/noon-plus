@@ -27,14 +27,19 @@
     "notFoundBody": "The link may be broken or the page may have moved.",
     "goHome": "Go to the home page",
     "errorTitle": "Something went wrong on our side",
-    "comingSoon": "Coming soon",
     "breadcrumb": "Breadcrumb",
     "signInToContinue": "Sign in to continue",
     "loadMore": "Show more",
     "saving": "Saving…",
     "edit": "Edit",
     "delete": "Delete",
-    "optionalSuffix": "(optional)"
+    "optionalSuffix": "(optional)",
+    "tooManyAttempts": "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+    "pagination": "Pagination",
+    "progress": "Progress",
+    "previous": "Previous",
+    "next": "Next",
+    "slide": "Slide {n}"
   },
   "header": {
     "deliverTo": "Deliver to",
@@ -78,7 +83,10 @@
     "returnsPolicy": "Returns policy",
     "orders": "Your orders",
     "cart": "Your cart",
-    "cashOnDelivery": "Cash on delivery"
+    "cashOnDelivery": "Cash on delivery",
+    "social": "Social",
+    "paymentMethods": "Payment methods",
+    "countries": "Countries"
   },
   "switcher": {
     "title": "Country & language",
@@ -145,7 +153,7 @@
     "securePaymentsHint": "Card, wallet, cash on delivery, pay later",
     "options": "Options",
     "notFound": "This product is no longer available.",
-    "imageSoon": "Photos coming soon",
+    "noImages": "No photos available",
     "ratings": "{count, plural, one {# rating} other {# ratings}}",
     "description": "Description",
     "tabOverview": "Overview",
@@ -165,7 +173,8 @@
       "recommended": "Recommended",
       "newest": "Newest",
       "price_asc": "Price: low to high",
-      "price_desc": "Price: high to low"
+      "price_desc": "Price: high to low",
+      "bestselling": "Bestselling"
     },
     "filters": "Filters",
     "category": "Category",
@@ -225,7 +234,14 @@
     "decrease": "Decrease quantity",
     "increase": "Increase quantity",
     "warning": "Some items changed since you added them. Please review your cart.",
-    "vat": "VAT included"
+    "vat": "VAT included",
+    "mergeWarningsTitle": "We couldn't move everything from your guest cart",
+    "mergeWarningFallback": "An item from your guest cart could not be added.",
+    "mergeWarningCounts": "(asked for {requested}, kept {merged})",
+    "mergeWarningsReview": "Review your cart",
+    "mergeWarningsDismiss": "Dismiss",
+    "warningsTitle": "Please check your cart",
+    "moveToWishlist": "Move to wishlist"
   },
   "checkout": {
     "title": "Checkout",
@@ -290,6 +306,7 @@
       "gift_card": "Gift card",
       "membership_invoice": "Nawy One membership",
       "classified_package": "Ad package",
+      "travel_promotion": "Trip promotion",
       "order": "Order"
     },
     "paidTitle": "Payment received",
@@ -306,7 +323,18 @@
       "membership_invoice": "View my membership",
       "classified_package": "View my ads"
     },
-    "notFound": "We could not find this payment."
+    "notFound": "We could not find this payment.",
+    "travelPartnerHint": "Trip promotions are managed in the Travel Partner panel.",
+    "travelPromotion": {
+      "active": "Your promotion is now active until {date}.",
+      "queued": "Your promotion is confirmed and starts on {start}, after the one running now; it ends on {date}.",
+      "pending": "Your promotion is pending payment confirmation. It goes live as soon as the gateway confirms the payment.",
+      "notLive": "Payment received, but your promotion is not active. Contact Nawy support about a refund.",
+      "failed": "The payment did not go through, so your promotion is not active. You can try again from Promotions in the Travel Partner panel."
+    },
+    "underReviewTitle": "Payment under review",
+    "underReviewHint": "Your bank reported a different amount from your order total, so our team is checking the payment. Your order is on hold until then; we'll email you as soon as it is settled.",
+    "viewOrder": "View order"
   },
   "confirmation": {
     "title": "Thank you! Your order is placed.",
@@ -343,7 +371,56 @@
     "heroWalletHint": "Shop, book trips and pay sellers safely",
     "heroCountries": "One identity, 8 countries",
     "heroCountriesHint": "Your data stays in your country",
-    "signedInAs": "Signed in as {email}"
+    "signedInAs": "Signed in as {email}",
+    "or": "or",
+    "usePassword": "Sign in with password",
+    "useCode": "Email me a code instead",
+    "password": "Password",
+    "passwordSignIn": "Sign in",
+    "signingIn": "Signing in…",
+    "forgotPassword": "Forgot password?",
+    "continueGoogle": "Continue with Google",
+    "continueApple": "Continue with Apple",
+    "redirecting": "Redirecting…",
+    "forgotTitle": "Reset your password",
+    "forgotHint": "Enter your email and we will send you a reset link and a 6-digit code.",
+    "sendReset": "Send reset email",
+    "resetSent": "If {email} has a Nawy account, we sent a reset link and a code. The link works for 60 minutes, the code for 10 minutes.",
+    "haveCode": "I have a code",
+    "backToSignIn": "Back to sign in",
+    "resetTitle": "Choose a new password",
+    "resetHint": "Use at least 8 characters.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Save and sign in",
+    "saving": "Saving…",
+    "passwordMismatch": "The passwords do not match.",
+    "passwordTooShort": "Use at least 8 characters.",
+    "resetDone": "Your password is set. Signing you in…",
+    "resetDoneSignIn": "Your password is set. You can now sign in.",
+    "socialCompleteTitle": "Signing you in",
+    "socialCompleting": "Finishing sign-in…",
+    "socialFailedTitle": "We could not sign you in",
+    "socialError": {
+      "social_token_invalid": "The sign-in with this provider could not be verified. Try again.",
+      "social_email_unverified": "Your account at this provider has no verified email. Sign in with an email code instead.",
+      "social_provider_unavailable": "This sign-in option is not available right now. Use your email instead.",
+      "social_state_invalid": "This sign-in has expired. Try again.",
+      "social_ticket_invalid": "This sign-in has expired. Try again.",
+      "account_suspended": "This account is suspended. Contact Nawy support.",
+      "default": "Sign-in did not complete. Try again."
+    },
+    "usePhone": "Had an old Nawy account with only a phone number?",
+    "phoneTitle": "Sign in with your phone",
+    "phoneHint": "For accounts from the old Nawy that have no email yet. We'll text you a one-time code, then you'll add your email.",
+    "phone": "Phone number",
+    "phonePlaceholder": "+971 50 123 4567",
+    "sendSmsCode": "Text me a code",
+    "phoneCodeSent": "If {phone} belongs to an old Nawy account, we've sent it a 6-digit code.",
+    "changePhone": "Change number",
+    "addEmailTitle": "Add your email",
+    "addEmailHint": "From now on you'll sign in with your email. Enter it and we'll send a code to confirm it.",
+    "addEmailConfirm": "Confirm email"
   },
   "account": {
     "hello": "Hala, {name}!",
@@ -373,7 +450,10 @@
       "membership": "Nawy One",
       "profile": "Profile",
       "contracts": "My contracts",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "support": "Support tickets",
+      "followedStores": "Followed stores",
+      "cards": "Saved cards"
     },
     "signInRequired": "Sign in to see your account",
     "overviewOrders": "Recent orders",
@@ -392,6 +472,7 @@
       "placedOn": "Placed {date}",
       "shipment": "Shipment {n} of {total}",
       "soldBy": "sold by {seller}",
+      "fulfilledByNawy": "shipped by Nawy from our warehouse",
       "deliveryCode": "Delivery code",
       "readToCourier": "Read it to the courier",
       "arriving": "Arriving {date}",
@@ -404,7 +485,10 @@
       "address": "Delivery address",
       "payment": "Payment",
       "payNow": "Complete payment",
-      "help": "Need help with this order?"
+      "help": "Need help with this order?",
+      "disputeOpen": "A dispute is open on this order. We'll update the order once it is resolved.",
+      "viewDisputes": "View disputes",
+      "paymentVoided": "No payment is due: the cash-on-delivery payment was voided because the order was cancelled."
     },
     "returns": {
       "title": "Returns & refunds",
@@ -463,10 +547,43 @@
         "succeeded": "Signed in",
         "wrong_code": "Wrong code",
         "locked": "Locked",
-        "failed": "Failed"
+        "failed": "Failed",
+        "wrong_credentials": "Wrong password",
+        "rejected": "Refused"
+      },
+      "password": "Password",
+      "passwordSetHint": "You sign in with an email code. Add a password to sign in faster.",
+      "passwordChangeHint": "Changing your password signs you out on every other device.",
+      "setPassword": "Set password",
+      "changePassword": "Change password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordSaved": "Password saved. Other devices were signed out.",
+      "passwordMismatch": "The passwords do not match.",
+      "passwordTooShort": "Use at least 8 characters.",
+      "save": "Save",
+      "saving": "Saving…",
+      "linked": "Linked sign-in",
+      "linkedHint": "Accounts you can use to sign in to Nawy.",
+      "notLinked": "Not linked",
+      "linkedBadge": "Linked",
+      "unlink": "Unlink",
+      "unlinked": "{provider} is no longer linked.",
+      "provider": {
+        "google": "Google",
+        "apple": "Apple"
+      },
+      "method": {
+        "email_code": "Email code",
+        "password": "Password",
+        "google": "Google",
+        "apple": "Apple"
       }
     },
-    "marketplace": "Bookings & marketplace"
+    "marketplace": "Bookings & marketplace",
+    "addEmailRequired": "Add your email to continue",
+    "addEmailAction": "Add email"
   },
   "status": {
     "pending": "Pending",
@@ -496,7 +613,13 @@
     "partially_shipped": "Partially shipped",
     "partially_delivered": "Partially delivered",
     "partially_refunded": "Partially refunded",
-    "cancel_requested": "Cancellation requested"
+    "cancel_requested": "Cancellation requested",
+    "under_review": "Payment under review",
+    "voided": "Voided",
+    "disputed": "Dispute open",
+    "published": "Published",
+    "flagged": "Pending",
+    "hidden": "Hidden"
   },
   "blocks": {
     "endsIn": "Ends in",
@@ -541,7 +664,24 @@
     "helpful": "Helpful ({count})",
     "soldBy": "Sold by {seller}",
     "noMatch": "No reviews match this filter.",
-    "voteError": "Couldn't record your vote."
+    "voteError": "Couldn't record your vote.",
+    "sellerReply": "Seller's reply",
+    "sellerReplyFrom": "Reply from {seller}",
+    "report": "Report",
+    "reportTitle": "Report this review",
+    "reportReason": "Why are you reporting it?",
+    "reportReasons": {
+      "spam": "Spam or advertising",
+      "offensive": "Offensive or abusive",
+      "fake": "Fake or misleading",
+      "irrelevant": "Not about this product",
+      "personal_data": "Shares personal information",
+      "other": "Something else"
+    },
+    "reportNote": "Add details (optional)",
+    "reportCancel": "Cancel",
+    "reportSend": "Send report",
+    "reported": "Thanks — our team will review this report."
   },
   "writeReview": {
     "title": "How was your {product}?",
@@ -579,7 +719,8 @@
     "empty": "You haven't written any reviews yet.",
     "status": {
       "pending": "In review",
-      "approved": "Published",
+      "published": "Published",
+      "hidden": "Hidden",
       "rejected": "Not published"
     },
     "rejectedReason": "Reason: {reason}",
@@ -693,5 +834,19 @@
     "allCategories": "All",
     "notFound": "Brand not found",
     "metaDescription": "Shop {brand} on Nawy: {count, plural, one {# product} other {# products}}."
+  },
+  "meta": {
+    "orderDetail": "Order {number}",
+    "returnDetail": "Return {number}",
+    "newReturn": "Request a return",
+    "disputeDetail": "Dispute {number}",
+    "newDispute": "Open a dispute",
+    "warrantyDetail": "Warranty claim {number}",
+    "newWarranty": "New warranty claim",
+    "checkoutPayment": "Payment status",
+    "checkoutSuccess": "Order confirmed",
+    "travelBookings": "My trip bookings",
+    "travelBooking": "Trip booking {number}",
+    "travelBookingSent": "Booking request sent"
   }
 }

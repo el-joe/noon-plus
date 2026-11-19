@@ -149,7 +149,7 @@ it('QA-009: a capture for another amount puts the payment under review instead o
 
 it('QA-016: a fully cancelled COD order voids its pending payment', function () {
     [$order, $customer, $token] = placeOrderVia('cod');
-    $this->withToken($token)->postJson("/api/v1/uae-en/orders/{$order->number}/shipments/{$order->subOrders()->sole()->number}/cancel", ['reason' => 'Changed my mind'])->assertOk();
+    $this->withToken($token)->postJson("/api/v1/uae-en/orders/{$order->number}/shipments/{$order->subOrders()->sole()->number}/cancel", ['reason' => 'changed_mind'])->assertOk();
 
     expect($order->payments()->sole()->status)->toBe(PaymentStatus::Voided)
         ->and($order->refresh()->payment_status)->toBe('expired');

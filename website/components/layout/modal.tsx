@@ -1,9 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const t = useTranslations("common");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -21,7 +23,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-h3 font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-full p-1 hover:bg-subtle" aria-label="Close">
+          <button type="button" onClick={onClose} className="rounded-full p-1 hover:bg-subtle" aria-label={t("close")}>
             <X className="size-5" />
           </button>
         </div>

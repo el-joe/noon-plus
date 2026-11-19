@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * Marketing Fees grid (SRS §20.3): `fixed` (one row per country: amount +
  * % of base), `variable` (category × fulfilment fbm/fbn/fbp, falling back
  * to the category's parents then a row without category), `vertical`
- * (classified / travel).
+ * (classified only: owner decision D11, travel pays no campaign fees).
  */
 #[Fillable(['kind', 'category_id', 'fulfilment', 'vertical', 'amount', 'percent'])]
 class CampaignFeeRule extends Model

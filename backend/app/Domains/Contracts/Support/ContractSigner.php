@@ -2,12 +2,15 @@
 
 namespace App\Domains\Contracts\Support;
 
+use App\Domains\Contracts\Enums\ContractSignatureStatus;
 use App\Domains\Contracts\Enums\ContractVersionStatus;
 use App\Domains\Contracts\Enums\SignatureMethod;
 use App\Domains\Contracts\Enums\SignerType;
 use App\Domains\Contracts\Models\ContractSignature;
 use App\Domains\Contracts\Models\ContractVersion;
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Orders\Enums\ActorType;
+use App\Shared\StateMachine\StringStatusMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -69,14 +72,18 @@ class ContractSigner
         Storage::disk(ContractRenderer::DISK)->put($path, $bytes);
 
         return DB::connection((new ContractSignature)->getConnectionName())->transaction(function () use ($version, $template, $signerType, $signerId, $signerUserId, $subjectType, $subjectId, $purpose, $fullName, $locale, $method, $ipAddress, $userAgent, $path, $bytes, $signedAt): ContractSignature {
-            ContractSignature::query()
+            $previous = ContractSignature::query()
                 ->where('contract_template_id', $template->id)
                 ->where('signer_type', $signerType)
                 ->where('signer_id', $signerId)
                 ->where('subject_type', $subjectType)
                 ->where('subject_id', $subjectId)
                 ->where('status', ContractSignature::STATUS_ACTIVE)
-                ->update(['status' => ContractSignature::STATUS_SUPERSEDED, 'superseded_at' => $signedAt]);
+                ->get();
+
+            foreach ($previous as $signature) {
+                $this->supersede($signature, $method === SignatureMethod::ContinuedUse ? ActorType::System : $this->actorFor($signerType), $signerUserId, 'Version '.$version->version.' signed');
+            }
 
             return ContractSignature::query()->create([
                 'contract_template_id' => $template->id,
@@ -128,5 +135,24 @@ class ContractSigner
         $bytes = Storage::disk(ContractRenderer::DISK)->get($signature->frozen_path);
 
         return $bytes !== null && hash_equals($signature->sha256, hash('sha256', $bytes));
+    }
+
+    /**
+     * Active → superseded through the guarded move, with a history row (QC-053).
+     */
+    public function supersede(ContractSignature $signature, ActorType $actorType, ?int $actorUserId, ?string $reason = null): ContractSignature
+    {
+        return app(StringStatusMachine::class)->move($signature, ContractSignatureStatus::class, ContractSignatureStatus::Superseded, $actorType, $actorUserId, $reason, ['superseded_at' => now()]);
+    }
+
+    private function actorFor(SignerType $signerType): ActorType
+    {
+        return match ($signerType) {
+            SignerType::Vendor => ActorType::Vendor,
+            SignerType::Marketer => ActorType::Marketer,
+            SignerType::Customer => ActorType::Customer,
+            SignerType::Agency => ActorType::Agency,
+            SignerType::Applicant => ActorType::Applicant,
+        };
     }
 }

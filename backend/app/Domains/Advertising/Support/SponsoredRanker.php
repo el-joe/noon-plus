@@ -9,6 +9,8 @@ use App\Domains\Catalog\Models\Product;
 use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Support\BuyBox;
 use App\Shared\Settings\VerticalSettings;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 
@@ -75,7 +77,7 @@ class SponsoredRanker
      * Eligible campaigns for the page context, best eCPM first, one per product.
      *
      * @param  array{q?: string|null, category?: string|null}  $context
-     * @return Collection<int, array{campaign: AdCampaign, product: Product, ecpm: float}>
+     * @return Collection<int, array{campaign: AdCampaign, product: Product, ecpm: BigDecimal}>
      */
     public function ranked(array $context): Collection
     {
@@ -93,12 +95,14 @@ class SponsoredRanker
             ->filter(fn (AdCampaign $campaign): bool => $this->campaigns->isServable($campaign) && $campaign->listing->variant->product->status === 'active')
             ->filter(fn (AdCampaign $campaign): bool => $this->matches($campaign, $term, $pageCategoryIds))
             ->map(function (AdCampaign $campaign) use ($priorClicks, $priorImpressions): array {
-                $ctr = ($campaign->clicks + $priorClicks) / ($campaign->impressions + $priorImpressions);
-                $ecpm = $campaign->pricing_model === 'cpm' ? (float) $campaign->bid : (float) $campaign->bid * 1000 * $ctr;
+                // QC-075: exact decimal maths (brick/math), compared as decimals below.
+                $bid = BigDecimal::of((string) $campaign->bid);
+                $ecpm = $campaign->pricing_model === 'cpm' ? $bid : $bid->multipliedBy(1000)->multipliedBy($campaign->clicks + $priorClicks)
+                    ->dividedBy($campaign->impressions + $priorImpressions, 6, RoundingMode::HalfUp);
 
                 return ['campaign' => $campaign, 'product' => $campaign->listing->variant->product, 'ecpm' => $ecpm];
             })
-            ->sort(fn (array $a, array $b): int => [$b['ecpm'], $a['campaign']->id] <=> [$a['ecpm'], $b['campaign']->id])
+            ->sort(fn (array $a, array $b): int => $b['ecpm']->compareTo($a['ecpm']) ?: $a['campaign']->id <=> $b['campaign']->id)
             ->unique(fn (array $ad): int => $ad['product']->id)
             ->filter(fn (array $ad): bool => $this->hasSellableOffer($ad['product']))
             ->values()

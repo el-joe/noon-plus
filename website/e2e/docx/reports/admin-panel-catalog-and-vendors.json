@@ -1,0 +1,703 @@
+{
+  "title": "Admin panel — catalog, vendors & onboarding — browser test report",
+  "area": "Admin panel: dashboard, sidebar, catalog, vendors, applications, approvals, customers, documents, contracts",
+  "date": "2026-11-19",
+  "summary": "Browser test of the admin dashboard and every admin sidebar link (65 of 65 open without errors), then the catalog (categories with attributes, brands, products and variants, warranty plans), product requests and profile change requests raised from Seller Center and decided in admin, reviews & Q&A moderation, vendors (account manager, acquirer/‘Acquired by’, status with reason), partner applications (assign, acquirer, start review, decide), approvals queue, customers (status with reason), document review and types, contracts (draft, publish) and join options. Each create/edit form was first submitted invalid to check the server-side validation. Bugs found are fixed with regression tests (BT-ADM-001/003); small open issues are listed.",
+  "environment": [
+    "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
+    "Storefront http://localhost:3000 (next start) — not used by these flows",
+    "Dev databases (central noon-plus + nawy_uae …), MAIL_MAILER=log (2FA codes and invitation links read from storage/logs/laravel.log), NAWY_PAYMENTS_DRIVER=fake",
+    "Playwright 'areas' project, Desktop Chrome 1280×720, screenshots per step; servers shared with two other QA agents",
+    "Each worker signs the e2e admin in once with its own session (password + emailed code), cached in the OS temp dir; the shared e2e/.auth/admin.json is never used or rewritten (a shared session loses flash messages and validation errors to parallel requests)",
+    "Run: cd website && E2E_SKIP_SEED=1 npx playwright test --project=areas --no-deps e2e/specs/areas/admin --workers=2 (iteration used e2e/specs/areas/admin/.qa.config.ts, the same config without the global setup that signs the shared customer in and was rate-limited by parallel suites). Report JSON: node e2e/docx/admin-report.mjs <report>; .docx: node e2e/docx/build-docx.mjs e2e/docx/reports/<report>.json"
+  ],
+  "accounts": [
+    {
+      "role": "Super admin",
+      "login": "e2e-admin@nawy.test (E2eSeeder), own session per worker, password + emailed 2FA"
+    },
+    {
+      "role": "Seller (product requests, change requests)",
+      "login": "e2e-seller@nawy.test (E2E Store), own session"
+    },
+    {
+      "role": "Account manager (invited in the flow)",
+      "login": "qa-am-<run>@nawy.test, created through Staff → invitation e-mail → accept"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+    "e2e/specs/areas/admin/helpers.ts (recorder, own sessions, staff invitation helper)"
+  ],
+  "issues": [
+    {
+      "id": "BT-ADM-001",
+      "severity": "major",
+      "area": "All panels (layout) / customers, classifieds, campaigns, blog, help",
+      "description": "A refused submit of a compact form (list-row status change with reason, classified reject, platform campaign create, blog post, help article) showed no message at all — the page just reloaded, so it looked like nothing happened. On Customers the status filter also picked up the row form's old 'status' input.",
+      "status": "fixed",
+      "fix": "x-layouts.panel now shows an error summary (role=alert) for every field error; pages with their own summary opt out (:error-summary=false); x-ui.select gets :use-old=false for GET filters (customers). Regression: QaWave3JobsAndLifecyclesTest 'suspends and bans customer accounts…' (alert + message + filter value)."
+    },
+    {
+      "id": "BT-ADM-003",
+      "severity": "major",
+      "area": "Finance / Nawy One / warranty / shipping rates",
+      "description": "Edit forms prefill money with the 4-decimal storage value ('0.0000', '25.0000') which their own decimal:0,3 (or currency-decimals) rule refuses, so an acquisition rule, membership plan, seller plan, warranty plan or shipping rate could not be saved without retyping every amount ('must have 0-3 decimal places').",
+      "status": "fixed",
+      "fix": "x-ui.input shows a 4-decimal storage value without the trailing zeros ('25.0000' → '25'). Regression: AcquisitionCommissionsTest 'lets finance manage rules…' asserts value=\"500\" on the edit form."
+    },
+    {
+      "id": "BT-ADM-005",
+      "severity": "minor",
+      "area": "Validation messages",
+      "description": "Several messages use raw attribute keys: 'The name en field is required.' (categories), 'The values.street field is required.' (seller change requests), 'The category id field is required.' (warranty plans), 'The body ar field is required.' (blog/help, field not marked required).",
+      "status": "open",
+      "fix": "Add attribute names (validation.attributes or per-request attributes())."
+    },
+    {
+      "id": "BT-ADM-006",
+      "severity": "minor",
+      "area": "Catalog → Warranty plans",
+      "description": "A validation error of the 'New plan' form is also shown under the same field of every existing plan row (shared field names, shared error bag).",
+      "status": "open",
+      "fix": "Use a named error bag for the create form or per-row ids."
+    },
+    {
+      "id": "BT-ADM-008",
+      "severity": "minor",
+      "area": "Catalog → Brands",
+      "description": "After a refused 'Add brand' (slug taken) the Name field is empty again (old input not re-filled).",
+      "status": "open",
+      "fix": "Use old() / x-ui.input in the brand form."
+    },
+    {
+      "id": "BT-ADM-009",
+      "severity": "cosmetic",
+      "area": "Staff invitations",
+      "description": "Invitation e-mail subject reads 'You are invited to join Nawy on Nawy'.",
+      "status": "open",
+      "fix": "Word the subject per team ('…join the Nawy admin team')."
+    }
+  ],
+  "notes": [
+    "During the first iteration a contract template created with the default kind 'Seller Agreement' was published, which made every seller (incl. the shared E2E Store) re-sign before continuing. That is the intended behaviour of a new Seller Agreement; the two QA templates were removed straight away and ADM-12 now creates a category contract (unassigned), which gates nobody.",
+    "Totals and steps are the latest recorded run of each flow (e2e/docx/reports/_log/*.jsonl, generated by e2e/docx/admin-report.mjs). Earlier runs that failed were test-script fixes or the bugs listed in 'Issues found', all fixed before the final run.",
+    "All data created by these flows carries a run suffix (e.g. 'QA Brand 9abc12x'). Records of today's e2e suites (E2E Store parcels, E2E travel agency, listing 19, E2E Open Souq ads) were not decided or changed.",
+    "Backend fixes take effect immediately (PHP/Blade); no website or panel asset rebuild is needed for any fix in this report."
+  ],
+  "totals": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "ADM-01",
+      "name": "Dashboard and admin sidebar",
+      "goal": "The dashboard loads with KPIs, the Oman-time label and every admin sidebar group; each of the 65 sidebar links opens without a server error.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:15 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:15 UTC",
+      "steps": [
+        {
+          "action": "Open the admin dashboard",
+          "expected": "Dashboard renders with KPI cards and the sidebar",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-01-1.png"
+        },
+        {
+          "action": "Read every sidebar link",
+          "expected": "65 links across 8 groups (Overview, Commerce, Growth, Verticals, Operations, Content, Platform, Data migration); none is a 'Soon' placeholder",
+          "result": "pass",
+          "note": "65 sidebar links",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-01-2.png"
+        },
+        {
+          "action": "Open each sidebar link in turn",
+          "expected": "Every page answers 200 with no server-error text or raw translation keys",
+          "result": "pass",
+          "note": "65 pages opened, 0 errors",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-01-3.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-02",
+      "name": "Catalog categories",
+      "goal": "Admin manages the category tree: search, create (with validation errors first), edit and add an attribute.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Catalog → Categories",
+          "expected": "Category tree with bilingual names, commission and status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-1.png"
+        },
+        {
+          "action": "Search 'mobiles' and filter Active",
+          "expected": "Only matching categories are listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-2.png"
+        },
+        {
+          "action": "Open New category and submit it empty",
+          "expected": "Validation errors on the required names and slug; nothing saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-3.png"
+        },
+        {
+          "action": "Create category qa-cat-9s6vkut (EN/AR names, commission 7.5%, return window 14)",
+          "expected": "Saved; success message and the category appears in the tree",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-4.png"
+        },
+        {
+          "action": "Open the new category and add a 'colour' select attribute",
+          "expected": "Attribute is added to the category",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-5.png"
+        },
+        {
+          "action": "Edit the category: rename and set inactive",
+          "expected": "Changes saved and shown in the list as Inactive",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-02-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-03",
+      "name": "Catalog brands",
+      "goal": "Admin adds and edits a brand; duplicate/empty input is refused.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Brands",
+          "expected": "Brand list with search and status filter",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-03-1.png"
+        },
+        {
+          "action": "Submit Add brand empty",
+          "expected": "Required-field errors for name and slug",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-03-2.png"
+        },
+        {
+          "action": "Add brand \"QA Brand 9s6vndl\"",
+          "expected": "Brand saved and listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-03-3.png"
+        },
+        {
+          "action": "Add the same slug again",
+          "expected": "Refused: slug already taken",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-03-4.png"
+        },
+        {
+          "action": "Edit the brand name and save",
+          "expected": "Saved with the new name",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-03-5.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-04",
+      "name": "Catalog products",
+      "goal": "Admin finds a product, opens it, sees a validation error on edit and saves a harmless change (model number) and a variant field.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Products and filter by 'Nova'",
+          "expected": "Matching products listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-04-1.png"
+        },
+        {
+          "action": "Open a product (SoundMax, id 1)",
+          "expected": "Product detail with variants, offers and status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-04-2.png"
+        },
+        {
+          "action": "Edit: clear the English title and save",
+          "expected": "Validation error; product unchanged",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-04-3.png"
+        },
+        {
+          "action": "Edit: set model number QA-9s6vndl",
+          "expected": "Saved; the detail page shows the model number",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-04-4.png"
+        },
+        {
+          "action": "Save a variant's weight (grams)",
+          "expected": "Variant saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-04-5.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-05",
+      "name": "Warranty plans",
+      "goal": "Admin adds an extended-warranty plan (validation first) and edits it.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Warranty plans",
+          "expected": "Plan list and Add plan form",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-05-1.png"
+        },
+        {
+          "action": "Submit Add plan empty",
+          "expected": "Required errors (parent category, name, duration, price)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-05-2.png"
+        },
+        {
+          "action": "Add plan \"QA 24m 9s6vkut\" (24 months, 49.00)",
+          "expected": "Plan saved and listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-05-3.png"
+        },
+        {
+          "action": "Edit the new plan price to 59.00",
+          "expected": "Saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-05-4.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-06",
+      "name": "Product requests",
+      "goal": "A seller asks for two catalogue products; admin reviews one (approve) and refuses the other (reject with reason).",
+      "preconditions": "Admin session + an own e2e seller (E2E Store) session to raise the requests. Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Seller sends product request #1 \"QA Req 9s6vkut-1\"",
+          "expected": "Request saved as Pending in Seller Center",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-1.png"
+        },
+        {
+          "action": "Seller sends product request #2 \"QA Req 9s6vkut-2\"",
+          "expected": "Request saved as Pending in Seller Center",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-2.png"
+        },
+        {
+          "action": "Admin opens Product requests (Pending)",
+          "expected": "Both requests are listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-3.png"
+        },
+        {
+          "action": "Open request #1, fill the Arabic name and approve (product stays a draft)",
+          "expected": "Status Approved; a draft product is created",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-4.png"
+        },
+        {
+          "action": "Open request #2 and reject without a reason",
+          "expected": "Validation error: reason required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-5.png"
+        },
+        {
+          "action": "Reject request #2 with a reason",
+          "expected": "Status Rejected; the reason is shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-06-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-07",
+      "name": "Profile change requests",
+      "goal": "A seller asks to change locked store details; an unchanged value is refused, admin approves an address change and rejects a legal-details change.",
+      "preconditions": "Admin session + an own e2e seller (E2E Store) session. Store name is never changed so other suites are unaffected. Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Seller asks to 'change' the store name to the same value",
+          "expected": "Refused: 'Nothing changed in this section.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-1.png"
+        },
+        {
+          "action": "Seller asks to change the business address (street, area, city \"QA City 9s6vndl\")",
+          "expected": "Request sent and listed as pending",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-2.png"
+        },
+        {
+          "action": "Seller asks to change legal details (legal name \"QA Legal 9s6vndl\", licence, tax ID)",
+          "expected": "Request sent and listed as pending",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-3.png"
+        },
+        {
+          "action": "Admin opens Profile change requests (Pending)",
+          "expected": "Both pending requests listed for E2E Store",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-4.png"
+        },
+        {
+          "action": "Open the address request and approve it",
+          "expected": "Approved; old and new values shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-5.png"
+        },
+        {
+          "action": "Open the legal-details request and reject it with a reason",
+          "expected": "Rejected; reason recorded",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-07-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-08",
+      "name": "Reviews & Q&A moderation",
+      "goal": "Admin moderates customer reviews (publish, reject with reason) and sees the questions/answers tabs.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Reviews & Q&A (To moderate)",
+          "expected": "Reviews tab with counts; Oman time label",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-1.png"
+        },
+        {
+          "action": "Publish the first pending review",
+          "expected": "Review leaves the queue / shows Published",
+          "result": "pass",
+          "note": "queue had 0 forms; http://admin.nawy.test:8000/reviews/reviews/5 published",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-2.png"
+        },
+        {
+          "action": "Reject the next pending review with a reason",
+          "expected": "Review rejected",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-3.png"
+        },
+        {
+          "action": "Filter status Published",
+          "expected": "Published reviews listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-4.png"
+        },
+        {
+          "action": "Filter status Rejected",
+          "expected": "Rejected reviews listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-5.png"
+        },
+        {
+          "action": "Open the Questions tab",
+          "expected": "Questions waiting for moderation listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-08-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-09",
+      "name": "Vendors and account managers",
+      "goal": "Admin filters vendors, opens one, assigns an account manager and an acquirer (acquired-by field), and changes a test vendor's status with a reason.",
+      "preconditions": "Uses TechZone Electronics (V-16) and Suspended Test Store (V-17); the e2e vendors are not touched. Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Users & vendors",
+          "expected": "Redirects to the Vendors list",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-1.png"
+        },
+        {
+          "action": "Filter status Suspended",
+          "expected": "Only Suspended Test Store",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-2.png"
+        },
+        {
+          "action": "Open TechZone Electronics (V-16)",
+          "expected": "Profile, sales totals, account manager, acquisition and status panels",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-3.png"
+        },
+        {
+          "action": "Make sure an account manager exists (Staff → invite with role Account manager, accept the emailed link)",
+          "expected": "At least one active account manager",
+          "result": "pass",
+          "note": "account manager: qa-am-8n81mkn-829406@nawy.test",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-4.png"
+        },
+        {
+          "action": "Assign the account manager to V-16",
+          "expected": "Saved; account manager shown",
+          "result": "pass",
+          "note": "account manager: QA am 8n81mkn",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-5.png"
+        },
+        {
+          "action": "Set acquirer (Acquired by) and acquisition date",
+          "expected": "Saved; 'Acquired by' shows the staff member",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-6.png"
+        },
+        {
+          "action": "Change status of V-17 without a reason",
+          "expected": "Validation error: reason required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-7.png"
+        },
+        {
+          "action": "Put V-17 on hold with a reason, then suspend it again",
+          "expected": "Status changes are saved; final status Suspended",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-09-8.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-10",
+      "name": "Partner applications",
+      "goal": "Admin filters applications, opens one, assigns it to self, records the acquirer, starts review and decides.",
+      "preconditions": "Uses the oldest stale 'E2E Partner' application from an earlier run (not one in use by today's suites). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Applications and filter 'Submitted'",
+          "expected": "Applications listed with Oman time",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-1.png"
+        },
+        {
+          "action": "Open the oldest submitted application",
+          "expected": "Detail: applicant, documents, checks, actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-2.png"
+        },
+        {
+          "action": "Assign to me",
+          "expected": "Reviewer shows E2E Admin",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-3.png"
+        },
+        {
+          "action": "Set 'Referred by / account manager' (acquirer)",
+          "expected": "Saved; Acquisition shows the account manager",
+          "result": "pass",
+          "note": "acquirer: E2E Admin · e2e-admin@nawy.test",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-4.png"
+        },
+        {
+          "action": "Start review",
+          "expected": "Status Under review; decision buttons appear",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-5.png"
+        },
+        {
+          "action": "Request changes / reject the application",
+          "expected": "Decision recorded",
+          "result": "pass",
+          "note": "decision buttons: Approve, Request changes, Reject",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-10-6.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-11",
+      "name": "Approvals queue, customers, documents",
+      "goal": "Listing approvals queue (validation only — listing 19 is reserved for other suites), customer status change with reason, document review queue and document types.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Approvals queue",
+          "expected": "Pending listings with Approve / Reject (reason) and Oman time",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-1.png"
+        },
+        {
+          "action": "Reject a listing with an empty reason",
+          "expected": "Refused by validation; listing stays pending",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-2.png"
+        },
+        {
+          "action": "Customers: search e2e-new and filter Active",
+          "expected": "Matching customers listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-3.png"
+        },
+        {
+          "action": "Suspend a stale e2e-new customer without a reason (browser check bypassed)",
+          "expected": "Refused; the error is shown and the status filter keeps 'Active'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-4.png"
+        },
+        {
+          "action": "Suspend it with a reason, then reactivate",
+          "expected": "Status Suspended then Active again",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-5.png"
+        },
+        {
+          "action": "Document review queue: Pending / Approved / Rejected / Expired tabs",
+          "expected": "Each tab loads",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-6.png"
+        },
+        {
+          "action": "Document types: add type with validation, then valid",
+          "expected": "Required errors, then the type is saved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-11-7.png"
+        }
+      ]
+    },
+    {
+      "id": "ADM-12",
+      "name": "Contracts and join options",
+      "goal": "Admin creates a contract template, saves a draft version, publishes it, and reviews the join options (partner wizard toggles).",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "spec": "e2e/specs/areas/admin/catalog-vendors.spec.ts",
+      "result": "pass",
+      "run": "2026-11-19 08:10 UTC",
+      "steps": [
+        {
+          "action": "Open Contracts",
+          "expected": "Template list and Create form",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-1.png"
+        },
+        {
+          "action": "Create template empty",
+          "expected": "Name required",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-2.png"
+        },
+        {
+          "action": "Create category-contract template \"QA contract 9s6vndl\"",
+          "expected": "Template created; detail page opens or is listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-3.png"
+        },
+        {
+          "action": "Save a bilingual draft and publish it",
+          "expected": "Version published (click-wrap)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-4.png"
+        },
+        {
+          "action": "Open Join options",
+          "expected": "Toggles for each partner type with Save",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-5.png"
+        },
+        {
+          "action": "Save join options unchanged",
+          "expected": "Saved message; no change to the storefront wizards",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/admin-panel-catalog-and-vendors/adm-12-6.png"
+        }
+      ]
+    }
+  ]
+}

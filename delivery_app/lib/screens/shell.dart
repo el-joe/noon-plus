@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
+import '../data/location.dart';
 import 'cod.dart';
 import 'earnings.dart';
 import 'my_day.dart';
@@ -8,15 +9,48 @@ import 'profile.dart';
 import 'route_list.dart';
 
 /// Bottom navigation (Figma delivery app: Today · Map · COD · Earnings · Profile).
+/// Owns the [DutyTracker] (GPS pings while online, background tracking while
+/// a stop is in progress) for the signed-in agent; signing out disposes the
+/// shell and stops the pings, the position stream and its service.
 class DeliveryShell extends StatefulWidget {
-  const DeliveryShell({super.key});
+  const DeliveryShell({super.key, this.location = const NoLocationSource(), this.pingScheduler});
+
+  final LocationSource location;
+  final PingScheduler? pingScheduler;
 
   @override
   State<DeliveryShell> createState() => _DeliveryShellState();
 }
 
-class _DeliveryShellState extends State<DeliveryShell> {
+class _DeliveryShellState extends State<DeliveryShell> with WidgetsBindingObserver {
   int _index = 0;
+  DutyTracker? _tracker;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tracker ??= DutyTracker(context.api, widget.location, scheduler: widget.pingScheduler);
+    _tracker!.notice = (title: context.t('gps.noticeTitle'), text: context.t('gps.noticeText'));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from the settings app: the permission may have changed.
+    if (state == AppLifecycleState.resumed) _tracker?.recheck();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tracker?.dispose();
+    super.dispose();
+  }
 
   void go(int index) => setState(() => _index = index);
 
@@ -29,7 +63,9 @@ class _DeliveryShellState extends State<DeliveryShell> {
       const EarningsScreen(),
       const ProfileScreen(),
     ];
-    return Scaffold(
+    return DutyScope(
+      tracker: _tracker!,
+      child: Scaffold(
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
@@ -57,6 +93,7 @@ class _DeliveryShellState extends State<DeliveryShell> {
         ],
         ),
       ),
+    ),
     );
   }
 }

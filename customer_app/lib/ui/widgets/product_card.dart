@@ -54,7 +54,10 @@ class ProductCard extends StatelessWidget {
     final image = card.m('image')?.s('url') ?? card.s('image_url');
     final list = variant == ProductCardVariant.list;
     final size = list ? 110.0 : (variant == ProductCardVariant.carousel ? 150.0 : null);
-    final effectiveTag = tag ?? card.s('label');
+    // QC-057: card badges (bestseller / new / top_rated) label the image when
+    // no deal tag is set; labels come translated from the API.
+    final badges = cardBadges(card);
+    final effectiveTag = tag ?? card.s('label') ?? (badges.isEmpty ? null : badges.first.str('label'));
 
     final imageBox = SizedBox(
       width: size,
@@ -140,6 +143,9 @@ class ProductCard extends StatelessWidget {
     );
   }
 }
+
+/// `badges[{key, label}]` of a product card or PDP (QC-057).
+List<Json> cardBadges(Json card) => card.l('badges').where((b) => b.str('label').isNotEmpty).toList();
 
 /// Horizontal product carousel (~2.3 cards visible).
 class ProductRail extends StatelessWidget {

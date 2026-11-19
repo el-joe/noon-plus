@@ -153,7 +153,8 @@ describe('classifieds (G-W19, G-W21, G-W22, G-W24)', function () {
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['type' => 'reserve'])->assertCreated()->assertJsonPath('data.type', 'reserve');
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact)->assertCreated()->assertJsonPath('data.type', 'viewing');
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['type' => 'buy'])->assertUnprocessable();
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'reserve.received');
+        // D12: a record only — the advertiser is told a request arrived; the customer gets no status mail.
+        Notification::assertSentOnDemandTimes(RequestNotification::class, 0);
 
         app(SettingsService::class)->set('classified.request_types', ['general' => ['viewing'], 'property' => ['viewing', 'reserve']], $this->country, $this->admin->id);
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['type' => 'reserve'])->assertUnprocessable();
@@ -164,7 +165,9 @@ describe('classifieds (G-W19, G-W21, G-W22, G-W24)', function () {
         $this->withToken($token)->getJson('/api/v1/uae-en/me/viewing-requests')->assertOk()->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.type', 'viewing')
             ->assertJsonPath('data.1.type', 'reserve')
-            ->assertJsonPath('data.0.ad.number', $ad->number);
+            ->assertJsonPath('data.0.ad.number', $ad->number)
+            ->assertJsonMissingPath('data.0.status')
+            ->assertJsonMissingPath('data.0.scheduled_at');
         $this->withToken($token)->getJson('/api/v1/uae-en/me/viewing-requests?type=reserve')->assertOk()->assertJsonCount(1, 'data');
 
         app(ClassifiedAdMachine::class)->pause($ad, ActorType::Customer, $ad->owner_user_id);
@@ -218,7 +221,7 @@ describe('partner applications (G-W28)', function () {
         $this->postJson('/api/v1/uae-en/partner-applications/resume-link', ['email' => 'sara@example.com', 'type' => 'travel_agency'])->assertStatus(202);
         Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'partner_application.resume'
             && str_starts_with((string) $mail->actionUrl, "https://shop.test/uae-ar/join/resume?number={$number}&token=")
-            && PartnerApplication::query()->where('number', $number)->value('token_hash') === hash('sha256', explode('token=', (string) $mail->actionUrl)[1]));
+            && PartnerApplication::query()->where('number', $number)->sole()->matchesToken(explode('token=', (string) $mail->actionUrl)[1]));
     });
 
     it('marks the documents step complete when it is saved with nothing missing', function () {

@@ -47,7 +47,13 @@ class CarrierClaimController extends Controller
             'amount' => ['required', $this->amountRule()],
             'compensate_to' => ['required', Rule::in([CarrierClaim::COMPENSATE_VENDOR, CarrierClaim::COMPENSATE_CUSTOMER])],
         ]);
-        $subOrder = SubOrder::query()->where('number', $data['sub_order_number'])->firstOrFail();
+        $subOrder = SubOrder::query()->where('number', trim($data['sub_order_number']))->first();
+
+        if ($subOrder === null) {
+            // A typo in the parcel number is a form error, not a 404 page (browser test BT-ADM-002).
+            return back()->withInput()->withErrors(['sub_order_number' => __('No parcel with this number in :country.', ['country' => $this->countryContext->current()->name_en])]);
+        }
+
         $claim = $this->claims->open($subOrder, ClaimType::from($data['type']), $data['description'], $this->money->of($data['amount'], $this->countryContext->current()->currency), $data['compensate_to'], ActorType::Admin, $request->user()->id);
 
         return back()->with('status', __('Claim :number submitted.', ['number' => $claim->number]));

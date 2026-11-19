@@ -2,8 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { ApiError, fieldErrors } from "./api/client";
+import { ApiError, fieldErrors, isSessionEnded } from "./api/client";
 
 export { fieldErrors };
 import * as api from "./api/endpoints";
@@ -40,7 +41,9 @@ export function useSession() {
       try {
         return (await api.getMe(market.slug)).data;
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) return null;
+        // 401 (expired), 403 account_suspended / wrong_token: the BFF has
+        // dropped the session cookies, so this browser is signed out.
+        if (isSessionEnded(error)) return null;
         throw error;
       }
     },
@@ -190,11 +193,23 @@ export function useLocalStorage<T>(key: string, fallback: T) {
   return [value, update] as const;
 }
 
-export function errorMessage(error: unknown, fallback: string): string {
+/**
+ * The message to show for a failed call. API messages are localised by the
+ * backend (QC-028), so they are shown as returned. A throttled call (429) with
+ * a `Retry-After` uses `throttled(seconds)` when given (see useErrorMessage).
+ */
+export function errorMessage(error: unknown, fallback: string, throttled?: (seconds: number) => string): string {
   if (error instanceof ApiError) {
     if (error.code === "network_error" || error.code === "api_unreachable") return fallback;
+    if (error.status === 429 && throttled && error.retryAfter && error.retryAfter > 0) return throttled(error.retryAfter);
     const first = Object.values(error.fields)[0]?.[0];
     return first ?? error.message ?? fallback;
   }
   return fallback;
+}
+
+/** `errorMessage` bound to the common translations (fallback + 429 wait time). */
+export function useErrorMessage() {
+  const t = useTranslations("common");
+  return (error: unknown, fallback?: string) => errorMessage(error, fallback ?? t("error"), (seconds) => t("tooManyAttempts", { seconds }));
 }

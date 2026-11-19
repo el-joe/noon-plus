@@ -50,6 +50,9 @@ enum AdminPermission: string
     case ClassifiedsReview = 'classifieds.review';
     case TravelPackagesReview = 'travel_packages.review';
     case AdsReview = 'ads.review';
+    // D14: travel promotion products (price per country, durations, slot cap) and paid promotions (cancel / refund).
+    case TravelPromotionsView = 'travel_promotions.view';
+    case TravelPromotionsManage = 'travel_promotions.manage';
     case CouponParticipationManage = 'coupon_participation.manage';
     case DeliveryView = 'delivery_assignments.view';
     case DeliveryDispatch = 'delivery_assignments.manage';
@@ -98,6 +101,41 @@ enum AdminPermission: string
     case ActivityLogView = 'activity_log.view';
     case SystemHealthView = 'system_health.view';
     case SystemHealthManage = 'system_health.manage';
+    // QA wave 3 (QC-016 customer account states; matrix "customers": Ops / Support E, Marketing V).
+    case CustomersView = 'customers.view';
+    case CustomersUpdate = 'customers.update';
+    // QA wave 5 (QC-007, matrix §3.2 Support "tickets": Support F, Ops V, Content view, account managers S·E).
+    case TicketsView = 'tickets.view';
+    case TicketsManage = 'tickets.manage';
+    // Fulfilled by Nawy: view stock and queues; warehouse operations (receive, pick & pack, transfers, removals, adjustments); configure warehouses and fees.
+    case FbnView = 'fbn.view';
+    case FbnOperate = 'fbn.operate';
+    case FbnConfigure = 'fbn.configure';
+    // WP11 extras: Admin → Data migration (quarantine review, legacy records, redirects, reconciliation). Super admin + Ops.
+    case DataMigrationView = 'data_migration.view';
+    case DataMigrationManage = 'data_migration.manage';
+    // FR-FIN-6 / FR-FIN-7: acquisition commission rules and payouts; vendor subscription plans and subscriptions. Finance (vendor relations view).
+    case AcquisitionCommissionsView = 'acquisition_commissions.view';
+    case AcquisitionCommissionsManage = 'acquisition_commissions.manage';
+    case VendorSubscriptionsView = 'vendor_subscriptions.view';
+    case VendorSubscriptionsManage = 'vendor_subscriptions.manage';
+    // QC-016: product requests (§1.3), profile change requests (§7.3), packaging catalogue and orders (§6.3).
+    case ProductRequestsView = 'product_requests.view';
+    case ProductRequestsReview = 'product_requests.review';
+    case ChangeRequestsView = 'change_requests.view';
+    case ChangeRequestsReview = 'change_requests.review';
+    case PackagingView = 'packaging.view';
+    case PackagingManage = 'packaging.manage';
+    // FR-CTY-10 / FR-ANL-2: cross-country reports (reporting DB) and the celebrity monthly report. Finance + Ops + Marketing (celebrity report).
+    case ReportsView = 'reports.view';
+    case CelebrityReportsView = 'celebrity_reports.view';
+    // Exchange rates (PayPal USD conversion; finance) and domain / subdomain mapping (QC-044; super admin only by default).
+    case ExchangeRatesView = 'exchange_rates.view';
+    case ExchangeRatesManage = 'exchange_rates.manage';
+    case DomainsView = 'domains.view';
+    case DomainsManage = 'domains.manage';
+    // Finance → Ledger (read-only accounts, balances and journal entries). Finance; super admins bypass.
+    case LedgerView = 'ledger.view';
 
     /*
     | Restrictions (matrix §3.3): held by account managers. They narrow what
@@ -153,6 +191,11 @@ enum AdminPermission: string
                 self::ReviewsView, self::ReviewsModerate, self::ProductQaModerate,
                 self::CategoriesView, self::CategoriesManage, self::BrandsView, self::BrandsManage, self::ProductsView, self::ProductsUpdate,
                 self::VendorsView, self::VendorsUpdate, self::ActivityLogView, self::SystemHealthView,
+                self::CustomersView, self::CustomersUpdate, self::TicketsView,
+                self::DataMigrationView, self::DataMigrationManage,
+                self::ReportsView,
+                self::FbnView, self::FbnOperate, self::FbnConfigure,
+                self::ProductRequestsView, self::ProductRequestsReview, self::ChangeRequestsView, self::PackagingView, self::PackagingManage,
             ],
             'finance' => [
                 self::OrdersView, self::ShippingZonesView, self::CalendarsView, self::WarrantyPlansView, self::PaymentGatewaysView, self::PaymentGatewaysUpdate,
@@ -160,18 +203,26 @@ enum AdminPermission: string
                 self::PayoutsView, self::PayoutsApprove, self::PayoutsProcess, self::CodSettlementsView, self::CodSettlementsSettle,
                 self::MarketersView, self::MarketerCampaignsView, self::MarketerWithdrawalsProcess,
                 self::CarrierClaimsView,
-                self::CouponsView, self::GiftCardsView, self::MembershipView, self::MembershipManage, self::PaymentsReview,
-                self::VendorsView, self::ActivityLogView,
+                self::CouponsView, self::GiftCardsView, self::MembershipView, self::MembershipManage, self::PaymentsReview, self::TravelPromotionsView,
+                self::VendorsView, self::ActivityLogView, self::FbnView,
+                self::AcquisitionCommissionsView, self::AcquisitionCommissionsManage, self::VendorSubscriptionsView, self::VendorSubscriptionsManage,
+                self::ReportsView, self::CelebrityReportsView,
+                self::ChangeRequestsView, self::ChangeRequestsReview, self::PackagingView,
+                self::ExchangeRatesView, self::ExchangeRatesManage,
+                self::LedgerView,
             ],
             'marketing' => [
                 self::FlashSalesView, self::FlashSalesManage,
                 self::MarketersView, self::MarketersManage, self::MarketerCampaignsView, self::MarketerCampaignsManage,
                 self::MarketerSettingsConfigure, self::CrossPromotionManage,
                 self::AdsReview, self::CouponParticipationManage, self::AdvertiseInquiriesView, self::AdvertiseInquiriesManage,
+                self::TravelPromotionsView, self::TravelPromotionsManage,
                 self::PagesView, self::PagesManage, self::LiveMediaView, self::BlogManage, self::HelpCenterManage,
                 self::StaticPagesManage, self::FooterManage, self::NotificationTemplatesManage,
                 self::CategoriesView, self::BrandsView, self::ProductsView,
                 self::CouponsView, self::CouponsManage, self::GiftCardsView, self::GiftCardsManage, self::MembershipView,
+                self::CustomersView,
+                self::CelebrityReportsView,
             ],
             'vendor_relations' => [
                 self::VendorListingsView, self::VendorListingsApprove, self::MarketersView,
@@ -179,25 +230,42 @@ enum AdminPermission: string
                 self::ApplicationsView, self::ApplicationsReview, self::JoinOptionsConfigure, self::AdvertiseInquiriesView,
                 self::CategoriesView, self::CategoriesManage, self::BrandsView, self::BrandsManage, self::ProductsView, self::ProductsUpdate,
                 self::VendorsView, self::VendorsUpdate, self::VendorsAssignAccountManager,
+                self::VendorSubscriptionsView,
+                self::ProductRequestsView, self::ProductRequestsReview, self::ChangeRequestsView, self::ChangeRequestsReview,
             ],
-            'support' => [self::OrdersView, self::ReturnsView, self::DisputesView, self::WarrantyClaimsView, self::DeliveryView, self::HelpCenterManage, self::ReviewsView, self::ReviewsModerate, self::ProductQaModerate, self::GiftCardsView],
+            /*
+            | QC-045, matrix §3.2 "disputes, returns, warranty_claims": Support = A.
+            */
+            'support' => [
+                self::OrdersView, self::ReturnsView, self::ReturnsManage, self::DisputesView, self::DisputesManage,
+                self::WarrantyClaimsView, self::WarrantyClaimsManage, self::DeliveryView, self::HelpCenterManage,
+                self::ReviewsView, self::ReviewsModerate, self::ProductQaModerate, self::GiftCardsView,
+                self::CustomersView, self::CustomersUpdate, self::TicketsView, self::TicketsManage,
+            ],
             'content' => [
                 self::PagesView, self::PagesManage, self::AppContextsManage, self::LiveMediaView, self::LiveMediaManage,
                 self::BlogManage, self::HelpCenterManage, self::StaticPagesManage, self::FooterManage, self::NotificationTemplatesManage,
                 self::AdvertiseInquiriesView,
                 self::ReviewsView, self::ReviewsModerate, self::ProductQaModerate,
-                self::CategoriesView, self::BrandsView, self::ProductsView,
+                self::CategoriesView, self::BrandsView, self::ProductsView, self::TicketsView,
             ],
             /*
             | QC-019, matrix §3.3: assigned vendors only, finance hidden.
             */
+            /*
+            | FBN warehouse staff: stock, receiving, pick & pack, transfers,
+            | removals and adjustments; orders read-only.
+            */
+            'warehouse' => [
+                self::FbnView, self::FbnOperate, self::OrdersView, self::DeliveryView,
+            ],
             'account_manager' => [
                 self::RestrictedToAssignedVendors, self::FinanceHidden,
                 self::OrdersView, self::OrdersStatus, self::ReturnsView, self::ReturnsManage,
                 self::DisputesView, self::DisputesManage, self::WarrantyClaimsView, self::WarrantyClaimsManage,
                 self::VendorListingsView, self::VendorListingsApprove, self::VendorsView, self::VendorsUpdate,
                 self::CategoriesView, self::BrandsView, self::ProductsView, self::CouponsView, self::FlashSalesView,
-                self::ReviewsView, self::MarketerCampaignsView,
+                self::ReviewsView, self::MarketerCampaignsView, self::TicketsView, self::TicketsManage,
             ],
         ];
     }

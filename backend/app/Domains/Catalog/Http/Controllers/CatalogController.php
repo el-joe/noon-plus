@@ -3,6 +3,7 @@
 namespace App\Domains\Catalog\Http\Controllers;
 
 use App\Domains\Advertising\Support\SponsoredRanker;
+use App\Domains\Cart\Models\CartInventoryLock;
 use App\Domains\Catalog\Http\Requests\ProductIndexRequest;
 use App\Domains\Catalog\Http\Resources\CategoryResource;
 use App\Domains\Catalog\Http\Resources\MoneyResource;
@@ -13,22 +14,28 @@ use App\Domains\Catalog\Models\Category;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductMedia;
 use App\Domains\Catalog\Support\Measurements;
+use App\Domains\Catalog\Support\ProductBadges;
 use App\Domains\Catalog\Support\ProductSearch;
+use App\Domains\Catalog\Support\SearchQueryLog;
 use App\Domains\Catalog\Support\SizeGuides;
 use App\Domains\Content\Enums\PageStatus;
 use App\Domains\Content\Models\Page;
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\FlashSales\Support\FlashSalePricing;
 use App\Domains\Listings\Support\BuyBox;
 use App\Domains\Shipping\Support\ListingDeliveryPromise;
 use App\Domains\Warranty\Support\WarrantyPlanCatalog;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
+use App\Shared\Http\LikeSearch;
+use App\Shared\Http\PublicCache;
 use App\Shared\Http\PublicUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,6 +64,24 @@ class CatalogController extends Controller
      */
     public function categoryTree(): JsonResponse
     {
+        // WP11: public and not personalised — cached briefly per country and locale, forgotten when a category changes.
+        return ApiResponse::success(Cache::remember(
+            self::treeCacheKey(app(CountryContext::class)->current()->code, app()->getLocale()),
+            now()->addMinutes(5),
+            fn (): array => $this->buildCategoryTree(),
+        ));
+    }
+
+    public static function treeCacheKey(string $countryCode, string $locale): string
+    {
+        return "catalog:{$countryCode}:category-tree:{$locale}";
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildCategoryTree(): array
+    {
         $categories = Category::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
         $counts = $this->productCountsByCategory();
         $children = $categories->groupBy(fn (Category $category): int => (int) $category->parent_id);
@@ -75,18 +100,30 @@ class CatalogController extends Controller
             })->values()->all();
         };
 
-        return ApiResponse::success($build(0, 0));
+        return $build(0, 0);
     }
 
     /**
      * One category by slug: breadcrumbs (root first), children and counts.
      */
-    public function category(string $slug, ProductSearch $search): JsonResponse
+    public function category(string $slug): JsonResponse
     {
         $category = Category::query()->where('slug', $slug)->where('is_active', true)
             ->with(['children' => fn ($query) => $query->where('is_active', true), 'parent'])
             ->firstOrFail();
-        $count = fn (Category $node): int => $search->query(['category' => $node->slug])->count();
+        // WP11: one grouped count + the parent map instead of a full search per child (N+1).
+        $counts = $this->productCountsByCategory();
+        $parents = Category::query()->pluck('parent_id', 'id');
+        $count = function (Category $node) use ($counts, $parents): int {
+            $total = 0;
+
+            for ($frontier = [(int) $node->id], $depth = 0; $frontier !== [] && $depth <= 10; $depth++) {
+                $total += array_sum(array_map(fn (int $id): int => (int) ($counts[$id] ?? 0), $frontier));
+                $frontier = $parents->filter(fn ($parent): bool => in_array((int) $parent, $frontier, true))->keys()->map(fn ($id): int => (int) $id)->all();
+            }
+
+            return $total;
+        };
 
         return ApiResponse::success([
             'id' => $category->id,
@@ -111,21 +148,28 @@ class CatalogController extends Controller
     public function brands(Request $request, ProductSearch $search): JsonResponse
     {
         $filters = $request->validate(['category' => ['nullable', 'string', 'max:255'], 'q' => ['nullable', 'string', 'max:100']]);
-        $counts = $search->query(['category' => $filters['category'] ?? null])->whereNotNull('products.brand_id')
-            ->toBase()->select('products.brand_id', DB::raw('count(*) as total'))->groupBy('products.brand_id')->pluck('total', 'brand_id');
+        $build = function () use ($filters, $search): array {
+            $counts = $search->query(['category' => $filters['category'] ?? null])->whereNotNull('products.brand_id')
+                ->toBase()->select('products.brand_id', DB::raw('count(*) as total'))->groupBy('products.brand_id')->pluck('total', 'brand_id');
 
-        $brands = Brand::query()->where('is_active', true)->whereIn('id', $counts->keys())
-            ->when($filters['q'] ?? null, fn (Builder $query, string $term) => $query->where('name', 'like', '%'.$term.'%'))
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Brand $brand): array => [
-                'slug' => $brand->slug,
-                'name' => $brand->name,
-                'logo' => PublicUrl::of($brand->logo_path),
-                'product_count' => (int) $counts[$brand->id],
-            ]);
+            return Brand::query()->where('is_active', true)->whereIn('id', $counts->keys())
+                ->when($filters['q'] ?? null, fn (Builder $query, string $term) => $query->where('name', 'like', LikeSearch::contains($term)))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Brand $brand): array => [
+                    'slug' => $brand->slug,
+                    'name' => $brand->name,
+                    'logo' => PublicUrl::of($brand->logo_path),
+                    'product_count' => (int) $counts[$brand->id],
+                ])->values()->all();
+        };
 
-        return ApiResponse::success($brands->values());
+        // The unfiltered list (per category) is cached briefly per country; a brand change forgets it. Searches are not cached.
+        $brands = ($filters['q'] ?? null) === null
+            ? PublicCache::remember(PublicCache::countryGroup(PublicCache::BRANDS), 'list:'.sha1((string) ($filters['category'] ?? '')), 300, $build)
+            : $build();
+
+        return ApiResponse::success($brands);
     }
 
     /**
@@ -180,11 +224,18 @@ class CatalogController extends Controller
         match ($filters['sort'] ?? 'recommended') {
             'price_asc' => $query->orderBy('best_price')->orderBy('products.id'),
             'price_desc' => $query->orderByDesc('best_price')->orderBy('products.id'),
+            // QC-015: weekly bestseller ranking; unranked products last.
+            'bestselling' => $query->orderByRaw('products.bestseller_rank is null')->orderBy('products.bestseller_rank')->orderByDesc('products.id'),
             'rating' => $query->orderByRaw('products.rating_average is null')->orderByDesc('products.rating_average')->orderByDesc('products.rating_count')->orderByDesc('products.id'),
             default => $query->orderByDesc('products.created_at')->orderByDesc('products.id'),
         };
 
         $page = $query->paginate($filters['per_page'] ?? 24);
+
+        // QC-043: count the search (first page only) for popular / trending searches.
+        if (filled($filters['q'] ?? null) && $page->currentPage() === 1) {
+            app(SearchQueryLog::class)->record($filters['q'], $page->total());
+        }
         $items = app(SponsoredRanker::class)->interleave(collect($page->items()), [
             'q' => $filters['q'] ?? null,
             'category' => $filters['category'] ?? null,
@@ -211,10 +262,13 @@ class CatalogController extends Controller
         $product = Product::query()->where('slug', $slug)->where('status', 'active')->with(['brand', 'category', 'variants', 'media.variant'])->firstOrFail();
         $offers = $this->buyBox->offersFor($product);
         $deals = $flashPricing->activeDeals($offers->modelKeys());
-        $offerResources = $offers->map(function ($offer) use ($product, $deals, $deliveryPromise): OfferResource {
+        $held = CartInventoryLock::query()->whereIn('listing_id', $offers->modelKeys())->where('expires_at', '>', now())
+            ->groupBy('listing_id')->selectRaw('listing_id, SUM(quantity) as held')->pluck('held', 'listing_id');
+        $offerResources = $offers->map(function ($offer) use ($product, $deals, $deliveryPromise, $held): OfferResource {
             $offer->variant->setRelation('product', $product);
+            $sellable = max(0, (int) $offer->available_quantity - (int) ($held[$offer->id] ?? 0));
 
-            return new OfferResource($offer, $deals->get($offer->id), $deliveryPromise->estimate($offer));
+            return new OfferResource($offer, $deals->get($offer->id), $deliveryPromise->estimate($offer), $sellable);
         });
         $content = $product->content(app()->getLocale());
         $plans = $warrantyPlans->forCategories([$product->category_id])->get($product->category_id, collect());
@@ -224,6 +278,8 @@ class CatalogController extends Controller
             'title' => $product->title(),
             'brand' => $product->brand?->name,
             'brand_slug' => $product->brand?->slug,
+            'model_number' => $product->model_number,
+            'badges' => ProductBadges::forProductPage($product, $offers->first(), $offers->first() === null ? null : $deals->get($offers->first()->id)),
             'category' => new CategoryResource($product->category),
             'breadcrumbs' => array_map(fn (Category $node): array => ['slug' => $node->slug, 'name' => $node->name()], array_reverse($product->category->lineage())),
             'description' => $content['description'],

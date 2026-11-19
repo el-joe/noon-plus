@@ -31,7 +31,10 @@ class ProductIndexRequest extends FormRequest
             'rating' => ['nullable', 'integer', 'between:1,5'],
             'attr' => ['nullable', 'array', 'max:10'],
             'attr.*' => ['string', 'max:500'],
-            'sort' => ['nullable', 'in:recommended,price_asc,price_desc,newest,rating'],
+            'fulfilment' => ['nullable', 'string', 'max:20'],
+            'condition' => ['nullable', 'string', 'max:100'],
+            'deals' => ['nullable', 'boolean'],
+            'sort' => ['nullable', 'in:recommended,price_asc,price_desc,newest,rating,bestselling'],
             'per_page' => ['nullable', 'integer', 'between:1,60'],
         ];
     }

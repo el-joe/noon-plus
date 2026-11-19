@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import '../../core/api/api_client.dart';
 import '../../core/json.dart';
 import '../../core/money.dart';
-import '../../core/storage/secure_store.dart';
 import '../../features/page_builder/blocks.dart';
 import '../../l10n/l10n.dart';
 import '../../routing/guards.dart';
 import '../../state/app_state.dart';
+import '../../state/recently_viewed.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/product_card.dart';
 import '../../ui/widgets/states.dart';
+import 'pdp_extras.dart';
 import 'reviews_screens.dart';
 
 /// Pick the offer for the chosen variant options (cheapest in-stock match),
@@ -82,8 +83,9 @@ class _ProductScreenState extends State<ProductScreen> {
         if (dims.containsKey(k) && v != null) _selected[k] = v.toString();
       });
     }
-    // Recently viewed (this device), used by "Previously browsed".
-    await app.pushRecent(StoreKeys.recentlyViewed, {
+    // Recently viewed (this device, and the account when signed in, QC-043),
+    // used by "Previously browsed".
+    await recordRecentlyViewed(app, {
       'slug': product.str('slug'),
       'title': product.str('title'),
       'brand': product.s('brand'),
@@ -91,7 +93,7 @@ class _ProductScreenState extends State<ProductScreen> {
       'image': product.l('images').isNotEmpty ? product.l('images').first : null,
       'rating': product['rating'],
       'listing_id': offer?.i('listing_id'),
-    }, idKey: 'slug');
+    });
     if (app.signedIn) {
       try {
         final wishlist = await app.api.getList('wishlist', query: {'per_page': 100});
@@ -221,6 +223,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 onPressed: () => _toggleWishlist(product),
                 icon: Icon(_wished ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: _wished ? NawyColors.bgDanger : null),
               ),
+              CompareToggle(slug: product.str('slug')),
               IconButton(tooltip: context.t('tabs.cart'), onPressed: () => Navigator.of(context).pushNamed(Routes.cart), icon: const Icon(Icons.shopping_cart_outlined)),
             ],
             flexibleSpace: FlexibleSpaceBar(background: _Gallery(images: product.l('images'), selected: _selected)),
@@ -239,6 +242,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   ),
                 const SizedBox(height: 4),
                 Text(product.str('title'), style: NawyText.h4),
+                PdpBadges(product: product),
                 const SizedBox(height: 6),
                 InkWell(
                   onTap: () => Navigator.of(context).pushNamed(Routes.reviews, arguments: {'slug': product.str('slug'), 'title': product.str('title')}),
@@ -251,6 +255,8 @@ class _ProductScreenState extends State<ProductScreen> {
                 const SizedBox(height: 10),
                 PriceLine(price: price, was: was, large: true),
                 Text(context.t('product.inclVat'), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+                if (price != null && !price.isZero) BnplLine(key: ValueKey('bnpl-${price.amount}'), price: price),
+                ProductCoupons(slug: product.str('slug')),
                 if (flash != null && DateTime.tryParse(flash.str('ends_at')) != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -353,6 +359,7 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           SliverToBoxAdapter(child: _overview(context, product)),
           if (offer != null) SliverToBoxAdapter(child: _sellerCard(context, offer, otherOffers.length, product)),
+          SliverToBoxAdapter(child: FrequentlyBoughtTogether(slug: product.str('slug'))),
           SliverToBoxAdapter(child: ReviewsPreview(slug: product.str('slug'), title: product.str('title'))),
           SliverToBoxAdapter(
             child: ListTile(
@@ -416,7 +423,7 @@ class _ProductScreenState extends State<ProductScreen> {
     return SectionCard(
       margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+        Wrap(children: [
           for (final (i, label) in [context.t('product.overview'), context.t('product.specifications')].indexed)
             Padding(
               padding: const EdgeInsetsDirectional.only(end: 16),
@@ -453,13 +460,18 @@ class _ProductScreenState extends State<ProductScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(context.t('product.soldBy', {'seller': seller.str('name')}), style: NawyText.bodyMedium),
+              InkWell(
+                key: const ValueKey('pdp-sold-by'),
+                onTap: seller.s('slug') == null ? null : () => Navigator.of(context).pushNamed(Routes.seller, arguments: {'slug': seller.s('slug')}),
+                child: Text(context.t('product.soldBy', {'seller': seller.str('name')}), style: NawyText.bodyMedium.copyWith(color: seller.s('slug') == null ? null : NawyColors.textLink)),
+              ),
               if (seller.s('rating') != null) Text('★ ${seller.s('rating')} · ${context.t('product.ratingsCount', {'count': seller.i('rating_count') ?? 0})}', style: NawyText.caption),
             ]),
           ),
           if (seller.s('slug') != null)
             TextButton(
-              onPressed: () => Navigator.of(context).pushNamed(Routes.products, arguments: {'seller': seller.s('slug'), 'title': seller.s('name')}),
+              key: const ValueKey('pdp-visit-store'),
+              onPressed: () => Navigator.of(context).pushNamed(Routes.seller, arguments: {'slug': seller.s('slug')}),
               child: Text(context.t('product.visitStore')),
             ),
         ]),
@@ -603,6 +615,38 @@ class SizeGuideView extends StatelessWidget {
               ),
               if (guide.s('notes') != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(guide.str('notes'), style: NawyText.bodySm)),
             ]),
+          );
+        },
+      );
+}
+
+/// Instalment split shown by the buy-now-pay-later providers (4 payments).
+/// Rounded up to the currency's minor unit so 4 payments cover the price.
+Money bnplInstalment(Money price, {int parts = 4}) => Money.minorUnits((price.minor + BigInt.from(parts - 1)) ~/ BigInt.from(parts), price.currency);
+
+/// Figma PDP "Split in 4" row (QC-064): only when `checkout/payment-methods`
+/// offers Tabby or Tamara for this amount in the market.
+class BnplLine extends StatelessWidget {
+  const BnplLine({super.key, required this.price});
+
+  final Money price;
+
+  @override
+  Widget build(BuildContext context) => OnceFuture<List<Json>>(
+        load: () => AppScope.read(context).api.getList('checkout/payment-methods', query: {'amount': price.amount}).then((r) => r.data),
+        builder: (context, snap) {
+          final names = [
+            for (final m in snap.data ?? const <Json>[])
+              if (const {'tabby', 'tamara'}.contains(m.s('code'))) m.s('name') ?? context.l10n.status(m.s('code')),
+          ];
+          if (names.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            key: const ValueKey('pdp-bnpl'),
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              context.t('product.bnpl', {'amount': bnplInstalment(price).format(locale: context.l10n.locale), 'providers': names.join(' · ')}),
+              style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary),
+            ),
           );
         },
       );

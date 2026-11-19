@@ -8,6 +8,7 @@ use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Classifieds\Models\ClassifiedReport;
 use App\Domains\Orders\Enums\ActorType;
 use App\Shared\Settings\VerticalSettings;
+use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 
 /**
@@ -16,7 +17,7 @@ use App\Shared\StateMachine\TransitionRefused;
  */
 class ClassifiedReports
 {
-    public function __construct(private VerticalSettings $settings, private ClassifiedAdMachine $ads) {}
+    public function __construct(private VerticalSettings $settings, private ClassifiedAdMachine $ads, private StateMachine $machine) {}
 
     public function report(ClassifiedAd $ad, ?int $reporterUserId, string $reason, ?string $details): ClassifiedReport
     {
@@ -30,6 +31,7 @@ class ClassifiedReports
 
         $report = new ClassifiedReport(['classified_ad_id' => $ad->id, 'reporter_user_id' => $reporterUserId, 'reason' => $reason, 'details' => $details === null ? null : mb_substr($details, 0, 1000)]);
         $report->forceFill(['status' => ReportStatus::Open])->save();
+        $this->machine->created($report, $reporterUserId === null ? ActorType::System : ActorType::Customer, $reporterUserId, $reason);
 
         return $report;
     }
@@ -40,7 +42,7 @@ class ClassifiedReports
             throw new TransitionRefused(__('This report was already handled.'));
         }
 
-        $report->forceFill(['status' => $to, 'resolution_note' => $note, 'handled_by_user_id' => $adminUserId])->save();
+        $this->machine->move($report, $to, ActorType::Admin, $adminUserId, $note, ['resolution_note' => $note, 'handled_by_user_id' => $adminUserId]);
 
         if ($to === ReportStatus::Actioned) {
             $ad = $report->ad;
@@ -49,8 +51,14 @@ class ClassifiedReports
                 $this->ads->archive($ad, ActorType::Admin, $adminUserId, 'Abuse report #'.$report->id.': '.$report->reason);
             }
 
-            ClassifiedReport::query()->where('classified_ad_id', $ad->id)->whereIn('status', [ReportStatus::Open, ReportStatus::Reviewing])
-                ->update(['status' => ReportStatus::Actioned, 'handled_by_user_id' => $adminUserId, 'resolution_note' => 'Closed with report #'.$report->id]);
+            /*
+            | QC-053: the ad's other open reports close through the machine too
+            | (one history row each, actor admin).
+            */
+            foreach (ClassifiedReport::query()->where('classified_ad_id', $ad->id)->whereIn('status', [ReportStatus::Open, ReportStatus::Reviewing])->get() as $sibling) {
+                $note = 'Closed with report #'.$report->id;
+                $this->machine->move($sibling, ReportStatus::Actioned, ActorType::Admin, $adminUserId, $note, ['handled_by_user_id' => $adminUserId, 'resolution_note' => $note]);
+            }
         }
 
         return $report;

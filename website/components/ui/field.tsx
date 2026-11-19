@@ -2,7 +2,7 @@ import clsx from "clsx";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 export const inputClass =
-  "h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-body text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:bg-subtle";
+  "h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-body text-ink placeholder:text-muted focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:bg-subtle";
 
 export function Field({ label, error, hint, children, className }: { label: ReactNode; error?: string | null; hint?: ReactNode; children: ReactNode; className?: string }) {
   return (

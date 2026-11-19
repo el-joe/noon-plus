@@ -48,7 +48,11 @@ class CouponValidator
         if ($coupon->target_type !== CouponTarget::All) {
             $items = $cart->items()->with('listing.variant.product')->get();
 
-            if ($items->first(fn ($item): bool => $this->targets->covers($coupon, $item->listing)) === null) {
+            // A seller coupon only discounts that seller's items, so only those can make it eligible.
+            $eligible = $items->first(fn ($item): bool => ($coupon->scope !== CouponScope::Vendor || (int) $item->listing->vendor_id === (int) $coupon->vendor_id)
+                && $this->targets->covers($coupon, $item->listing));
+
+            if ($eligible === null) {
                 throw new CartRejected('coupon_no_eligible_items', __('None of the items in your cart are eligible for this coupon.'));
             }
         }

@@ -51,6 +51,20 @@ class EmptyView extends StatelessWidget {
       );
 }
 
+/// The text to show for an API error: rate limits with the wait from
+/// `Retry-After`, staff-role refusals (403 `forbidden`), otherwise the first
+/// field error or the API message (already in the user's language).
+String apiErrorMessage(BuildContext context, Object error) {
+  if (error is! ApiException) return context.t('state.errorHint');
+  if (error.isNetwork) return context.t('state.offlineHint');
+  if (error.isRateLimited) {
+    final seconds = error.retryAfter?.inSeconds;
+    return seconds != null && seconds > 0 ? context.t('error.tooMany', {'seconds': seconds}) : context.t('error.tooManyNow');
+  }
+  if (error.isForbiddenRole) return context.t('error.forbidden');
+  return error.fieldErrors.values.firstOrNull ?? error.message;
+}
+
 class ErrorView extends StatelessWidget {
   const ErrorView({super.key, required this.error, this.onRetry});
 
@@ -62,10 +76,11 @@ class ErrorView extends StatelessWidget {
     final e = error;
     final offline = e is ApiException && e.isNetwork;
     final notFound = e is ApiException && e.isNotFound;
+    final forbidden = e is ApiException && e.isForbiddenRole;
     return EmptyView(
-      icon: offline ? Icons.wifi_off_rounded : (notFound ? Icons.search_off_rounded : Icons.error_outline_rounded),
+      icon: offline ? Icons.wifi_off_rounded : (notFound ? Icons.search_off_rounded : (forbidden ? Icons.lock_outline_rounded : Icons.error_outline_rounded)),
       title: context.t(offline ? 'state.offline' : (notFound ? 'state.notFound' : 'state.error')),
-      subtitle: e is ApiException && !offline && !notFound ? e.message : context.t(offline ? 'state.offlineHint' : 'state.errorHint'),
+      subtitle: e is ApiException && !offline && !notFound ? apiErrorMessage(context, e) : context.t(offline ? 'state.offlineHint' : 'state.errorHint'),
       actionLabel: onRetry == null ? null : context.t('common.retry'),
       onAction: onRetry,
     );
@@ -169,11 +184,11 @@ class StatusChip extends StatelessWidget {
 
   static (Color, Color) colors(String status) {
     switch (status) {
-      case 'delivered' || 'confirmed' || 'active' || 'completed' || 'approved' || 'settled' || 'available' || 'packed' || 'shipped':
+      case 'delivered' || 'confirmed' || 'active' || 'completed' || 'approved' || 'settled' || 'available' || 'packed' || 'shipped' || 'paid' || 'resolved':
         return (NawyColors.bgSuccessSubtle, NawyColors.textSuccess);
       case 'failed' || 'rejected' || 'cancelled' || 'suspended' || 'declined' || 'refused' || 'reversed' || 'disputed':
         return (NawyColors.bgDangerSubtle, NawyColors.textDanger);
-      case 'assigned' || 'pending' || 'placed' || 'submitted' || 'requested' || 'pending_documents' || 'rescheduled' || 'returning_to_origin':
+      case 'assigned' || 'pending' || 'placed' || 'submitted' || 'requested' || 'pending_documents' || 'rescheduled' || 'returning_to_origin' || 'waiting_customer':
         return (NawyColors.bgWarningSubtle, NawyColors.textBrand);
       default:
         return (NawyColors.bgInfoSubtle, NawyColors.textLink);
@@ -218,7 +233,7 @@ Future<T?> runAction<T>(BuildContext context, Future<T> Function() action, {Stri
     if (success != null && context.mounted) showSnack(context, success);
     return result;
   } on ApiException catch (e) {
-    if (context.mounted) showSnack(context, e.fieldErrors.values.firstOrNull ?? e.message);
+    if (context.mounted) showSnack(context, apiErrorMessage(context, e));
   }
   return null;
 }

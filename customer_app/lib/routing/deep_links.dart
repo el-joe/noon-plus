@@ -45,7 +45,16 @@ AppLink? resolveStorefrontLink(String? link) {
     case 'flash-sale':
       return second == null ? const AppLink(Routes.shell, {'tab': 'deals'}) : AppLink(Routes.flashSale, {'id': second});
     case 'pages':
-      return second == null ? null : AppLink(Routes.page, {'slug': second});
+      // Static pages (terms, privacy …); unknown slugs fall back to page-builder pages.
+      return second == null ? null : AppLink(Routes.staticPage, {'slug': second});
+    case 'seller':
+    case 'store':
+      return second == null ? null : AppLink(Routes.seller, {'slug': second});
+    case 'compare':
+      return const AppLink(Routes.compare);
+    case 'legal':
+    case 'policies':
+      return second == null ? null : AppLink(Routes.staticPage, {'slug': second});
     case 'cart':
       return const AppLink(Routes.cart);
     case 'gift-cards':
@@ -91,12 +100,20 @@ AppLink? resolveStorefrontLink(String? link) {
           return const AppLink(Routes.myAds);
         case 'security':
           return const AppLink(Routes.security);
+        case 'reviews':
+          return const AppLink(Routes.myReviews);
         case 'profile':
           return const AppLink(Routes.profile);
         case 'gift-cards':
           return const AppLink(Routes.giftCards);
         case 'membership':
           return const AppLink(Routes.membership);
+        case 'support':
+          return third == null ? const AppLink(Routes.support) : AppLink(Routes.supportTicket, {'number': third});
+        case 'cards':
+          return const AppLink(Routes.cards);
+        case 'followed-stores':
+          return const AppLink(Routes.followedStores);
         default:
           return const AppLink(Routes.shell, {'tab': 'account'});
       }

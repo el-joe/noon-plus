@@ -14,6 +14,7 @@ use App\Domains\Classifieds\Support\ClassifiedInquiries;
 use App\Domains\Classifieds\Support\ClassifiedSpecs;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\RealEstate\Support\Viewings;
 use App\Domains\Vendors\Models\Vendor;
 use App\Domains\Vendors\Support\VendorWorkspace;
 use App\Http\Controllers\Controller;
@@ -24,7 +25,7 @@ use Illuminate\View\View;
 /**
  * Seller Center → Marketplace for classified business shops (Figma
  * 102:10964 My ads, 102:11429 create ad, 103:5462 mark sold, 103:5763
- * inquiries). Every query is scoped to the workspace shop.
+ * inquiries) and the D12 viewing / reserve request list. Every query is scoped to the workspace shop.
  */
 class MarketplaceController extends Controller
 {
@@ -61,6 +62,8 @@ class MarketplaceController extends Controller
 
     public function create(Request $request, ClassifiedSpecs $specs): View
     {
+        // QA-044: classified shops only, as for the list.
+        $this->shop();
         $categories = ClassifiedCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name_en')->get();
         $category = $categories->firstWhere('id', (int) $request->query('category'));
 
@@ -73,6 +76,7 @@ class MarketplaceController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $limits = ClassifiedCategory::query()->find($request->integer('category_id'))?->photoLimits() ?? ['max_photos' => 20, 'photo_max_kb' => 8192];
         $data = $request->validate([
             'category_id' => ['required', 'integer'],
             'kind' => ['required', 'in:offer,wanted'],
@@ -86,8 +90,8 @@ class MarketplaceController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'contact_phone' => ['nullable', 'string', 'max:24'],
             'specs' => ['nullable', 'array'],
-            'photos' => ['nullable', 'array', 'max:20'],
-            'photos.*' => ['image', 'max:8192'],
+            'photos' => ['nullable', 'array', 'max:'.$limits['max_photos']],
+            'photos.*' => ['image', 'max:'.$limits['photo_max_kb']],
         ]);
         $data['specs'] = array_filter($data['specs'] ?? [], fn ($value) => $value !== null && $value !== '');
         $ad = $this->ads->create($request->user()->id, $data, ActorType::Vendor, $this->shop());
@@ -146,6 +150,21 @@ class MarketplaceController extends Controller
             ->with(['ad', 'messages' => fn ($query) => $query->orderBy('id')])->latest('last_message_at')->paginate(20);
 
         return view('panels.partner.marketplace.inquiries', ['threads' => $threads]);
+    }
+
+    /**
+     * Viewing / reserve requests on the shop's ads (owner decision D12: a
+     * record only — no actions; the seller contacts the customer outside Nawy).
+     */
+    public function requests(Request $request, Viewings $viewings): View
+    {
+        $type = $request->query('type');
+
+        return view('panels.shared.viewing-requests', [
+            'requests' => $viewings->received(['vendor_id' => $this->shop()->id], is_string($type) ? $type : null)->paginate(25)->withQueryString(),
+            'type' => $type,
+            'breadcrumbs' => [__('Buyers'), __('Requests')],
+        ]);
     }
 
     public function reply(Request $request, int $thread, ClassifiedInquiries $inquiries): RedirectResponse

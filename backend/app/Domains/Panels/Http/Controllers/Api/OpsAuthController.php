@@ -4,6 +4,7 @@ namespace App\Domains\Panels\Http\Controllers\Api;
 
 use App\Domains\Identity\Actions\RecordLoginEvent;
 use App\Domains\Identity\Enums\LoginOutcome;
+use App\Domains\Identity\Support\ApiTwoFactor;
 use App\Domains\Identity\Support\TokenScopes;
 use App\Domains\Panels\Support\OpsWorkspaces;
 use App\Http\Controllers\Controller;
@@ -31,6 +32,7 @@ class OpsAuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'device_name' => ['required', 'string', 'max:120'],
+            'two_factor_code' => ['nullable', 'string', 'max:12'],
             'role' => ['required', Rule::in(OpsWorkspaces::ROLES)],
         ]);
         $user = User::query()->where('email', Str::lower($data['email']))->first();
@@ -46,7 +48,13 @@ class OpsAuthController extends Controller
         if ($workspace === null) {
             $recordLoginEvent->handle($request, 'ops_app', LoginOutcome::NoPanelAccess, $user);
 
-            return ApiResponse::error('no_workspace', __('This account has no :role workspace in this country.', ['role' => str_replace('_', ' ', $data['role'])]), 403);
+            return ApiResponse::error('no_workspace', __('This account has no :role workspace in this country.', ['role' => OpsWorkspaces::roleLabel($data['role'])]), 403);
+        }
+
+        if (($stop = app(ApiTwoFactor::class)->check($user, $data['two_factor_code'] ?? null)) !== null) {
+            $recordLoginEvent->handle($request, 'ops_app', $stop->status() === 202 ? LoginOutcome::SecondStepSent : LoginOutcome::WrongCode, $user);
+
+            return $stop;
         }
 
         $recordLoginEvent->handle($request, 'ops_app', LoginOutcome::Succeeded, $user);

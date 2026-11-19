@@ -17,6 +17,20 @@ class MarketerApi {
   Future<ApiResponse<List<Json>>> conversions({int page = 1}) => api.getList('ops/marketer/conversions', query: {'page': page});
 }
 
+/// Conversion lifecycle order (lifecycle catalogue §4.3): `paid` (a
+/// processed withdrawal covers it, QC-035) sits between `released` and
+/// `reversed` / `clawback_pending`.
+const conversionStatuses = ['pending', 'approved', 'released', 'paid', 'reversed', 'clawback_pending', 'recovered'];
+
+/// Campaign states that never change again. `completed` (imported legacy
+/// campaigns, QC-037) behaves like `done`.
+const endedCampaignStatuses = {'done', 'completed', 'cancelled', 'rejected'};
+
+bool isCampaignEnded(String? status) => endedCampaignStatuses.contains(status);
+
+/// The chip colour of a campaign status: `completed` looks like `done`.
+String campaignChipStatus(String status) => status == 'completed' ? 'done' : status;
+
 /// Sum of the conversions' commission (net) in [currency]; reversed rows
 /// are left out, like the Studio overview.
 Money commissionTotal(Iterable<Json> conversions, String currency) => conversions

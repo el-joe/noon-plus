@@ -16,11 +16,14 @@ use App\Domains\Classifieds\Support\ClassifiedAds;
 use App\Domains\Classifieds\Support\ClassifiedInquiries;
 use App\Domains\Classifieds\Support\ClassifiedReports;
 use App\Domains\Countries\Models\Country;
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Coupons\Models\Coupon;
 use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\Panels\Support\PanelCountries;
 use App\Domains\RealEstate\Enums\LeadStatus;
+use App\Domains\RealEstate\Models\PropertyViewing;
 use App\Domains\RealEstate\Support\BrokerLeads;
 use App\Domains\RealEstate\Support\SpecialRequests;
 use App\Domains\Travel\Enums\BookingStatus;
@@ -82,6 +85,36 @@ function shopAd(User $owner, Vendor $shop, bool $live = true): ClassifiedAd
 }
 
 describe('Marketplace (classified shop) pages', function () {
+    /**
+     * Browser test SOQ-21: the partner panel only counted product-vendor
+     * memberships when picking the panel country, so a classified shop got
+     * no country, no workspace and the generic dashboard; every Marketplace
+     * page answered 403. (Feature tests pre-set the country context, which
+     * hid it; here the request starts without one, as in the browser.)
+     */
+    it('resolves the classified shop\'s country and opens the Marketplace layout', function () {
+        [$user, $shop] = classifiedShop();
+        shopAd($user, $shop);
+
+        expect(app(PanelCountries::class)->for($user, Panel::find('partner'))->pluck('code')->all())->toBe(['uae']);
+
+        app(CountryContext::class)->clear();
+        $this->actingAs($user)->get(onPanel('partner'))->assertOk()->assertSee('My listings')->assertSee('Viewing &amp; reserve requests', false)->assertDontSee('Your access');
+        app(CountryContext::class)->clear();
+        $this->actingAs($user)->get(onPanel('partner', 'marketplace/ads'))->assertOk()->assertSee('L-shaped sofa grey');
+    });
+
+    // Browser test SOQ-22: type="number" without step="any" made the browser refuse decimal coordinates (25.14).
+    it('takes decimal coordinates and prices on the post-an-ad form', function () {
+        [$user] = classifiedShop();
+
+        $html = $this->actingAs($user)->get(onPanel('partner', 'marketplace/ads/create?category='.$this->category->id))->assertOk()->getContent();
+
+        foreach (['latitude', 'longitude', 'price'] as $field) {
+            expect($html)->toMatch('/<input[^>]*name="'.$field.'"[^>]*step="any"/s');
+        }
+    });
+
     it('posts an ad from the panel, lists it with stats, answers inquiries and marks it sold', function () {
         [$user, $shop] = classifiedShop();
 
@@ -119,6 +152,53 @@ describe('Marketplace (classified shop) pages', function () {
     });
 });
 
+describe('Viewing & reserve requests (owner decision D12: records only)', function () {
+    it('lists the requests on the shop\'s ads with contact details and no actions', function () {
+        [$user, $shop] = classifiedShop();
+        $ad = shopAd($user, $shop);
+        $other = shopAd(...classifiedShop());
+        $contact = ['name' => 'Sara M.', 'email' => 'sara@example.com', 'phone' => '0501234567', 'preferred_at' => now()->addDay()->toDateTimeString(), 'message' => 'Can I see it Friday?'];
+        $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact)->assertCreated();
+        $this->postJson("/api/v1/uae-en/classifieds/ads/{$other->number}/viewings", ['name' => 'Someone Else'] + $contact)->assertCreated();
+        $request = PropertyViewing::query()->where('classified_ad_id', $ad->id)->sole();
+
+        $this->actingAs($user)->get(onPanel('partner', 'marketplace/requests'))->assertOk()
+            ->assertSee('Viewing &amp; reserve requests', false)->assertSee('Sara M.')->assertSee('sara@example.com')->assertSee('+971501234567')->assertSee('Can I see it Friday?')
+            ->assertDontSee('Someone Else')->assertDontSee('Confirm')->assertDontSee('Reject')->assertDontSee('Schedule');
+        $this->actingAs($user)->get(onPanel('partner', 'marketplace/requests?type=reserve'))->assertOk()->assertDontSee('Sara M.');
+
+        foreach (['confirm', 'reject', 'schedule', 'complete', 'status'] as $action) {
+            $this->actingAs($user)->post(onPanel('partner', "marketplace/requests/{$request->id}/{$action}"))->assertNotFound();
+        }
+
+        $this->actingAs($user)->post(onPanel('partner', 'marketplace/requests'))->assertStatus(405);
+    });
+
+    it('lists the requests on the broker\'s ads in Creator Studio, for brokers only', function () {
+        $property = ClassifiedCategory::query()->create(['slug' => 'property', 'name_en' => 'Property', 'name_ar' => 'عقارات', 'vertical' => 'property']);
+        [$user, $broker] = marketerAccount(['broker']);
+        $ad = app(ClassifiedAds::class)->create($user->id, [
+            'category_id' => $property->id, 'title' => '2BR Marina Gate', 'price' => '140000', 'city' => 'Dubai',
+            'property' => ['purpose' => 'rent', 'property_type' => 'apartment', 'bedrooms' => 2, 'rent_period' => 'yearly', 'permit_number' => 'RERA-1', 'permit_authority' => 'DLD'],
+        ], ActorType::Marketer, null, $broker);
+        app(ClassifiedAds::class)->addPhoto($ad, UploadedFile::fake()->image('flat.jpg'));
+        app(ClassifiedAdMachine::class)->submit($ad->refresh(), ActorType::Marketer, $user->id);
+        $ad = app(ClassifiedAdMachine::class)->approve($ad->refresh(), 1)->refresh();
+        $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", ['name' => 'Khalid A.', 'email' => 'khalid@example.com', 'phone' => '0501234567', 'preferred_at' => now()->addDay()->toDateTimeString(), 'type' => 'reserve'])->assertCreated();
+        $request = PropertyViewing::query()->sole();
+
+        $this->actingAs($user)->get(onPanel('marketer', 'broker/requests'))->assertOk()->assertSee('Khalid A.')->assertSee('khalid@example.com')->assertSee('2BR Marina Gate')->assertDontSee('Confirm');
+        $this->actingAs($user)->post(onPanel('marketer', "broker/requests/{$request->id}/confirm"))->assertNotFound();
+        // The broker's own lead pipeline (a separate module) still opens a lead for the request.
+        $this->actingAs($user)->get(onPanel('marketer', 'broker/leads'))->assertOk()->assertSee('Khalid A.');
+
+        [$otherBroker] = marketerAccount(['broker']);
+        $this->actingAs($otherBroker)->get(onPanel('marketer', 'broker/requests'))->assertOk()->assertDontSee('Khalid A.');
+        [$affiliateUser] = marketerAccount(['affiliate']);
+        $this->actingAs($affiliateUser)->get(onPanel('marketer', 'broker/requests'))->assertForbidden();
+    });
+});
+
 describe('Seller advertising page', function () {
     it('creates a sponsored campaign for review and joins an open coupon invitation', function () {
         [$user, $vendor] = sellerAccount('uae');
@@ -133,6 +213,12 @@ describe('Seller advertising page', function () {
 
         expect(AdCampaign::query()->sole())->status->toBe(AdCampaignStatus::PendingReview)->keywords->toBe(['shoes', 'sneakers'])
             ->and(CouponParticipationRequest::query()->sole()->participant_id)->toBe($vendor->id);
+
+        // Browser test BT-VEN-003: the store cannot take its own campaign live past Nawy's review.
+        $campaign = AdCampaign::query()->sole();
+        $this->actingAs($user)->get(onPanel('partner', 'advertising'))->assertDontSee('advertising/campaigns/'.$campaign->id.'/status', false);
+        $this->actingAs($user)->post(onPanel('partner', "advertising/campaigns/{$campaign->id}/status"), ['status' => 'active'])->assertSessionHasErrors('action');
+        expect($campaign->refresh()->status)->toBe(AdCampaignStatus::PendingReview);
     });
 });
 

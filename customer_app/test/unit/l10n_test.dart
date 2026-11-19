@@ -13,7 +13,7 @@ void main() {
 
   test('every literal key used in lib/ exists', () {
     final pattern = RegExp(
-        r"'((?:account|address|auth|blocks|cart|categories|checkout|common|contracts|deals|giftCards|header|help|home|live|market|membership|notifications|orders|payment|plp|product|profile|property|qa|returns|reviews|search|security|souq|state|tabs|travel|wallet|wishlist|sort|status)\.[a-zA-Z][a-zA-Z0-9.]*)'");
+        r"'((?:account|address|auth|blocks|cards|cart|categories|checkout|common|compare|contracts|deals|giftCards|header|help|home|live|market|membership|notifications|offers|orders|payment|plp|product|profile|property|qa|returns|reviews|search|security|seller|souq|state|staticPage|support|tabs|travel|wallet|wishlist|sort|status)\.[a-zA-Z][a-zA-Z0-9.]*)'");
     final missing = <String>{};
     for (final file in Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart') && !f.path.contains('l10n/strings_'))) {
       for (final m in pattern.allMatches(file.readAsStringSync())) {

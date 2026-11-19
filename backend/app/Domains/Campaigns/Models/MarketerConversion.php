@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable([
     'campaign_id', 'invitation_id', 'marketer_profile_id', 'type', 'source_type', 'source_id', 'order_id', 'sub_order_id', 'attribution', 'weight',
-    'currency', 'basis', 'gross', 'fee', 'net', 'bonus', 'reversed_gross', 'status', 'clawback_amount', 'recovered_amount', 'approved_at', 'released_at', 'reversed_at',
+    'currency', 'basis', 'gross', 'fee', 'net', 'bonus', 'reversed_gross', 'status', 'clawback_amount', 'recovered_amount', 'approved_at', 'released_at', 'paid_at', 'reversed_at',
 ])]
 class MarketerConversion extends Model
 {
@@ -37,6 +37,7 @@ class MarketerConversion extends Model
             'status' => ConversionStatus::class,
             'approved_at' => 'immutable_datetime',
             'released_at' => 'immutable_datetime',
+            'paid_at' => 'immutable_datetime',
             'reversed_at' => 'immutable_datetime',
         ];
     }

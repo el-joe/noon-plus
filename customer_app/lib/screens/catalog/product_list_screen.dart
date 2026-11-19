@@ -54,6 +54,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   ApiClient get _api => AppScope.read(context).api;
 
+  /// `products`, or a store's own listing (`sellers/{slug}/products`, QC-008).
+  String get _endpoint => widget.args['endpoint'] as String? ?? 'products';
+
   Future<void> _reload() async {
     setState(() {
       _items.clear();
@@ -61,7 +64,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       _lastPage = 1;
       _error = null;
     });
-    _api.getObject('products/facets', query: _filters.query(forFacets: true)).then((f) {
+    _api.getObject('$_endpoint/facets', query: _filters.query(forFacets: true)).then((f) {
       if (mounted) setState(() => _facets = f);
     }).catchError((_) {});
     await _loadMore();
@@ -71,7 +74,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (_loading || _page >= _lastPage) return;
     setState(() => _loading = true);
     try {
-      final res = await _api.getList('products', query: _filters.query(page: _page + 1, perPage: _perPage));
+      final res = await _api.getList(_endpoint, query: _filters.query(page: _page + 1, perPage: _perPage));
       if (!mounted) return;
       setState(() {
         _items.addAll(res.data);
@@ -98,7 +101,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => FilterSheet(filters: _filters.copy(), facets: _facets ?? const {}, focus: focus, api: _api),
+      builder: (_) => FilterSheet(filters: _filters.copy(), facets: _facets ?? const {}, focus: focus, api: _api, endpoint: _endpoint),
     );
     if (result != null) {
       _filters = result;
@@ -155,6 +158,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     onTap: () => _openFilters(),
                   ),
                   _chip(key: const ValueKey('chip-sort'), icon: Icons.swap_vert_rounded, label: context.t('sort.${_filters.sort}'), active: _filters.sort != 'recommended', onTap: _openSort),
+                  // QC-027 quick chips: deals, Fulfilled by Nawy, condition, 4★ & up.
+                  for (final q in quickChips(_facets))
+                    _chip(
+                      key: ValueKey('quick-${q.key}'),
+                      label: context.t(q.label),
+                      active: q.isActive(_filters),
+                      onTap: () {
+                        q.toggle(_filters);
+                        _reload();
+                      },
+                    ),
                   _chip(label: context.t('plp.brand'), trailingDown: true, active: _filters.brands.isNotEmpty, onTap: () => _openFilters(focus: 'brand')),
                   _chip(label: context.t('plp.price'), trailingDown: true, active: _filters.minPrice != null || _filters.maxPrice != null, onTap: () => _openFilters(focus: 'price')),
                   for (final b in brands)
@@ -242,6 +256,32 @@ class _ProductListScreenState extends State<ProductListScreen> {
       );
 }
 
+/// A one-tap PLP refinement (QC-027).
+class QuickChip {
+  const QuickChip(this.key, this.label, this.isActive, this.toggle);
+
+  final String key;
+  final String label;
+  final bool Function(ProductFilters f) isActive;
+  final void Function(ProductFilters f) toggle;
+}
+
+/// Quick chips offered for these facets: a chip shows only when the facet
+/// has matches (or the chip is already on). Pure, unit tested.
+List<QuickChip> quickChips(Json? facets) {
+  int count(String list, String value) => (facets?.l(list) ?? const <Json>[]).where((e) => e.s('value') == value).fold(0, (s, e) => s + (e.i('count') ?? 0));
+  final known = facets != null;
+  return [
+    if (!known || (facets.i('deals') ?? 0) > 0) QuickChip('deals', 'plp.quickDeals', (f) => f.deals, (f) => f.deals = !f.deals),
+    if (!known || count('fulfilment', 'fbn') > 0) QuickChip('fbn', 'plp.quickFbn', (f) => f.fulfilment.contains('fbn'), (f) => f.toggle(f.fulfilment, 'fbn')),
+    if (known && count('conditions', 'new') > 0 && count('conditions', 'refurbished') > 0) ...[
+      QuickChip('new', 'plp.condition.new', (f) => f.conditions.contains('new'), (f) => f.toggle(f.conditions, 'new')),
+      QuickChip('refurbished', 'plp.condition.refurbished', (f) => f.conditions.contains('refurbished'), (f) => f.toggle(f.conditions, 'refurbished')),
+    ],
+    QuickChip('rating4', 'plp.quickRating', (f) => f.rating == 4, (f) => f.rating = f.rating == 4 ? null : 4),
+  ];
+}
+
 class _ChipBar extends SliverPersistentHeaderDelegate {
   _ChipBar({required this.height, required this.child});
 
@@ -262,12 +302,13 @@ class _ChipBar extends SliverPersistentHeaderDelegate {
 
 /// Full-height filter sheet: facet rail + options, live "Show N results".
 class FilterSheet extends StatefulWidget {
-  const FilterSheet({super.key, required this.filters, required this.facets, required this.api, this.focus});
+  const FilterSheet({super.key, required this.filters, required this.facets, required this.api, this.focus, this.endpoint = 'products'});
 
   final ProductFilters filters;
   final Json facets;
   final ApiClient api;
   final String? focus;
+  final String endpoint;
 
   @override
   State<FilterSheet> createState() => _FilterSheetState();
@@ -298,7 +339,7 @@ class _FilterSheetState extends State<FilterSheet> {
   Future<void> _recount() async {
     final seq = ++_seq;
     try {
-      final res = await widget.api.get('products', query: f.query(page: 1, perPage: 1));
+      final res = await widget.api.get(widget.endpoint, query: f.query(page: 1, perPage: 1));
       if (mounted && seq == _seq) setState(() => _count = res.total);
     } catch (_) {}
   }
@@ -314,6 +355,9 @@ class _FilterSheetState extends State<FilterSheet> {
         ('price', context.t('plp.price')),
         ('rating', context.t('plp.rating')),
         if (widget.facets.l('sellers').isNotEmpty) ('seller', context.t('plp.seller')),
+        if (widget.facets.l('fulfilment').isNotEmpty) ('fulfilment', context.t('plp.fulfilment')),
+        if (widget.facets.l('conditions').isNotEmpty) ('condition', context.t('plp.condition')),
+        if ((widget.facets.i('deals') ?? 0) > 0 || f.deals) ('deals', context.t('plp.deals')),
         for (final a in widget.facets.l('attributes')) ('attr:${a.str('key')}', context.l10n.status(a.str('key'))),
       ];
 
@@ -323,6 +367,9 @@ class _FilterSheetState extends State<FilterSheet> {
         'price' => f.minPrice != null || f.maxPrice != null,
         'rating' => f.rating != null,
         'seller' => f.sellers.isNotEmpty,
+        'fulfilment' => f.fulfilment.isNotEmpty,
+        'condition' => f.conditions.isNotEmpty,
+        'deals' => f.deals,
         _ => key.startsWith('attr:') && (f.attributes[key.substring(5)]?.isNotEmpty ?? false),
       };
 
@@ -420,6 +467,32 @@ class _FilterSheetState extends State<FilterSheet> {
               subtitle: s.s('rating') == null ? null : Text('★ ${s.s('rating')}'),
               controlAffinity: ListTileControlAffinity.leading,
             ),
+      ];
+    }
+    if (_facet == 'fulfilment' || _facet == 'condition') {
+      final fulfilment = _facet == 'fulfilment';
+      final set = fulfilment ? f.fulfilment : f.conditions;
+      return [
+        for (final v in widget.facets.l(fulfilment ? 'fulfilment' : 'conditions'))
+          CheckboxListTile(
+            key: ValueKey('facet-$_facet-${v.str('value')}'),
+            value: set.contains(v.str('value')),
+            onChanged: (_) => _update(() => f.toggle(set, v.str('value'))),
+            title: Text(context.t('plp.$_facet.${v.str('value')}')),
+            secondary: Text('${v.i('count') ?? ''}', style: NawyText.caption),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+      ];
+    }
+    if (_facet == 'deals') {
+      return [
+        SwitchListTile(
+          key: const ValueKey('facet-deals-switch'),
+          value: f.deals,
+          onChanged: (v) => _update(() => f.deals = v),
+          title: Text(context.t('plp.dealsOnly')),
+          subtitle: Text(context.t('plp.dealsCount', {'count': widget.facets.i('deals') ?? 0})),
+        ),
       ];
     }
     if (_facet == 'price') {

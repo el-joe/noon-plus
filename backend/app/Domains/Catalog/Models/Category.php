@@ -2,6 +2,8 @@
 
 namespace App\Domains\Catalog\Models;
 
+use App\Domains\Catalog\Http\Controllers\CatalogController;
+use App\Domains\Countries\Support\CountryContext;
 use App\Shared\Audit\LogsCountryActivity;
 use App\Shared\Database\UsesCountryDatabase;
 use Database\Factories\CategoryFactory;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 #[UseFactory(CategoryFactory::class)]
 #[Fillable(['parent_id', 'slug', 'name_en', 'name_ar', 'description_en', 'description_ar', 'image_path', 'size_guide_template_id', 'commission_rate', 'return_window_days', 'requires_contract', 'requires_certification', 'is_active', 'sort_order'])]
@@ -18,6 +21,25 @@ class Category extends Model
 {
     /** @use HasFactory<CategoryFactory> */
     use HasFactory, LogsCountryActivity, UsesCountryDatabase;
+
+    /**
+     * WP11: the public category tree is cached per country and locale; any change forgets it.
+     */
+    protected static function booted(): void
+    {
+        $forget = function (): void {
+            $country = app(CountryContext::class)->has() ? app(CountryContext::class)->current()->code : null;
+
+            if ($country !== null) {
+                foreach (['en', 'ar'] as $locale) {
+                    Cache::forget(CatalogController::treeCacheKey($country, $locale));
+                }
+            }
+        };
+
+        static::saved($forget);
+        static::deleted($forget);
+    }
 
     /**
      * Get the attributes that should be cast.

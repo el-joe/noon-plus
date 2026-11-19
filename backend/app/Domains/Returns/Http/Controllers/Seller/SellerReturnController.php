@@ -4,6 +4,7 @@ namespace App\Domains\Returns\Http\Controllers\Seller;
 
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\TenantPermissions;
 use App\Domains\Returns\Enums\ReturnStatus;
 use App\Domains\Returns\Http\Controllers\ManagesReturns;
 use App\Domains\Returns\Models\ReturnRequest;
@@ -36,13 +37,13 @@ class SellerReturnController extends Controller
         ]);
     }
 
-    public function show(int $return): View
+    public function show(Request $request, int $return, TenantPermissions $permissions): View
     {
         return view('panels.partner.returns.show', [
             'return' => $this->findReturn($return)->load(['items.orderItem', 'subOrder', 'refund', 'transitions']),
             'country' => $this->countryContext->current(),
             'routePrefix' => 'partner.returns',
-            'canManage' => true,
+            'canManage' => $permissions->allows($request, 'partner', 'returns', true),
         ]);
     }
 

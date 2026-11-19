@@ -19,8 +19,10 @@ use App\Domains\Listings\Support\ListingStateMachine;
 use App\Domains\Listings\Support\ListingSubmissionGates;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\OrderItem;
+use App\Domains\Panels\Support\TenantPermissions;
 use App\Domains\Vendors\Support\VendorWorkspace;
 use App\Http\Controllers\Controller;
+use App\Shared\Http\LikeSearch;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,9 +60,9 @@ class ListingController extends Controller
             ->with('variant.product')
             ->withAvailableQuantity()
             ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where(fn ($scoped) => $scoped
-                ->where('vendor_sku', 'like', "%{$search}%")
-                ->orWhereHas('variant', fn ($variant) => $variant->where('sku', 'like', "%{$search}%")
-                    ->orWhereHas('product', fn ($product) => $product->where('title_en', 'like', "%{$search}%")->orWhere('title_ar', 'like', "%{$search}%")))))
+                ->where('vendor_sku', 'like', LikeSearch::contains($search))
+                ->orWhereHas('variant', fn ($variant) => $variant->where('sku', 'like', LikeSearch::contains($search))
+                    ->orWhereHas('product', fn ($product) => $product->where('title_en', 'like', LikeSearch::contains($search))->orWhere('title_ar', 'like', LikeSearch::contains($search))))))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when($filters['stock'] ?? null, fn ($query, string $stock) => match ($stock) {
                 'out' => $query->havingRaw('coalesce(available_quantity, 0) <= 0'),
@@ -95,7 +97,7 @@ class ListingController extends Controller
                 ->with('product')
                 ->whereHas('product', fn ($product) => $product->where('status', 'active'))
                 ->where(fn ($query) => $query
-                    ->whereHas('product', fn ($product) => $product->where('title_en', 'like', "%{$search['q']}%")->orWhere('title_ar', 'like', "%{$search['q']}%"))
+                    ->whereHas('product', fn ($product) => $product->where('title_en', 'like', LikeSearch::contains($search['q']))->orWhere('title_ar', 'like', LikeSearch::contains($search['q'])))
                     ->orWhere('sku', $search['q'])
                     ->orWhere('barcode', $search['q']))
                 ->limit(20)
@@ -140,7 +142,7 @@ class ListingController extends Controller
             ]);
             $listing->statusHistory()->create(['to_status' => ListingStatus::Draft, 'actor_user_id' => $request->user()->id]);
 
-            if ($data['stock'] > 0) {
+            if ($data['stock'] > 0 && $data['fulfilment'] !== 'fbn') {
                 $this->ledger->move($listing, (int) $data['stock'], 'initial_stock', actorUserId: $request->user()->id);
             }
 
@@ -161,7 +163,7 @@ class ListingController extends Controller
             : __('Listing saved as a draft.'));
     }
 
-    public function edit(int $listing): View
+    public function edit(Request $request, int $listing, TenantPermissions $permissions): View
     {
         $listing = $this->ownListing($listing);
         $listing->load(['variant.product.category', 'statusHistory' => fn ($query) => $query->latest('id')]);
@@ -173,6 +175,8 @@ class ListingController extends Controller
             'images' => $this->images->forListing($listing),
             'maxImages' => ProductImages::MAX_PER_VENDOR_PRODUCT,
             'currency' => $this->countryContext->current()->currency,
+            // BT-VEN-008: view-only team roles see the listing without its change forms (the routes refuse writes too).
+            'canWrite' => $permissions->allows($request, 'partner', 'listings', true),
         ]);
     }
 
@@ -230,6 +234,10 @@ class ListingController extends Controller
 
         if ($listing->status === ListingStatus::Archived) {
             return back()->withErrors(['action' => __('An archived listing cannot be changed.')]);
+        }
+
+        if ($listing->fulfilment === 'fbn') {
+            return back()->withErrors(['quantity' => __('Fulfilled by Nawy stock is counted by the warehouse. Send units with an inbound plan or request a removal.')]);
         }
 
         try {

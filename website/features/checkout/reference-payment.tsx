@@ -17,18 +17,37 @@ import { useHref, useMarket } from "@/lib/market-context";
 const PAID = new Set(["authorized", "captured"]);
 const FAILED = new Set(["failed", "expired", "cancelled"]);
 
-/** Where each purpose goes after (or to retry) the payment. */
-const NEXT: Record<Exclude<PaymentPurpose, "order">, { done: string; retry: string }> = {
+/**
+ * Where each purpose goes after (or to retry) the payment. D14 trip promotions
+ * are bought and followed in the Travel Partner panel (the backend sends that
+ * return there), so the storefront shows the promotion's state, no link.
+ */
+const NEXT: Record<Exclude<PaymentPurpose, "order">, { done: string; retry: string } | null> = {
   gift_card: { done: "/account/gift-cards", retry: "/gift-cards" },
   membership_invoice: { done: "/account/membership", retry: "/membership" },
   classified_package: { done: "/account/my-ads", retry: "/account/my-ads" },
+  travel_promotion: null,
 };
+
+type Subject = PaymentStatus["subject"];
+
+/**
+ * D14: what a trip-promotion payment means for the promotion, read from the
+ * API subject (`status`, `starts_at`, `ends_at`) — never from the query string.
+ * Same wording as the Travel Partner panel return.
+ */
+export function travelPromotionState(paymentStatus: string, subject: Subject, now: Date = new Date()): "active" | "queued" | "pending" | "notLive" | "failed" {
+  if (subject?.status === "active") return subject.starts_at && new Date(subject.starts_at).getTime() > now.getTime() ? "queued" : "active";
+  if (PAID.has(paymentStatus) || paymentStatus === "partially_refunded" || paymentStatus === "refunded") return subject?.status === "pending_payment" ? "pending" : "notLive";
+  if (FAILED.has(paymentStatus)) return "failed";
+  return "pending";
+}
 
 const purposeOf = (value: string | null | undefined): PaymentPurpose | null => ((PAYMENT_PURPOSES as readonly string[]).includes(value ?? "") ? (value as PaymentPurpose) : null);
 
 /**
  * Gateway return for non-order payments (G-W31):
- * `/checkout/payment?payment={reference}&kind={gift_card|membership_invoice|classified_package}&status=`.
+ * `/checkout/payment?payment={reference}&kind={gift_card|membership_invoice|classified_package|travel_promotion}&status=`.
  * The query string is never trusted: `POST payments/{reference}/verify` (payer
  * only) gives the payment and its subject; an order payment is handed to the
  * order flow (`?order=`).
@@ -82,7 +101,12 @@ export function ReferencePaymentResult({ reference, kind }: { reference: string;
 
   const payment = data.payment;
   const subject = data.subject;
+  const promotionState = purpose === "travel_promotion" ? travelPromotionState(payment.status, subject) : null;
+  const promotionBody = promotionState
+    ? t(`payment.travelPromotion.${promotionState}`, { start: formatDay(subject?.starts_at, market.locale), date: formatDay(subject?.ends_at, market.locale) })
+    : null;
   const next = purpose ? NEXT[purpose] : { done: "/account", retry: "/account" };
+  const panelHint = purpose === "travel_promotion" ? <p className="text-body-sm text-secondary">{t("payment.travelPartnerHint")}</p> : null;
   const label = purpose ? t(`payment.kind.${purpose}`) : null;
   const amount = formatMoney(subject?.amount ?? payment.amount);
   const meta = (
@@ -91,6 +115,18 @@ export function ReferencePaymentResult({ reference, kind }: { reference: string;
       {t("payment.reference", { reference: subject?.number ?? payment.reference.slice(0, 8), amount })}
     </p>
   );
+
+  if (payment.status === "under_review") {
+    return (
+      <Card className="mx-auto flex max-w-xl flex-col items-center gap-3 py-10 text-center">
+        <Clock className="size-8 text-link" />
+        <h1 className="text-h3 font-semibold">{t("payment.underReviewTitle")}</h1>
+        <p className="text-body text-secondary">{promotionBody ?? t("payment.underReviewHint")}</p>
+        {meta}
+        {panelHint}
+      </Card>
+    );
+  }
 
   if (PAID.has(payment.status)) {
     const body =
@@ -105,9 +141,9 @@ export function ReferencePaymentResult({ reference, kind }: { reference: string;
       <Card className="mx-auto flex max-w-xl flex-col items-center gap-3 py-10 text-center">
         <CheckCircle2 className="size-12 text-success-text" />
         <h1 className="text-h3 font-semibold">{t("payment.paidTitle")}</h1>
-        {body ? <p className="text-body text-secondary">{body}</p> : null}
+        {(promotionBody ?? body) ? <p className="text-body text-secondary">{promotionBody ?? body}</p> : null}
         {meta}
-        {purpose ? <ButtonLink href={href(next.done)}>{t(`payment.next.${purpose}`)}</ButtonLink> : null}
+        {purpose && purpose !== "travel_promotion" && next ? <ButtonLink href={href(next.done)}>{t(`payment.next.${purpose}`)}</ButtonLink> : null}
       </Card>
     );
   }
@@ -119,13 +155,16 @@ export function ReferencePaymentResult({ reference, kind }: { reference: string;
           <AlertTriangle className="size-6 shrink-0 text-danger-text" />
           <div>
             <h1 className="text-h3 font-semibold">{t("payment.failedTitle")}</h1>
-            <p className="text-body text-secondary">{payment.failure?.message ?? t("payment.failedBodyOther")}</p>
+            <p className="text-body text-secondary">{purpose === "travel_promotion" ? t("payment.travelPromotion.failed") : (payment.failure?.message ?? t("payment.failedBodyOther"))}</p>
             {meta}
+            {panelHint}
           </div>
         </div>
-        <ButtonLink href={href(next.retry)} size="lg">
-          {t("payment.tryAgain")}
-        </ButtonLink>
+        {next ? (
+          <ButtonLink href={href(next.retry)} size="lg">
+            {t("payment.tryAgain")}
+          </ButtonLink>
+        ) : null}
       </Card>
     );
   }
@@ -134,8 +173,9 @@ export function ReferencePaymentResult({ reference, kind }: { reference: string;
     <Card className="mx-auto flex max-w-xl flex-col items-center gap-3 py-10 text-center">
       <Clock className="size-8 text-brand-text" />
       <h1 className="text-h3 font-semibold">{t("payment.pendingTitle")}</h1>
-      <p className="text-body text-secondary">{t("payment.pendingHint")}</p>
+      <p className="text-body text-secondary">{promotionBody ?? t("payment.pendingHint")}</p>
       {meta}
+      {panelHint}
       {payment.next_action.type === "redirect" && payment.next_action.url && /^https?:\/\//.test(payment.next_action.url) ? (
         <ButtonLink href={payment.next_action.url}>{t("account.order.payNow")}</ButtonLink>
       ) : null}

@@ -1,31 +1,77 @@
 import { Globe, Headphones, Mail } from "lucide-react";
 import Link from "next/link";
 import { CookieSettingsLink } from "@/features/content/cookie-consent";
-import { getFooter } from "@/lib/api/endpoints";
-import type { Footer as FooterData } from "@/lib/api/schemas";
+import { getFooter, getPaymentMethods } from "@/lib/api/endpoints";
+import type { Footer as FooterData, PaymentMethod } from "@/lib/api/schemas";
 import { getT } from "@/lib/i18n";
 import { COUNTRIES, type Market } from "@/lib/markets";
 import { marketHref } from "@/lib/server-market";
 
-const PAYMENT_BADGES = ["VISA", "Mastercard", "Apple Pay", "Thawani", "PayTabs", "PayPal", "Tabby", "Tamara"];
+/**
+ * QC-023 / O4: footer payment badges per country. The live list comes from
+ * `GET checkout/payment-methods` (gateways enabled for the country, MASTER_PLAN
+ * §4a); this copy of `config/nawy.php` `payments.country_gateways` is only the
+ * fallback while it streams in or when the API is down. PayPal is disabled
+ * everywhere (O4) and Thawani exists only in Oman.
+ */
+const COUNTRY_GATEWAYS: Record<string, string[]> = {
+  uae: ["stripe", "paytabs", "tabby", "tamara"],
+  omn: ["thawani", "paytabs", "stripe"],
+  ksa: ["paytabs", "stripe", "tabby", "tamara"],
+  egy: ["paytabs", "stripe"],
+  kwt: ["paytabs", "stripe"],
+  qat: ["paytabs", "stripe"],
+  bhr: ["paytabs", "stripe"],
+  jor: ["paytabs", "stripe"],
+};
+const NEVER_SHOWN = new Set(["paypal"]);
+const CARD_BADGES = ["VISA", "Mastercard", "Apple Pay"];
+const METHOD_BADGES: Record<string, string[]> = {
+  stripe: CARD_BADGES,
+  paytabs: CARD_BADGES,
+  thawani: ["Thawani"],
+  tabby: ["Tabby"],
+  tamara: ["Tamara"],
+};
+
+type Badges = { brands: string[]; cod: boolean };
+
+function badgesFor(market: Market, methods: string[]): Badges {
+  const brands: string[] = [];
+  for (const method of methods) {
+    if (NEVER_SHOWN.has(method)) continue;
+    for (const badge of METHOD_BADGES[method] ?? []) if (!brands.includes(badge)) brands.push(badge);
+    // mada is a Saudi debit scheme (PayTabs).
+    if (method === "paytabs" && market.country.code === "ksa" && !brands.includes("mada")) brands.push("mada");
+  }
+  return { brands, cod: methods.includes("cod") };
+}
+
+const fallbackBadges = (market: Market): Badges => ({ ...badgesFor(market, COUNTRY_GATEWAYS[market.country.code] ?? []), cod: true });
+
+async function loadBadges(market: Market): Promise<Badges> {
+  try {
+    // A typical basket amount, so BNPL limits do not hide Tabby / Tamara.
+    const methods: PaymentMethod[] = (await getPaymentMethods(market.slug, "500")).data;
+    if (methods.length === 0) return fallbackBadges(market);
+    return badgesFor(market, methods.map((m) => m.code));
+  } catch {
+    return fallbackBadges(market);
+  }
+}
 
 /** Footer (Figma 17:137) — columns, social links and copyright from `GET footer` (Admin → Content → Footer). */
 export async function Footer({ market }: { market: Market }) {
-  let data: FooterData | null = null;
-  try {
-    data = (await getFooter(market.slug)).data;
-  } catch {
-    data = null;
-  }
-  return <FooterView market={market} data={data} year={new Date().getUTCFullYear()} />;
+  const [footer, badges] = await Promise.all([getFooter(market.slug).then((r) => r.data).catch(() => null), loadBadges(market)]);
+  return <FooterView market={market} data={footer} badges={badges} year={new Date().getUTCFullYear()} />;
 }
 
 /** Static fallback while the footer streams in (and when the API is unreachable). */
 export function FooterFallback({ market }: { market: Market }) {
-  return <FooterView market={market} data={null} year={null} />;
+  return <FooterView market={market} data={null} badges={fallbackBadges(market)} year={null} />;
 }
 
-function FooterView({ market, data, year }: { market: Market; data: FooterData | null; year: number | null }) {
+function FooterView({ market, data, badges, year }: { market: Market; data: FooterData | null; badges: Badges; year: number | null }) {
   const t = getT(market.locale);
   const columns =
     data && data.columns.length > 0
@@ -138,7 +184,7 @@ function FooterView({ market, data, year }: { market: Market; data: FooterData |
           ))}
           {social.length > 0 ? (
             <div>
-              <p className="mb-3 text-label font-semibold uppercase">Social</p>
+              <p className="mb-3 text-label font-semibold uppercase">{t("footer.social")}</p>
               <ul className="flex flex-col gap-2">
                 {social.map(([network, url]) => (
                   <li key={network}>
@@ -158,19 +204,24 @@ function FooterView({ market, data, year }: { market: Market; data: FooterData |
             <p className="text-body-sm text-secondary">{data?.copyright ?? (year ? t("footer.rights", { year }) : "© Nawy")}</p>
             <CookieSettingsLink label={t("content.cookies.settings")} />
           </div>
-          <ul className="flex flex-wrap gap-2">
-            {PAYMENT_BADGES.map((badge) => (
-              <li key={badge} className="rounded-xs border border-line bg-surface px-2 py-0.5 text-caption text-secondary">
+          <ul className="flex flex-wrap gap-2" aria-label={t("footer.paymentMethods")}>
+            {badges.brands.map((badge) => (
+              <li key={badge} className="rounded-xs border border-line bg-surface px-2 py-0.5 text-caption text-secondary" dir="ltr">
                 {badge}
               </li>
             ))}
-            <li className="rounded-xs border border-line bg-surface px-2 py-0.5 text-caption text-secondary">{t("footer.cashOnDelivery")}</li>
+            {badges.cod ? <li className="rounded-xs border border-line bg-surface px-2 py-0.5 text-caption text-secondary">{t("footer.cashOnDelivery")}</li> : null}
           </ul>
-          <nav className="flex flex-wrap items-center gap-1 text-body-sm text-secondary" aria-label="Countries">
-            <Globe className="size-4" />
+          <nav className="flex flex-wrap items-center gap-1 text-body-sm text-secondary" aria-label={t("footer.countries")}>
+            <Globe className="size-4" aria-hidden />
             {COUNTRIES.map((c, i) => (
               <span key={c.code}>
-                <Link href={`/${c.code}-${market.locale}`} className={c.code === market.country.code ? "font-semibold text-ink" : "hover:text-ink"}>
+                <Link
+                  href={`/${c.code}-${market.locale}`}
+                  aria-label={c.name[market.locale]}
+                  aria-current={c.code === market.country.code ? "true" : undefined}
+                  className={c.code === market.country.code ? "font-semibold text-ink" : "hover:text-ink"}
+                >
                   {c.iso2}
                 </Link>
                 {i < COUNTRIES.length - 1 ? " ·" : ""}

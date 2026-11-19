@@ -55,7 +55,7 @@ export function Crumbs({ market, items }: { market: Market; items: { label: stri
   const t = getT(market.locale);
   const all = [{ label: t("common.home"), href: `/${market.slug}` }, ...items];
   return (
-    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary">
+    <nav aria-label={t("common.breadcrumb")} className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary">
       {all.map((item, i) => (
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 ? <span aria-hidden className="rtl:rotate-180">›</span> : null}

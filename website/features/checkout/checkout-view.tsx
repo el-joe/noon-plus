@@ -2,15 +2,15 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { CheckCircle2, Info, Lock, MapPin, Truck } from "lucide-react";
+import { ClipboardCheck, Info, Lock, MapPin, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ButtonLink, Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Alert, Card, EmptyState, ProductImage, Skeleton } from "@/components/ui/misc";
 import { AddressFormModal, formatAddress } from "@/features/account/address-form";
-import { CouponBox, Totals } from "@/features/cart/summary";
+import { CartWarnings, CouponBox, Totals } from "@/features/cart/summary";
 import { DeliveryPromise } from "@/features/product/delivery-promise";
 import { ApiError, fieldErrors } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
@@ -57,10 +57,13 @@ export function followPayment(order: Order, href: (p: string) => string): string
 /**
  * `/checkout` (Figma Checkout desktop 25:605; gates 102:16536 / 102:16764):
  * address → delivery per shipment → payment methods from the API (per country
- * and amount) → place order → follow `payment.next_action`.
+ * and amount) → review (QC-058: 4 steps) → place order → follow
+ * `payment.next_action`. The minimal "Secure checkout" header is
+ * <CheckoutChrome> on the page.
  */
 export function CheckoutView() {
   const t = useTranslations();
+  const tf = useTranslations("portalPlus.checkout");
   const market = useMarket();
   const href = useHref();
   const router = useRouter();
@@ -77,8 +80,11 @@ export function CheckoutView() {
   const [saveAddress, setSaveAddress] = useState(true);
   const [method, setMethod] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
+  // QC-044: one Idempotency-Key per order attempt; kept only when the outcome is unknown (network error, 5xx), so a retry can never place a second order.
+  const attemptKey = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contracts, setContracts] = useState<RequiredContract[] | null>(null);
+  const [stage, setStage] = useState<"details" | "review">("details");
 
   const { data: cart, isLoading: cartLoading } = useCart({ force: !!user, paymentMethod: method ?? undefined });
   const total = cart?.totals.total.amount;
@@ -170,11 +176,22 @@ export function CheckoutView() {
         }
       }
       const referral_code = storedReferralCode(market.slug);
-      const { data: order } = await api.placeOrder(market.slug, {
-        payment_method: method,
-        ...(addressId ? { address_id: addressId } : { address: clean }),
-        ...(referral_code ? { referral_code } : {}),
-      });
+      attemptKey.current ??= newIdempotencyKey();
+      const { data: order } = await api
+        .placeOrder(
+          market.slug,
+          {
+            payment_method: method,
+            ...(addressId ? { address_id: addressId } : { address: clean }),
+            ...(referral_code ? { referral_code } : {}),
+          },
+          attemptKey.current,
+        )
+        .catch((e: unknown) => {
+          if (e instanceof ApiError && e.status < 500) attemptKey.current = null;
+          throw e;
+        });
+      attemptKey.current = null;
       clearReferralCode();
       client.removeQueries({ queryKey: queryKeys.cart(market.slug) });
       const next = followPayment(order, href);
@@ -198,32 +215,111 @@ export function CheckoutView() {
     }
   };
 
+  const reviewing = stage === "review";
+  const toReview = () => {
+    setError(null);
+    if (!addressComplete) return setError(t("checkout.fillAddress"));
+    if (!method) return setError(t("checkout.choosePayment"));
+    setStage("review");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const backToDetails = () => {
+    setStage("details");
+    setError(null);
+  };
+  const methodName = methods.data?.find((m) => m.code === method)?.name ?? method ?? "";
+  const addressLine = chosen ? `${chosen.name}${chosen.phone ? ` · ${chosen.phone}` : ""} — ${formatAddress(chosen)}` : [address.name, address.phone, address.street, address.building, address.area, address.city].filter(Boolean).join(", ");
+
+  // Figma 25:605: Address · Delivery · Payment · Review, each Completed / In progress / Not started.
   const steps = [
     { label: t("checkout.stepAddress"), done: addressComplete },
     { label: t("checkout.stepDelivery"), done: addressComplete },
-    { label: t("checkout.stepPayment"), done: !!method },
+    { label: t("checkout.stepPayment"), done: !!method && reviewing },
+    { label: tf("stepReview"), done: false },
   ];
+  const current = steps.findIndex((step) => !step.done);
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-h1 font-bold">{t("checkout.title")}</h1>
-        <span className="flex items-center gap-1.5 text-body font-medium text-success-text">
-          <CheckCircle2 className="size-5" /> {t("checkout.secure")}
-        </span>
-      </div>
-      <ol className="flex flex-wrap gap-6">
-        {steps.map((step, i) => (
-          <li key={step.label} className="flex items-center gap-2 text-body">
-            <span className={clsx("flex size-7 items-center justify-center rounded-full text-body-sm font-semibold", step.done ? "bg-success text-white" : "border border-line-strong text-secondary")}>
-              {step.done ? "✓" : i + 1}
-            </span>
-            {step.label}
-          </li>
-        ))}
+      <h1 className="sr-only">{t("checkout.title")}</h1>
+      <ol className="flex flex-wrap gap-x-8 gap-y-3" aria-label={tf("stepsLabel")}>
+        {steps.map((step, i) => {
+          const state = step.done ? "done" : i === current ? "current" : "todo";
+          return (
+            <li key={step.label} className="flex items-center gap-2.5" aria-current={state === "current" ? "step" : undefined}>
+              <span
+                className={clsx(
+                  "flex size-7 items-center justify-center rounded-full text-body-sm font-semibold",
+                  state === "done" ? "bg-success text-white" : state === "current" ? "bg-brand text-ink" : "border border-line-strong text-secondary",
+                )}
+              >
+                {state === "done" ? "✓" : i + 1}
+              </span>
+              <span className="flex flex-col">
+                <span className={clsx("text-body font-medium", state === "todo" && "text-secondary")}>{step.label}</span>
+                <span className="text-caption text-secondary">{tf(`state.${state}`)}</span>
+              </span>
+            </li>
+          );
+        })}
       </ol>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
+        {reviewing ? (
+          <div className="flex flex-col gap-4">
+            <Card>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-h4 font-semibold">
+                  <MapPin className="size-5 text-brand-text" /> {t("checkout.addressTitle")}
+                </h2>
+                <button type="button" className="text-body-sm text-link" onClick={backToDetails}>
+                  {tf("change")}
+                </button>
+              </div>
+              <p className="text-body text-secondary">{addressLine}</p>
+            </Card>
+            <Card>
+              <h2 className="mb-3 flex items-center gap-2 text-h4 font-semibold">
+                <ClipboardCheck className="size-5 text-brand-text" /> {tf("reviewItems")}
+              </h2>
+              <div className="flex flex-col gap-4">
+                {cart.shipments.map((s, i) => (
+                  <div key={i} className="rounded-md border border-line">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-subtle px-3 py-2">
+                      <p className="text-body font-medium">
+                        {t("cart.shipmentOf", { n: i + 1, total: cart.shipments.length })} · {s.seller}
+                      </p>
+                      <DeliveryPromise delivery={s.delivery} express={s.method === "express"} />
+                    </div>
+                    <ul className="divide-y divide-line">
+                      {s.items.map((l) => (
+                        <li key={l.listing_id} className="flex items-center gap-3 px-3 py-2.5">
+                          <div className="size-12 shrink-0 overflow-hidden rounded-md border border-line">
+                            <ProductImage src={l.image?.url} alt={l.title} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-body">{l.title}</p>
+                            <p className="text-body-sm text-secondary">{tf("quantity", { count: l.quantity })}</p>
+                          </div>
+                          <span className="text-body font-medium">{formatMoney(l.line_total)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-h4 font-semibold">{t("checkout.paymentTitle")}</h2>
+                <button type="button" className="text-body-sm text-link" onClick={backToDetails}>
+                  {tf("change")}
+                </button>
+              </div>
+              <p className="mt-2 text-body text-secondary">{methodName}</p>
+            </Card>
+          </div>
+        ) : (
         <div className="flex flex-col gap-4">
           <Card>
             <h2 className="mb-3 flex items-center gap-2 text-h4 font-semibold">
@@ -335,6 +431,7 @@ export function CheckoutView() {
             </Alert>
           </Card>
         </div>
+        )}
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-32">
           <Card>
@@ -347,6 +444,7 @@ export function CheckoutView() {
               ))}
             </div>
             <CouponBox cart={cart} />
+            <CartWarnings cart={cart} className="mt-3" />
             <div className="my-4 border-t border-line" />
             <Totals cart={cart} />
             {missingMeasurements > 0 ? (
@@ -358,9 +456,15 @@ export function CheckoutView() {
               </Alert>
             ) : null}
             {error ? <Alert tone="danger" className="mt-4">{error}</Alert> : null}
-            <Button size="lg" className="mt-4 w-full" onClick={place} disabled={placing || shipping.isPending || missingMeasurements > 0}>
-              {placing ? t("checkout.placing") : t("checkout.placeOrder", { total: formatMoney(cart.totals.total) })}
-            </Button>
+            {reviewing ? (
+              <Button size="lg" className="mt-4 w-full" onClick={place} disabled={placing || shipping.isPending || missingMeasurements > 0}>
+                {placing ? t("checkout.placing") : t("checkout.placeOrder", { total: formatMoney(cart.totals.total) })}
+              </Button>
+            ) : (
+              <Button size="lg" className="mt-4 w-full" onClick={toReview} disabled={shipping.isPending || missingMeasurements > 0}>
+                {tf("continueToReview")}
+              </Button>
+            )}
             <p className="mt-3 text-caption text-muted">{t("checkout.terms", { country: market.country.name[market.locale] })}</p>
           </Card>
         </aside>
@@ -381,4 +485,9 @@ export function CheckoutView() {
       ) : null}
     </div>
   );
+}
+
+/** A fresh client Idempotency-Key (QC-044). */
+function newIdempotencyKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? `order-${crypto.randomUUID()}` : `order-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }

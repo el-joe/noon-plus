@@ -1,6 +1,10 @@
 import 'dart:convert';
 
+import 'package:nawy_core/device.dart' show FilePart, encodeMultipart;
+
 import '../json.dart';
+
+export 'package:nawy_core/device.dart' show FilePart;
 
 /// One HTTP exchange, independent of the platform HTTP stack so the client can
 /// be tested with a fake transport (see `transport_io.dart` for dart:io).
@@ -29,7 +33,7 @@ abstract class HttpTransport {
 
 /// `{error: {code, message, fields}}` (or a transport failure, status 0).
 class ApiException implements Exception {
-  ApiException(this.status, this.code, this.message, {this.fields = const {}, this.details = const {}});
+  ApiException(this.status, this.code, this.message, {this.fields = const {}, this.details = const {}, this.retryAfter, this.language});
 
   final int status;
   final String code;
@@ -37,9 +41,28 @@ class ApiException implements Exception {
   final Map<String, List<String>> fields;
   final Json details;
 
+  /// From the `Retry-After` header of a 429 (null when absent).
+  final Duration? retryAfter;
+
+  /// `Content-Language` of the error body (`ar` / `en`): [message] is
+  /// already translated by the API into this language.
+  final String? language;
+
   bool get isUnauthenticated => status == 401;
   bool get isNotFound => status == 404;
   bool get isNetwork => status == 0;
+  bool get isRateLimited => status == 429;
+
+  /// 403 refusals that mean this token can no longer use the app: a token of
+  /// another app (`wrong_token`, `no_workspace`), a suspended account, or an
+  /// old phone-only account that left before adding its email
+  /// (`email_required`: it signs in by phone again and adds the email).
+  bool get isAuthRejected => status == 403 && authRejectedCodes.contains(code);
+
+  /// 403 `forbidden`: the signed-in staff role may not do this (QC-020).
+  bool get isForbiddenRole => status == 403 && code == 'forbidden';
+
+  static const authRejectedCodes = {'wrong_token', 'no_workspace', 'account_suspended', 'email_required'};
 
   /// First message per field for inline form errors.
   Map<String, String> get fieldErrors => {
@@ -60,10 +83,41 @@ class ApiResponse<T> {
   final int status;
   final Map<String, String> headers;
 
+  /// `Content-Language` of the answer (`ar` / `en`), when sent.
+  String? get language => contentLanguageOf(headers);
+
   int get page => meta.i('page') ?? meta.i('current_page') ?? 1;
   int get lastPage => meta.i('last_page') ?? 1;
   int? get total => meta.i('total');
   bool get hasMore => page < lastPage;
+}
+
+/// `Retry-After` as seconds or an HTTP date (RFC 9110 §10.2.3).
+Duration? parseRetryAfter(String? raw, {DateTime? now}) {
+  if (raw == null || raw.trim().isEmpty) return null;
+  final seconds = int.tryParse(raw.trim());
+  if (seconds != null) return Duration(seconds: seconds < 0 ? 0 : seconds);
+  final date = _parseHttpDate(raw.trim());
+  if (date == null) return null;
+  final diff = date.difference(now ?? DateTime.now().toUtc());
+  return diff.isNegative ? Duration.zero : diff;
+}
+
+DateTime? _parseHttpDate(String raw) {
+  // IMF-fixdate: `Wed, 21 Oct 2026 07:28:00 GMT`.
+  final m = RegExp(r'^\w{3}, (\d{2}) (\w{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$').firstMatch(raw);
+  if (m == null) return null;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final month = months.indexOf(m.group(2)!) + 1;
+  if (month == 0) return null;
+  return DateTime.utc(int.parse(m.group(3)!), month, int.parse(m.group(1)!), int.parse(m.group(4)!), int.parse(m.group(5)!), int.parse(m.group(6)!));
+}
+
+/// The primary language of a `Content-Language` header (`ar-OM` → `ar`).
+String? contentLanguageOf(Map<String, String> headers) {
+  final raw = headers['content-language'];
+  if (raw == null || raw.trim().isEmpty) return null;
+  return raw.split(',').first.trim().split('-').first.toLowerCase();
 }
 
 /// Parse a response body into the envelope; throws [ApiException] on an
@@ -79,6 +133,8 @@ ApiResponse<dynamic> parseEnvelope(int status, String body, {Map<String, String>
   }
 
   if (status < 200 || status >= 300) {
+    final retryAfter = status == 429 ? parseRetryAfter(headers['retry-after']) : null;
+    final language = contentLanguageOf(headers);
     final error = decoded is Map ? decoded['error'] : null;
     if (error is Map) {
       final map = error.cast<String, dynamic>();
@@ -94,7 +150,8 @@ ApiResponse<dynamic> parseEnvelope(int status, String body, {Map<String, String>
         });
       }
       final details = Map<String, dynamic>.from(map)..removeWhere((k, _) => k == 'code' || k == 'message' || k == 'fields');
-      throw ApiException(status, map.str('code', 'http_error'), map.str('message', 'Something went wrong.'), fields: fields, details: details);
+      throw ApiException(status, map.str('code', status == 429 ? 'too_many_requests' : 'http_error'), map.str('message', 'Something went wrong.'),
+          fields: fields, details: details, retryAfter: retryAfter, language: language);
     }
     // Laravel's own bodies ({message, errors}) or empty bodies.
     final raw = decoded is Map ? decoded.cast<String, dynamic>() : <String, dynamic>{};
@@ -111,7 +168,7 @@ ApiResponse<dynamic> parseEnvelope(int status, String body, {Map<String, String>
     if (errors is Map) {
       errors.forEach((k, v) => fields[k.toString()] = v is List ? v.map((e) => e.toString()).toList() : [v.toString()]);
     }
-    throw ApiException(status, code, raw.str('message', 'Something went wrong.'), fields: fields);
+    throw ApiException(status, code, raw.str('message', 'Something went wrong.'), fields: fields, retryAfter: retryAfter, language: language);
   }
 
   if (status == 204 || decoded == null) {
@@ -122,6 +179,18 @@ ApiResponse<dynamic> parseEnvelope(int status, String body, {Map<String, String>
   }
   final meta = decoded['meta'];
   return ApiResponse<dynamic>(decoded['data'], meta is Map ? meta.cast<String, dynamic>() : <String, dynamic>{}, status: status, headers: headers);
+}
+
+/// A successful body that is not wrapped in the envelope (GeoJSON): the
+/// decoded JSON as `data`; [ApiException] `invalid_response` when it is not
+/// JSON.
+ApiResponse<dynamic> parseRaw(int status, String body, {Map<String, String> headers = const {}}) {
+  if (body.trim().isEmpty) return ApiResponse<dynamic>(null, const {}, status: status, headers: headers);
+  try {
+    return ApiResponse<dynamic>(jsonDecode(body), const {}, status: status, headers: headers);
+  } on FormatException {
+    throw ApiException(status, 'invalid_response', 'The server returned an unexpected response.');
+  }
 }
 
 /// Encode query parameters, dropping nulls and empty strings.
@@ -140,16 +209,39 @@ String buildQuery(Map<String, dynamic>? query) {
 /// Typed client for `/api/v1/{market}/…` with Sanctum bearer tokens and the
 /// guest cart token (`X-Cart-Token`).
 class ApiClient {
-  ApiClient({required this.baseUrl, required this.transport, this.onUnauthenticated});
+  ApiClient({required this.baseUrl, required this.transport, this.onUnauthenticated, this.onAuthFailure, DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
 
   final String baseUrl;
   final HttpTransport transport;
+  final DateTime Function() _clock;
 
   /// Called when a signed-in request returns 401 (token revoked/expired).
   final void Function()? onUnauthenticated;
 
+  /// Called with the error when a signed-in request returns 401 (the 90-day
+  /// token expired or was revoked) or 403 `account_suspended` /
+  /// `wrong_token`. [AppState] sets it to sign out with a message.
+  void Function(ApiException error)? onAuthFailure;
+
   String? market;
   String? token;
+
+  /// UI language sent as `Accept-Language` (routes outside a market follow it).
+  String? locale;
+
+  /// `Content-Language` of the last answer (the language API texts are in).
+  String? contentLanguage;
+
+  /// 429 `Retry-After`: no new call to the same path before this time.
+  final Map<String, DateTime> _retryAt = {};
+
+  /// Time left before [path] may be called again after a 429 (zero = now).
+  Duration retryWait(String method, String path) {
+    final until = _retryAt['$method $path'];
+    if (until == null) return Duration.zero;
+    final left = until.difference(_clock());
+    return left.isNegative ? Duration.zero : left;
+  }
   String? cartToken;
   void Function(String token)? onCartToken;
 
@@ -167,12 +259,43 @@ class ApiClient {
     Object? body,
     Map<String, String>? headers,
     bool global = false,
+  }) =>
+      _send(method, path,
+          query: query,
+          body: body == null ? null : utf8.encode(jsonEncode(body)),
+          contentType: body == null ? null : 'application/json',
+          headers: headers,
+          global: global);
+
+  /// POST `multipart/form-data` (review / return photos, ticket attachments,
+  /// ad photos, avatar). Nested values use bracket names in [fields]
+  /// (`items[0][order_item_id]`); repeated files share a `photos[]` field.
+  Future<ApiResponse<dynamic>> multipart(String path, {Map<String, String> fields = const {}, List<FilePart> files = const []}) {
+    final encoded = encodeMultipart(fields, files);
+    return _send('POST', path, body: encoded.body, contentType: encoded.contentType);
+  }
+
+  Future<ApiResponse<dynamic>> _send(
+    String method,
+    String path, {
+    Map<String, dynamic>? query,
+    List<int>? body,
+    String? contentType,
+    Map<String, String>? headers,
+    bool global = false,
+    bool raw = false,
   }) async {
+    final wait = retryWait(method, path);
+    if (wait > Duration.zero) {
+      // Honour the server's Retry-After without calling it again.
+      throw ApiException(429, 'too_many_requests', 'Too many attempts. Please wait and try again.', retryAfter: wait, language: contentLanguage);
+    }
     final allHeaders = <String, String>{
       'Accept': 'application/json',
-      if (body != null) 'Content-Type': 'application/json',
+      'Content-Type': ?contentType,
       if (token != null) 'Authorization': 'Bearer $token',
       'X-Cart-Token': ?cartToken,
+      'Accept-Language': ?locale,
       ...?headers,
     };
     HttpResponseData response;
@@ -181,7 +304,7 @@ class ApiClient {
         method: method,
         uri: uri(path, query: query, global: global),
         headers: allHeaders,
-        body: body == null ? null : utf8.encode(jsonEncode(body)),
+        body: body,
       ));
     } on ApiException {
       rethrow;
@@ -193,10 +316,18 @@ class ApiClient {
       cartToken = newCartToken;
       onCartToken?.call(newCartToken);
     }
+    contentLanguage = contentLanguageOf(response.headers) ?? contentLanguage;
     try {
+      if (raw && response.status >= 200 && response.status < 300) return parseRaw(response.status, response.body, headers: response.headers);
       return parseEnvelope(response.status, response.body, headers: response.headers);
     } on ApiException catch (e) {
-      if (e.isUnauthenticated && token != null) onUnauthenticated?.call();
+      if (e.isRateLimited) {
+        _retryAt['$method $path'] = _clock().add(e.retryAfter ?? const Duration(seconds: 60));
+      }
+      if (token != null && (e.isUnauthenticated || e.isAuthRejected)) {
+        if (e.isUnauthenticated) onUnauthenticated?.call();
+        onAuthFailure?.call(e);
+      }
       rethrow;
     }
   }
@@ -207,6 +338,10 @@ class ApiClient {
   Future<ApiResponse<dynamic>> put(String path, {Object? body}) => request('PUT', path, body: body ?? const <String, dynamic>{});
   Future<ApiResponse<dynamic>> patch(String path, {Object? body}) => request('PATCH', path, body: body ?? const <String, dynamic>{});
   Future<ApiResponse<dynamic>> delete(String path, {Object? body}) => request('DELETE', path, body: body);
+
+  /// GET an endpoint that answers without the `{data, meta}` envelope
+  /// (`classifieds/map` is plain GeoJSON). Errors still use the envelope.
+  Future<ApiResponse<dynamic>> getRaw(String path, {Map<String, dynamic>? query}) => _send('GET', path, query: query, raw: true);
 
   /// `data` as an object (empty map when it is not one).
   Future<Json> getObject(String path, {Map<String, dynamic>? query, Map<String, String>? headers}) async => asJson((await get(path, query: query, headers: headers)).data);

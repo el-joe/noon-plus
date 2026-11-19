@@ -28,8 +28,14 @@
         <env name="DB_URL" value=""/>
         <env name="NAWY_COUNTRY_DB_DRIVER" value="mysql"/>
         <env name="NAWY_COUNTRY_DB_PREFIX" value="nawy_test_"/>
+        <env name="DB_LEGACY_DATABASE" value="nawy_test_legacy"/>
+        <env name="DB_REPORTING_DATABASE" value="nawy_test_reporting"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="NAWY_PAYMENTS_DRIVER" value="fake"/>
+        <env name="NAWY_FAKE_WEBHOOK_SECRET" value="fake-webhook-secret-for-tests"/>
+        <env name="NAWY_SMS_DRIVER" value="array"/>
+        <env name="NAWY_PUSH_DRIVER" value="array"/>
+        <env name="NAWY_SOCIAL_AUTH_DRIVER" value="fake"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

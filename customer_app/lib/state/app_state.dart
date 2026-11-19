@@ -5,14 +5,20 @@ import 'package:flutter/widgets.dart';
 
 import '../core/api/api_client.dart';
 import '../core/json.dart';
+import '../core/platform/platform_bridge.dart';
 import '../core/storage/secure_store.dart';
+import '../features/auth/social_sign_in.dart';
 import 'cart_store.dart';
+import 'push_tokens.dart';
+import 'recently_viewed.dart';
 
 /// App-wide state (ChangeNotifier, provided by [AppScope]): market (country +
 /// language), session, app contexts (ADR 16), badges.
 class AppState extends ChangeNotifier {
   AppState({required this.api, required this.store}) {
+    api.onAuthFailure ??= handleAuthFailure;
     cart = CartStore(api: api, onChanged: notifyListeners);
+    push = PushTokens(api: api, store: store);
     api.onCartToken = (token) {
       final country = countryCode;
       if (country != null) unawaited(store.write('${StoreKeys.cartToken}:$country', token));
@@ -22,6 +28,7 @@ class AppState extends ChangeNotifier {
   final ApiClient api;
   final SecureStore store;
   late final CartStore cart;
+  late final PushTokens push;
 
   bool ready = false;
   List<Json> countries = const [];
@@ -34,11 +41,25 @@ class AppState extends ChangeNotifier {
   /// Ask the shell to switch to a tab target (`home`, `cart`, …).
   final ValueNotifier<String?> tabRequest = ValueNotifier<String?>(null);
 
+  /// A message for the app to show once (snack bar), e.g. after the API
+  /// signed the customer out. See [AppNotice].
+  final ValueNotifier<AppNotice?> notice = ValueNotifier<AppNotice?>(null);
+
+  /// Email of the account signed out by the API, to prefill sign-in.
+  String? lastEmail;
+
+  /// `meta.merge_warnings` of the last `POST cart/merge` (lines of the guest
+  /// cart that were clipped or skipped when signing in). Shown in the cart.
+  List<Json> mergeWarnings = const [];
+
   String? get token => api.token;
   bool get signedIn => api.token != null;
   bool get hasMarket => market != null;
   String get locale => (market ?? 'uae-en').endsWith('-ar') ? 'ar' : 'en';
   String? get countrySlug => market?.split('-').first;
+
+  /// The country's name in the app language (G-A8 `names.{en,ar}`).
+  String countryName(Json? c) => c?.m('names')?.s(locale) ?? c?.s('name') ?? '';
 
   Json? get country {
     final slug = countrySlug;
@@ -85,11 +106,26 @@ class AppState extends ChangeNotifier {
     if (savedMarket != null && RegExp(r'^[a-z]{3}-(en|ar)$').hasMatch(savedMarket)) {
       market = savedMarket;
       api.market = savedMarket;
+      api.locale = locale;
       api.cartToken = saved['${StoreKeys.cartToken}:$countrySlug'];
     }
     ready = true;
     notifyListeners();
     if (market != null) unawaited(refreshMarketData());
+    // Cold start from `nawy://auth/social/complete?…` (sign-in in the browser).
+    final link = await PlatformBridge.initialLink();
+    if (link != null) unawaited(handleLink(link));
+  }
+
+  /// `nawy://` app links: the Google / Apple web sign-in coming back with a
+  /// one-time ticket ([SocialSignIn.complete]). Failures become a notice.
+  Future<void> handleLink(Uri uri) async {
+    if (!SocialSignIn.isCompletionLink(uri)) return;
+    try {
+      await SocialSignIn(this).complete(uri);
+    } on ApiException catch (e) {
+      notice.value = AppNotice(SocialSignIn.errorKey(e.code), message: e.code.startsWith('social_') || e.isNetwork ? null : e.message);
+    }
   }
 
   Future<List<Json>> loadCountries() async {
@@ -102,8 +138,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> setMarket(String slug) async {
     final countryChanged = slug.split('-').first != countrySlug;
+    final previousLocale = market == null ? null : locale;
     market = slug;
     api.market = slug;
+    api.locale = locale;
+    if (previousLocale != null && previousLocale != locale) unawaited(syncLocale());
     await store.write(StoreKeys.market, slug);
     if (countryChanged) {
       api.cartToken = await store.read('${StoreKeys.cartToken}:${slug.split('-').first}');
@@ -123,6 +162,19 @@ class AppState extends ChangeNotifier {
       refreshUnread().catchError((_) {}),
       loadCountries().then((_) {}).catchError((_) {}),
     ]);
+  }
+
+  /// `PATCH me {locale}`: emails and in-app notifications follow the
+  /// customer's language (QC-028). Best effort.
+  Future<void> syncLocale() async {
+    if (!signedIn) return;
+    try {
+      final res = await api.patch('me', body: {'locale': locale});
+      final data = asJson(res.data);
+      if (data.isNotEmpty) updateUser(data);
+    } on ApiException {
+      // Offline or refused: the next sign-in sends it again.
+    }
   }
 
   Future<void> loadContexts() async {
@@ -160,19 +212,61 @@ class AppState extends ChangeNotifier {
     user = signedInUser;
     await store.write(StoreKeys.token, token);
     await store.write(StoreKeys.user, jsonEncode(signedInUser));
+    notice.value = null;
     notifyListeners();
+    // An old phone-only account adds its email first (the API answers `email_required` until then).
+    if (signedInUser['requires_email'] == true) return;
+    await _afterSignIn(signedInUser);
+  }
+
+  /// The old phone-only account confirmed its email (`me/email/verify`): finish the sign-in.
+  Future<void> completeEmail(Json account) async {
+    updateUser(account);
+    await _afterSignIn(account);
+  }
+
+  Future<void> _afterSignIn(Json signedInUser) async {
     if (api.cartToken != null) {
       try {
-        await api.post('cart/merge');
+        final res = await api.post('cart/merge');
+        mergeWarnings = asJsonList(res.meta['merge_warnings']);
+        if (mergeWarnings.isNotEmpty) notice.value = AppNotice('cart.mergeChanged', params: {'count': mergeWarnings.length}, target: 'cart');
       } catch (_) {}
       api.cartToken = null;
       await store.delete('${StoreKeys.cartToken}:$countryCode');
     }
+    // The account keeps the language chosen in the app.
+    if (signedInUser.s('locale') != locale) unawaited(syncLocale());
+    // G-A2: link this device to the account; QC-043: merge recently viewed.
+    unawaited(push.register());
+    unawaited(syncRecentlyViewed(this).catchError((_) {}));
     await Future.wait([cart.refresh().then((_) {}).catchError((_) {}), refreshUnread().catchError((_) {})]);
+  }
+
+  void clearMergeWarnings() {
+    mergeWarnings = const [];
+    notifyListeners();
+  }
+
+  /// The API refused the token: 401 (the 90-day token expired or was
+  /// revoked), 403 `account_suspended` or `wrong_token`. Sign out locally and
+  /// ask the customer to sign in again.
+  Future<void> handleAuthFailure(ApiException error) async {
+    if (!signedIn) return;
+    lastEmail = user?.s('email') ?? lastEmail;
+    final key = switch (error.code) {
+      'account_suspended' => 'auth.suspended',
+      'wrong_token' || 'no_workspace' => 'auth.wrongToken',
+      'email_required' => 'auth.emailRequired',
+      _ => 'auth.expired',
+    };
+    await signOut(revoke: false);
+    notice.value = AppNotice(key, target: error.code == 'account_suspended' ? null : 'signIn');
   }
 
   Future<void> signOut({bool revoke = true}) async {
     if (revoke && api.token != null) {
+      await push.unregister();
       try {
         await api.post('auth/logout');
       } catch (_) {}
@@ -212,6 +306,19 @@ class AppState extends ChangeNotifier {
     list.insert(0, entry);
     await writeList(key, list.take(max).toList());
   }
+}
+
+/// A one-off message for the app shell: an l10n [key] with [params], and an
+/// optional action [target] (`signIn` opens sign-in, `cart` the cart).
+class AppNotice {
+  const AppNotice(this.key, {this.params = const {}, this.target, this.message});
+
+  final String key;
+  final Map<String, Object?> params;
+  final String? target;
+
+  /// Text from the API (already translated), shown instead of [key].
+  final String? message;
 }
 
 class AppScope extends InheritedNotifier<AppState> {

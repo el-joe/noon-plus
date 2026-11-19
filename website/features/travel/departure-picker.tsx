@@ -5,12 +5,17 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
-import type { TravelDeparture } from "@/lib/api/travel";
+import { CHILD_ROOM, type TravelDeparture } from "@/lib/api/travel";
 import { formatDay, formatMoney } from "@/lib/format";
 import { useHref, useMarket } from "@/lib/market-context";
-import { roomTypeLabel, timesMoney } from "./shared";
+import { addMoney, roomTypeLabel, timesMoney } from "./shared";
 
-/** Trip detail booking box (Figma 69:6093): departure, room, travellers, estimate → request form. */
+/** Adult room choices of a departure (the `child` line prices children, QC-060). */
+export function adultRooms(departure: TravelDeparture | null | undefined) {
+  return (departure?.rooms ?? []).filter((r) => r.type !== CHILD_ROOM);
+}
+
+/** Trip detail booking box (Figma 69:6093): departure, room, adults / children, estimate → request form. */
 export function DeparturePicker({ slug, departures }: { slug: string; departures: TravelDeparture[] }) {
   const t = useTranslations();
   const market = useMarket();
@@ -18,21 +23,28 @@ export function DeparturePicker({ slug, departures }: { slug: string; departures
   const open = departures.filter((d) => d.status !== "sold_out" && d.seats_left > 0);
   const [departureId, setDepartureId] = useState<number | null>(open[0]?.id ?? null);
   const departure = departures.find((d) => d.id === departureId) ?? null;
-  const [room, setRoom] = useState<string>(departure?.rooms[0]?.type ?? "");
+  const rooms = adultRooms(departure);
+  const [room, setRoom] = useState<string>(rooms[0]?.type ?? "");
   const [travellers, setTravellers] = useState(1);
+  const [kids, setKids] = useState(0);
 
-  const roomPrice = departure?.rooms.find((r) => r.type === room) ?? departure?.rooms[0] ?? null;
+  const roomPrice = rooms.find((r) => r.type === room) ?? rooms[0] ?? null;
+  const childPrice = departure?.child_price_per_person ?? null;
   const minPrice = useMemo(() => {
-    const prices = departures.flatMap((d) => d.rooms.map((r) => r.price_per_person));
+    const prices = departures.flatMap((d) => adultRooms(d).map((r) => r.price_per_person));
     return prices.reduce<(typeof prices)[number] | null>((low, p) => (!low || Number(p.amount) < Number(low.amount) ? p : low), null);
   }, [departures]);
   const maxTravellers = Math.min(20, departure?.seats_left ?? 1);
   const count = Math.min(travellers, maxTravellers);
-  const total = roomPrice ? timesMoney(roomPrice.price_per_person, count) : null;
+  const maxKids = childPrice ? Math.min(19, Math.max(0, maxTravellers - count)) : 0;
+  const children = Math.min(kids, maxKids);
+  const adultTotal = roomPrice ? timesMoney(roomPrice.price_per_person, count) : null;
+  const total = adultTotal && childPrice && children > 0 ? addMoney(adultTotal, timesMoney(childPrice, children)) : adultTotal;
 
   const pick = (d: TravelDeparture) => {
     setDepartureId(d.id);
-    if (!d.rooms.some((r) => r.type === room)) setRoom(d.rooms[0]?.type ?? "");
+    const next = adultRooms(d);
+    if (!next.some((r) => r.type === room)) setRoom(next[0]?.type ?? "");
   };
 
   return (
@@ -76,10 +88,10 @@ export function DeparturePicker({ slug, departures }: { slug: string; departures
               );
             })}
           </div>
-          {departure && departure.rooms.length > 0 ? (
+          {departure && rooms.length > 0 ? (
             <Field label={t("travel.detail.room")}>
               <Select value={roomPrice?.type ?? ""} onChange={(e) => setRoom(e.target.value)}>
-                {departure.rooms.map((r) => (
+                {rooms.map((r) => (
                   <option key={r.type} value={r.type}>
                     {t("travel.detail.roomOption", { type: roomTypeLabel(t, r.type), price: formatMoney(r.price_per_person) })}
                   </option>
@@ -88,26 +100,37 @@ export function DeparturePicker({ slug, departures }: { slug: string; departures
             </Field>
           ) : null}
           {departure ? (
-            <Field label={t("travel.detail.travellers")}>
-              <Select value={count} onChange={(e) => setTravellers(Number(e.target.value))}>
-                {Array.from({ length: maxTravellers }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("travel.detail.adults")}>
+                <Select value={count} onChange={(e) => setTravellers(Number(e.target.value))}>
+                  {Array.from({ length: maxTravellers }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("travel.detail.children")} hint={childPrice ? t("travel.detail.childPrice", { price: formatMoney(childPrice) }) : t("travel.detail.noChildPrice")}>
+                <Select value={children} disabled={!childPrice} onChange={(e) => setKids(Number(e.target.value))}>
+                  {Array.from({ length: maxKids + 1 }, (_, i) => i).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
           ) : null}
           {total ? (
             <p className="flex items-center justify-between border-t border-line pt-3 text-body-sm">
-              <span>{t("travel.detail.totalFor", { count })}</span>
+              <span>{t("travel.detail.totalFor", { count: count + children })}</span>
               <span className="text-body font-bold" dir="ltr">
                 {formatMoney(total)}
               </span>
             </p>
           ) : null}
           {departure ? (
-            <ButtonLink href={`${href(`/travel/${encodeURIComponent(slug)}/book`)}?departure=${departure.id}&room=${encodeURIComponent(roomPrice?.type ?? "")}&travellers=${count}`} size="lg" className="w-full">
+            <ButtonLink href={`${href(`/travel/${encodeURIComponent(slug)}/book`)}?departure=${departure.id}&room=${encodeURIComponent(roomPrice?.type ?? "")}&travellers=${count}${children > 0 ? `&children=${children}` : ""}`} size="lg" className="w-full">
               {t("travel.detail.requestToBook")}
             </ButtonLink>
           ) : null}

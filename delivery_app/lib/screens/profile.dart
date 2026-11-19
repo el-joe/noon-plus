@@ -6,13 +6,13 @@ import '../data/location.dart';
 import 'availability.dart';
 import 'documents.dart';
 import 'notifications.dart';
+import 'payslips.dart';
+import 'wallet.dart';
 
 /// Figma "16 Profile & GPS": name, company, phone and vehicle (editable),
 /// GPS sharing state, documents, notifications, availability and settings.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.location = const NoLocationSource()});
-
-  final LocationSource location;
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -39,14 +39,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(),
             _VehicleForm(me: me, onSaved: reload),
             const Divider(),
-            ListTile(
-              key: const Key('gps'),
-              leading: Icon(widget.location.available ? Icons.gps_fixed : Icons.gps_off, color: widget.location.available ? NawyColors.textSuccess : NawyColors.textMuted),
-              title: Text(context.t('profile.gps')),
-              subtitle: Text(context.t(widget.location.available ? 'profile.gpsOn' : 'profile.gpsOff')),
-            ),
+            const _GpsTile(),
             ListTile(leading: const Icon(Icons.toggle_on_outlined), title: Text(context.t('availability.title')), trailing: const Icon(Icons.chevron_right), onTap: () => _push(const AvailabilityScreen())),
             ListTile(key: const Key('open-documents'), leading: const Icon(Icons.description_outlined), title: Text(context.t('documents.title')), trailing: const Icon(Icons.chevron_right), onTap: () => _push(const DocumentsScreen())),
+            ListTile(key: const Key('profile-wallet'), leading: const Icon(Icons.account_balance_wallet_outlined), title: Text(context.t('wallet.title')), trailing: const Icon(Icons.chevron_right), onTap: () => _push(const WalletScreen())),
+            ListTile(key: const Key('profile-payslips'), leading: const Icon(Icons.receipt_long_outlined), title: Text(context.t('payslips.title')), trailing: const Icon(Icons.chevron_right), onTap: () => _push(const PayslipsScreen())),
             ListTile(leading: const Icon(Icons.notifications_none), title: Text(context.t('notifications.title')), trailing: const Icon(Icons.chevron_right), onTap: () => _push(const NotificationsScreen())),
             ListTile(
               key: const Key('open-settings'),
@@ -113,4 +110,37 @@ class _VehicleFormState extends State<_VehicleForm> {
           ),
         ]),
       );
+}
+
+/// Figma "16 Profile & GPS": whether the location is being shared.
+class _GpsTile extends StatelessWidget {
+  const _GpsTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final tracker = DutyScope.maybeOf(context);
+    final state = tracker?.state ?? DutyGps.unsupported;
+    final sentAt = tracker?.lastSentAt;
+    final on = context.t(tracker?.tracking == true ? 'profile.gpsTrip' : 'profile.gpsOn');
+    final subtitle = switch (state) {
+      DutyGps.sharing || DutyGps.needsBackground => sentAt == null ? on : '$on\n${context.t('profile.gpsSent', {'time': TimeOfDay.fromDateTime(sentAt).format(context)})}',
+      DutyGps.offDuty => context.t('profile.gpsOff'),
+      DutyGps.needsPermission => context.t('profile.gpsNeedsPermission'),
+      DutyGps.blocked => context.t('profile.gpsBlocked'),
+      DutyGps.unsupported => context.t('profile.gpsUnsupported'),
+    };
+    final sharing = state == DutyGps.sharing || state == DutyGps.needsBackground;
+    return ListTile(
+      key: const Key('gps'),
+      leading: Icon(sharing ? Icons.gps_fixed : Icons.gps_off, color: sharing ? NawyColors.textSuccess : NawyColors.textMuted),
+      title: Text(context.t('profile.gps')),
+      subtitle: Text(subtitle),
+      trailing: switch (state) {
+        DutyGps.needsPermission => TextButton(onPressed: tracker!.requestAccess, child: Text(context.t('gps.allow'))),
+        DutyGps.blocked => TextButton(onPressed: tracker!.openSettings, child: Text(context.t('gps.openSettings'))),
+        DutyGps.needsBackground => TextButton(onPressed: tracker!.requestBackground, child: Text(context.t('gps.allowAlways'))),
+        _ => null,
+      },
+    );
+  }
 }

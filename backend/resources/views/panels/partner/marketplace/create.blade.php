@@ -38,10 +38,11 @@
                     <x-ui.input :label="__('City')" name="city" :value="old('city')" />
                     <x-ui.input :label="__('Area')" name="area" :value="old('area')" />
                     <div class="grid grid-cols-2 gap-2">
-                        <x-ui.input :label="__('Latitude')" name="latitude" type="number" />
-                        <x-ui.input :label="__('Longitude')" name="longitude" type="number" />
+                        {{-- Coordinates are decimals: without step="any" the browser refuses e.g. 25.14 (browser test SOQ-22). --}}
+                        <x-ui.input :label="__('Latitude')" name="latitude" type="number" step="any" min="-90" max="90" />
+                        <x-ui.input :label="__('Longitude')" name="longitude" type="number" step="any" min="-180" max="180" />
                     </div>
-                    <x-ui.input :label="__('Price')" name="price" type="number" :value="old('price')" />
+                    <x-ui.input :label="__('Price')" name="price" type="number" step="any" min="0" :value="old('price')" />
                     <label class="text-sm"><input type="checkbox" name="is_negotiable" value="1"> {{ __('Negotiable') }}</label>
                     <x-ui.input :label="__('Contact phone (shown on reveal)')" name="contact_phone" :value="old('contact_phone')" />
                 </div>

@@ -19,6 +19,10 @@ Route::middleware(EnsureDeliveryAgent::class)->group(function (): void {
         ->middleware('throttle:60,1')->name('assignments.act');
     Route::get('cod', [DeliveryPanelController::class, 'cod'])->name('cod');
     Route::get('earnings', [DeliveryPanelController::class, 'earnings'])->name('earnings');
+    Route::get('payslips/{number}', [DeliveryPanelController::class, 'payslip'])->name('payslips.show');
+    Route::get('payslips/{number}/pdf', [DeliveryPanelController::class, 'payslipPdf'])->middleware('throttle:30,1')->name('payslips.pdf');
+    Route::post('withdrawals', [DeliveryPanelController::class, 'withdraw'])->middleware('throttle:10,1')->name('withdrawals.store');
+    Route::post('withdrawals/{number}/cancel', [DeliveryPanelController::class, 'cancelWithdrawal'])->middleware('throttle:10,1')->name('withdrawals.cancel');
     Route::get('profile', [DeliveryPanelController::class, 'profile'])->name('profile');
     Route::put('profile', [DeliveryPanelController::class, 'updateProfile'])->name('profile.update');
     Route::get('documents', [DeliveryPanelController::class, 'documents'])->name('documents');

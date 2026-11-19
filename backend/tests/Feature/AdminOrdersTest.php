@@ -102,15 +102,18 @@ it('force-cancels a shipped sub-order, returns the stock and adds no seller stri
         ->and(VendorStrike::query()->count())->toBe(0);
 });
 
-it('needs a reason to force-cancel and refuses cancelling a delivered sub-order', function () {
+it('needs a reason to force-cancel and refuses cancelling a completed sub-order (a delivered one can be force-cancelled, QC-034)', function () {
     $placed = subOrderFor($this->vendor);
+    $completed = subOrderFor($this->vendor, SubOrderStatus::Completed);
     $delivered = subOrderFor($this->vendor, SubOrderStatus::Delivered);
 
     $this->actingAs(adminAccount())->post(onPanel('admin', "sub-orders/{$placed->id}/cancel"))->assertSessionHasErrors('reason');
-    $this->post(onPanel('admin', "sub-orders/{$delivered->id}/cancel"), ['reason' => 'Customer complained'])->assertSessionHasErrors('action');
+    $this->post(onPanel('admin', "sub-orders/{$completed->id}/cancel"), ['reason' => 'Customer complained'])->assertSessionHasErrors('action');
+    $this->post(onPanel('admin', "sub-orders/{$delivered->id}/cancel"), ['reason' => 'Counterfeit item reported'])->assertSessionHasNoErrors();
 
     expect($placed->fresh()->status)->toBe(SubOrderStatus::Placed)
-        ->and($delivered->fresh()->status)->toBe(SubOrderStatus::Delivered);
+        ->and($completed->fresh()->status)->toBe(SubOrderStatus::Completed)
+        ->and($delivered->fresh()->status)->toBe(SubOrderStatus::Cancelled);
 });
 
 it('applies the admin role permissions to order screens', function () {

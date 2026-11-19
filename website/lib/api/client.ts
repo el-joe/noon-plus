@@ -17,6 +17,8 @@ export class ApiError extends Error {
     message: string,
     public fields: Record<string, string[]> = {},
     public details: Record<string, unknown> = {},
+    /** Seconds from the `Retry-After` header of a 429 (throttled), or null. */
+    public retryAfter: number | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -32,6 +34,27 @@ export type RequestOptions = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
 };
+
+/** Codes that mean the stored session can no longer be used (sign in again). */
+export const SESSION_ENDED_CODES = ["unauthenticated", "account_suspended", "wrong_token"] as const;
+
+export function isSessionEnded(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || (error.status === 403 && (SESSION_ENDED_CODES as readonly string[]).includes(error.code)));
+}
+
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.ceil(seconds));
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? null : Math.max(0, Math.ceil((date - Date.now()) / 1000));
+}
+
+/** Language for calls outside a market (QC-028): the page's `<html lang>`. */
+function currentLanguage(): string {
+  if (typeof document !== "undefined") return document.documentElement.lang?.startsWith("ar") ? "ar" : "en";
+  return "en";
+}
 
 export type Envelope<T> = { data: T; meta: Record<string, unknown> };
 
@@ -72,6 +95,7 @@ export async function request<S extends z.ZodType>(
     cache: "no-store",
     headers: {
       Accept: "application/json",
+      ...(market === null ? { "Accept-Language": currentLanguage() } : {}),
       ...(body !== undefined && !isForm ? { "Content-Type": "application/json" } : {}),
       ...headers,
     },
@@ -88,15 +112,16 @@ export async function request<S extends z.ZodType>(
   const json: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
+    const retryAfter = response.status === 429 ? parseRetryAfter(response.headers.get("retry-after")) : null;
     const parsed = errorEnvelope.safeParse(json);
     if (parsed.success) {
       const { code, message, fields, ...details } = parsed.data.error;
-      throw new ApiError(response.status, code, message, Array.isArray(fields) ? {} : (fields ?? {}), details);
+      throw new ApiError(response.status, code, message, Array.isArray(fields) ? {} : (fields ?? {}), details, retryAfter);
     }
     // Laravel's own responses (404 page, 401 Unauthenticated, 422 validation).
     const raw = (json ?? {}) as { message?: string; errors?: Record<string, string[]> };
-    const code = response.status === 401 ? "unauthenticated" : response.status === 404 ? "not_found" : response.status === 422 ? "validation_failed" : "http_error";
-    throw new ApiError(response.status, code, raw.message || response.statusText || code, raw.errors ?? {});
+    const code = response.status === 401 ? "unauthenticated" : response.status === 404 ? "not_found" : response.status === 422 ? "validation_failed" : response.status === 429 ? "too_many_requests" : "http_error";
+    throw new ApiError(response.status, code, raw.message || response.statusText || code, raw.errors ?? {}, {}, retryAfter);
   }
 
   const envelope = z.object({ data: schema, meta: z.record(z.string(), z.unknown()).or(z.array(z.unknown())).optional() });

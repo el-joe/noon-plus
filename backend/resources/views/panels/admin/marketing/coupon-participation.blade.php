@@ -4,7 +4,7 @@
             @csrf
             <x-ui.select :label="__('Platform coupon')" name="coupon_id" :options="$coupons->mapWithKeys(fn ($coupon) => [$coupon->id => $coupon->code])->all()" />
             <x-ui.input :label="__('Title')" name="title" required />
-            <x-ui.input :label="__('Minimum fee')" name="min_fee" type="number" required />
+            <x-ui.input :label="__('Minimum fee')" name="min_fee" type="number" step="any" min="0" required />
             <x-ui.input :label="__('Capacity')" name="capacity" type="number" required />
             <x-ui.datetime-input :label="__('Closes at')" name="closes_at" :country="$country" required />
             <label class="flex items-end gap-2 text-sm"><input type="checkbox" name="open" value="1" checked> {{ __('Open now') }}</label>

@@ -18,6 +18,7 @@ use App\Domains\Marketers\Support\MarketerProfiles;
 use App\Domains\Marketers\Support\MarketingSettings;
 use App\Domains\Marketers\Support\Withdrawals;
 use App\Http\Controllers\Controller;
+use App\Shared\Http\LikeSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -39,7 +40,7 @@ class MarketerAdminController extends Controller
         return view('panels.admin.marketers.index', [
             'marketers' => MarketerProfile::query()
                 ->when($request->query('status'), fn ($query, $status) => $query->where('global_status', $status))
-                ->when($request->query('q'), fn ($query, $q) => $query->where('display_name', 'like', '%'.$q.'%'))
+                ->when($request->query('q'), fn ($query, $q) => $query->where('display_name', 'like', LikeSearch::contains($q)))
                 ->latest('id')->paginate(25)->withQueryString(),
             'statuses' => MarketerStatus::cases(),
         ]);

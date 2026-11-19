@@ -1,0 +1,3 @@
+/* Usage descriptions (owner-review D16). Keep en.lproj and ar.lproj in sync. */
+"NSCameraUsageDescription" = "Nawy Seller uses the camera so you can attach photos to support tickets.";
+"NSPhotoLibraryUsageDescription" = "Nawy Seller opens your photos so you can attach them to support tickets.";

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A full or partial refund of a payment, unique per idempotency key so a
  * retried request never refunds twice.
  */
-#[Fillable(['payment_id', 'idempotency_key', 'amount', 'status', 'gateway_reference', 'reason', 'failure_message', 'actor_type', 'actor_user_id', 'completed_at'])]
+#[Fillable(['payment_id', 'idempotency_key', 'amount', 'charge_amount', 'status', 'gateway_reference', 'reason', 'failure_message', 'actor_type', 'actor_user_id', 'completed_at'])]
 class PaymentRefund extends Model
 {
     use UsesCountryDatabase;

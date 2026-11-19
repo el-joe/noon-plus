@@ -55,7 +55,7 @@
         </x-ui.table>
     </x-ui.card>
 
-    <x-ui.card :title="__('Seller offers')" :subtitle="__('Offers pending review are decided in the Approvals queue; an inactive product cannot have offers approved.')" flush>
+    <x-ui.card :title="__('Seller offers')" :subtitle="__('Offers pending review are decided in the Approvals queue; a product that is not active cannot have offers approved.')" flush>
         <x-ui.table :headers="[__('Seller'), __('SKU'), __('Price'), __('Status')]" :rows="$listings->isNotEmpty()" :empty="__('No offers yet.')">
             @foreach ($listings as $listing)
                 <tr class="border-t border-line" data-listing="{{ $listing->id }}">

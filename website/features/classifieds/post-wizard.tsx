@@ -2,10 +2,10 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Check, CheckCircle2, Copy, ImagePlus, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, Copy, ImagePlus, Trash2, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Alert, Card, EmptyState, Skeleton } from "@/components/ui/misc";
 import * as api from "@/lib/api/classifieds";
@@ -15,6 +15,7 @@ import { errorMessage, useSession } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { AdImage } from "./ad-card";
 import { fieldError } from "./contract-modal";
+import { checkVideo, formatLimit, photoLimits, planPhotoBatch, preparePhoto, readVideoDuration, VIDEO_TYPES, videoLimits, type PhotoLimits, type PhotoRejection, type VideoLimits } from "./photo-limits";
 
 const STEPS = ["category", "details", "location", "photos", "review"] as const;
 type Step = (typeof STEPS)[number];
@@ -148,6 +149,10 @@ export function PostAdWizard({ number: initialNumber }: { number?: string }) {
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const schema = attributes.data?.attributes ?? [];
+  // Photo limits of the chosen category (attributes response, then the tree node; defaults 20 / 8192 KB).
+  const categoryNode = categories.data && draft.categorySlug ? api.flattenCategories(categories.data).find((c) => c.slug === draft.categorySlug) : undefined;
+  const limits = photoLimits(attributes.data, categoryNode);
+  const videoRules = videoLimits(attributes.data);
   const index = STEPS.indexOf(step);
 
   const payload = (): api.AdInput => ({
@@ -296,7 +301,7 @@ export function PostAdWizard({ number: initialNumber }: { number?: string }) {
           </div>
         ) : null}
 
-        {step === "photos" && number ? <PhotosStep number={number} ad={existing.data ?? null} /> : null}
+        {step === "photos" && number ? <PhotosStep number={number} ad={existing.data ?? null} limits={limits} video={videoRules} /> : null}
 
         {step === "review" ? (
           <div className="flex flex-col gap-3">
@@ -467,31 +472,84 @@ function AttributeInput({ attribute: a, value, error, onChange }: { attribute: C
   );
 }
 
-/** Photos for the saved draft (`POST classifieds/ads/{number}/photos`, one file per call). */
-function PhotosStep({ number, ad }: { number: string; ad: AdDetail | null }) {
+/**
+ * Photos for the saved draft (`POST classifieds/ads/{number}/photos`, one file
+ * per call). The category's `max_photos` / `photo_max_kb` are enforced before
+ * upload; large photos are resized / re-encoded in the browser first.
+ */
+function PhotosStep({ number, ad, limits, video }: { number: string; ad: AdDetail | null; limits: PhotoLimits; video: VideoLimits }) {
   const t = useTranslations("classifieds.post");
   const tc = useTranslations("common");
   const market = useMarket();
   const client = useQueryClient();
-  const [uploading, setUploading] = useState(0);
+  const [progress, setProgress] = useState<{ phase: "preparing" | "uploading"; current: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const media = ad?.media ?? [];
+  const photoCount = media.filter((m) => m.type === "photo").length;
+  const full = photoCount >= limits.maxPhotos;
+  const size = formatLimit(limits.maxKb);
   const refresh = () => client.invalidateQueries({ queryKey: ["classified-own-ad", market.slug, number] });
+
+  const describe = (rejected: PhotoRejection[]): string[] => {
+    const out: string[] = [];
+    const tooMany = rejected.filter((r) => r.reason === "count").length;
+    if (tooMany > 0) out.push(t("photoLimits.tooMany", { max: limits.maxPhotos, count: tooMany }));
+    for (const r of rejected) {
+      if (r.reason === "type") out.push(t("photoLimits.notPhoto", { name: r.name }));
+      if (r.reason === "size") out.push(t("photoLimits.tooLarge", { name: r.name, size }));
+    }
+    return out;
+  };
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
     setError(null);
-    for (const file of Array.from(files)) {
-      setUploading((n) => n + 1);
+    const { accepted, rejected } = planPhotoBatch(Array.from(files), photoCount, limits);
+    const messages = describe(rejected);
+    setNotes(messages);
+    let done = 0;
+    for (const file of accepted) {
+      done++;
+      setProgress({ phase: "preparing", current: done, total: accepted.length });
+      const prepared = await preparePhoto(file, limits.maxBytes);
+      if (!prepared.ok) {
+        messages.push(prepared.reason === "size" ? t("photoLimits.tooLarge", { name: file.name, size }) : t("photoLimits.unreadable", { name: file.name }));
+        setNotes([...messages]);
+        continue;
+      }
+      setProgress({ phase: "uploading", current: done, total: accepted.length });
       try {
-        await api.uploadAdPhoto(market.slug, number, file);
+        await api.uploadAdPhoto(market.slug, number, prepared.file);
       } catch (e) {
         setError(errorMessage(e, tc("error")));
-      } finally {
-        setUploading((n) => n - 1);
       }
     }
+    setProgress(null);
     refresh();
+  };
+
+  const hasVideo = media.some((m) => m.type === "video");
+  const uploadVideo = async (file: File | undefined) => {
+    if (!file) return;
+    setVideoError(null);
+    setVideoBusy(true);
+    try {
+      const duration = (VIDEO_TYPES as readonly string[]).includes(file.type) ? await readVideoDuration(file) : null;
+      const problem = checkVideo(file, duration, video);
+      if (problem) {
+        setVideoError(t(`video.${problem}`, { seconds: video.maxSeconds, size: formatLimit(video.maxKb) }));
+        return;
+      }
+      await api.uploadAdVideo(market.slug, number, file, Math.max(1, Math.ceil(duration!)));
+      refresh();
+    } catch (e) {
+      setVideoError(errorMessage(e, tc("error")));
+    } finally {
+      setVideoBusy(false);
+    }
   };
 
   const remove = async (id: number) => {
@@ -505,23 +563,89 @@ function PhotosStep({ number, ad }: { number: string; ad: AdDetail | null }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-h4 font-semibold">{t("photosTitle")}</h2>
-      <p className="text-body-sm text-secondary">{t("photosHint")}</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-h4 font-semibold">{t("photosTitle")}</h2>
+        <span className="text-body-sm text-secondary">{t("photoLimits.count", { count: photoCount, max: limits.maxPhotos })}</span>
+      </div>
+      <p className="text-body-sm text-secondary">
+        {t("photosHint")} {t("photoLimits.hint", { max: limits.maxPhotos, size })}
+      </p>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {media.map((m) => (
           <div key={m.id} className="relative aspect-square overflow-hidden rounded-md border border-line">
-            <AdImage src={m.type === "photo" ? m.url : null} alt="" />
+            {m.type === "video" ? (
+              <div className="flex size-full flex-col items-center justify-center gap-1 bg-ink text-caption text-white">
+                <Video className="size-6" aria-hidden />
+                {t("video.label")}
+                {m.duration_seconds ? <span dir="ltr">{`${Math.floor(m.duration_seconds / 60)}:${String(m.duration_seconds % 60).padStart(2, "0")}`}</span> : null}
+              </div>
+            ) : (
+              <AdImage src={m.type === "photo" ? m.url : null} alt="" />
+            )}
             <button type="button" onClick={() => remove(m.id)} aria-label={tc("remove")} className="absolute end-1 top-1 rounded-full bg-surface/90 p-1">
               <Trash2 className="size-4" />
             </button>
           </div>
         ))}
-        <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-line-strong text-body-sm text-secondary hover:bg-subtle">
-          <ImagePlus className="size-6" />
-          {uploading > 0 ? tc("loading") : t("addPhotos")}
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => upload(e.target.files)} />
-        </label>
+        {full ? null : (
+          <label
+            className={clsx(
+              "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-line-strong p-2 text-center text-body-sm text-secondary focus-within:ring-2 focus-within:ring-brand",
+              progress ? "cursor-wait opacity-70" : "cursor-pointer hover:bg-subtle",
+            )}
+          >
+            <ImagePlus className="size-6" />
+            {progress ? t(`photoLimits.${progress.phase}`, { current: progress.current, total: progress.total }) : t("addPhotos")}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              disabled={!!progress}
+              className="sr-only"
+              onChange={(e) => {
+                const input = e.currentTarget;
+                // Clear afterwards so picking the same photo again fires onChange.
+                void upload(input.files).finally(() => {
+                  input.value = "";
+                });
+              }}
+            />
+          </label>
+        )}
       </div>
+      {full ? <Alert tone="info">{t("photoLimits.full", { max: limits.maxPhotos })}</Alert> : null}
+      {video.allowed && !hasVideo ? (
+        <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+          <h3 className="text-body font-semibold">{t("video.title")}</h3>
+          <p className="text-body-sm text-secondary">{t("video.hint", { seconds: video.maxSeconds, size: formatLimit(video.maxKb) })}</p>
+          <label className={buttonClass("outline", "sm", clsx("self-start focus-within:ring-2 focus-within:ring-brand", videoBusy ? "cursor-wait opacity-70" : "cursor-pointer"))}>
+            <Video className="size-4" aria-hidden />
+            {videoBusy ? t("video.uploading") : t("video.add")}
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              disabled={videoBusy}
+              className="sr-only"
+              onChange={(e) => {
+                const input = e.currentTarget;
+                void uploadVideo(input.files?.[0]).finally(() => {
+                  input.value = "";
+                });
+              }}
+            />
+          </label>
+          {videoError ? <Alert tone="danger">{videoError}</Alert> : null}
+        </div>
+      ) : null}
+      {notes.length > 0 ? (
+        <Alert tone="warning">
+          <ul className="flex flex-col gap-1">
+            {notes.map((note, i) => (
+              <li key={i}>{note}</li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
     </div>
   );

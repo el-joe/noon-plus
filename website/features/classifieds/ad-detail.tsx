@@ -6,10 +6,15 @@ import type { AdDetail } from "@/lib/api/classifieds";
 import { formatDay, humanize } from "@/lib/format";
 import { getT } from "@/lib/i18n";
 import type { Market } from "@/lib/markets";
+import { AdTitleActions, FinancingCard } from "./ad-actions";
 import { AdGrid, AdPrice, AdStatusChip } from "./ad-card";
 import { ContactPanel } from "./contact-panel";
 import { findCategory, loadClassifiedCategories } from "./data";
 import { AdGallery } from "./gallery";
+import { propertyFact } from "@/features/real-estate/shared";
+
+/** Verticals that show the indicative financing card (Figma 55:1477). */
+const FINANCED_VERTICALS = new Set(["motors", "property"]);
 
 /** `/classified/find/[number]` — ad detail (Figma Classified ad detail 55:1477). */
 export async function ClassifiedAdDetail({ market, ad }: { market: Market; ad: AdDetail }) {
@@ -42,7 +47,7 @@ export async function ClassifiedAdDetail({ market, ad }: { market: Market; ad: A
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label="Breadcrumb">
+      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label={t("common.breadcrumb")}>
         <Link href={`/${market.slug}`} aria-label={t("common.home")}>
           <Home className="size-3.5" />
         </Link>
@@ -72,7 +77,11 @@ export async function ClassifiedAdDetail({ market, ad }: { market: Market; ad: A
               {ad.kind === "wanted" ? <Badge tone="warning">{t("classifieds.wanted")}</Badge> : null}
               {ad.status !== "active" ? <AdStatusChip status={ad.status} /> : null}
             </div>
-            <h1 className="text-h2 font-bold">{ad.title}</h1>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h1 className="text-h2 font-bold">{ad.title}</h1>
+              {/* QC-061: Save (n) · Share · Compare */}
+              <AdTitleActions number={ad.number} title={ad.title} saves={ad.saves ?? 0} live={ad.status === "active"} />
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <AdPrice ad={ad} className="text-h3" />
               {ad.is_negotiable ? <Badge tone="success">{t("classifieds.negotiable")}</Badge> : null}
@@ -111,12 +120,15 @@ export async function ClassifiedAdDetail({ market, ad }: { market: Market; ad: A
             <section className="rounded-lg border border-line bg-surface p-5">
               <h2 className="mb-3 text-h4 font-semibold">{t("classifieds.propertyDetails")}</h2>
               <dl className="grid gap-x-8 sm:grid-cols-2">
-                {property.map(([key, value]) => (
-                  <div key={key} className="flex justify-between gap-4 border-b border-line py-2 text-body-sm">
-                    <dt className="text-secondary">{humanize(key)}</dt>
-                    <dd className="text-end font-medium">{api.specText(value)}</dd>
-                  </div>
-                ))}
+                {property.map(([key, value]) => {
+                  const [label, text] = propertyFact(t, market.locale, key, value, api.specText);
+                  return (
+                    <div key={key} className="flex justify-between gap-4 border-b border-line py-2 text-body-sm">
+                      <dt className="text-secondary">{label}</dt>
+                      <dd className="text-end font-medium">{text}</dd>
+                    </div>
+                  );
+                })}
               </dl>
             </section>
           ) : null}
@@ -150,7 +162,9 @@ export async function ClassifiedAdDetail({ market, ad }: { market: Market; ad: A
         </div>
 
         <aside className="lg:sticky lg:top-32">
-          <ContactPanel ad={ad} sellerName={sellerName} />
+          <ContactPanel ad={ad} sellerName={sellerName}>
+            {ad.price && ad.kind !== "wanted" && FINANCED_VERTICALS.has(ad.vertical ?? "") ? <FinancingCard price={ad.price} /> : null}
+          </ContactPanel>
         </aside>
       </div>
 

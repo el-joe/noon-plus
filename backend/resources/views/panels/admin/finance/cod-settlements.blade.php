@@ -2,6 +2,7 @@
     <nav class="flex gap-4 border-b border-line text-sm" aria-label="{{ __('Finance sections') }}">
         @can('payouts.view')<a href="{{ route('admin.finance.payouts') }}" class="px-2 pb-2 text-fg-secondary">{{ __('Payout lines') }}</a>@endcan
         <a href="{{ route('admin.finance.cod-settlements') }}" class="border-b-2 border-brand px-2 pb-2 font-medium">{{ __('COD settlement') }}</a>
+        @can('ledger.view')<a href="{{ route('admin.finance.ledger') }}" class="px-2 pb-2 text-fg-secondary">{{ __('Ledger') }}</a>@endcan
     </nav>
 
     <x-ui.card flush>
@@ -9,7 +10,7 @@
             @foreach ($settlements as $settlement)
                 <tr class="border-t border-line align-top" data-cod-settlement="{{ $settlement->id }}">
                     <td class="px-5 py-3 font-medium">{{ $settlement->number }}<span class="block text-xs text-fg-secondary">{{ trans_choice(':count delivery|:count deliveries', $settlement->collections_count) }}</span></td>
-                    <td class="px-5 py-3">{{ $settlement->agent_user_id ? __('Agent #:id', ['id' => $settlement->agent_user_id]) : __('Unassigned') }}</td>
+                    <td class="px-5 py-3">{{ $settlement->agent_user_id ? app(\App\Shared\Support\UserNames::class)->name($settlement->agent_user_id) : __('Unassigned') }}</td>
                     <td class="px-5 py-3 text-xs">{{ $settlement->business_date->format('j M Y') }}</td>
                     <td class="px-5 py-3"><x-ui.money :amount="$settlement->expected_amount" :currency="$settlement->currency" /></td>
                     <td class="px-5 py-3">@if ($settlement->remitted_amount !== null)<x-ui.money :amount="$settlement->remitted_amount" :currency="$settlement->currency" />@else — @endif</td>

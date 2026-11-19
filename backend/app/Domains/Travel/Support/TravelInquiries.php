@@ -45,6 +45,6 @@ class TravelInquiries
 
     public function move(TravelInquiry $inquiry, InquiryStatus $to, int $userId, ?int $bookingId = null): TravelInquiry
     {
-        return $this->machine->move($inquiry, $to, ActorType::Vendor, $userId, null, $bookingId === null ? [] : ['travel_booking_id' => $bookingId]);
+        return $this->machine->move($inquiry, $to, ActorType::Agency, $userId, null, $bookingId === null ? [] : ['travel_booking_id' => $bookingId]);
     }
 }

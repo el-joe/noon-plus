@@ -23,9 +23,18 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     }
 
     /**
-     * Register the Horizon gate.
-     *
-     * This gate determines who can access Horizon in non-local environments.
+     * QA-045: the gate applies in every environment, local included —
+     * Horizon's default lets anyone in when APP_ENV=local.
+     */
+    protected function authorization(): void
+    {
+        $this->gate();
+
+        Horizon::auth(fn ($request): bool => Gate::check('viewHorizon', [$request->user()]));
+    }
+
+    /**
+     * Register the Horizon gate: admins only.
      */
     protected function gate(): void
     {

@@ -7,11 +7,32 @@ const DROP_WITH_CONTENT = /<(script|style|iframe|object|embed|noscript|template|
 const ALLOWED = new Set(["p", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "h2", "h3", "h4", "a", "span", "div", "img", "blockquote", "table", "thead", "tbody", "tr", "td", "th", "hr", "small"]);
 const VOID = new Set(["br", "img", "hr"]);
 
+const NAMED: Record<string, string> = { amp: "&", sol: "/", bsol: "\\", colon: ":", tab: "\t", newline: "\n", period: ".", quot: '"', apos: "'", lt: "<", gt: ">" };
+
+/** Decode the character references a browser would decode inside an attribute value. */
+function decodeEntities(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);?/gi, (match, ref: string) => {
+    if (ref[0] === "#") {
+      const code = ref[1] === "x" || ref[1] === "X" ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+      return Number.isFinite(code) && code > 0 && code < 0x110000 ? String.fromCodePoint(code) : "";
+    }
+    return NAMED[ref.toLowerCase()] ?? match;
+  });
+}
+
+/**
+ * QC-072: browsers drop tabs / newlines inside URLs and treat `\` like `/`, so
+ * `/\host`, `/\t/host` or `&#47;&#92;host` are protocol-relative (off-site).
+ * Only same-site paths (`/x`, never `//` or a backslash), http(s) and, for
+ * links, mailto pass.
+ */
 function safeUrl(value: string, allowMailto: boolean): string | null {
-  const v = value.trim();
-  if (v.startsWith("/") && !v.startsWith("//")) return v;
-  if (/^https?:\/\//i.test(v)) return v;
-  if (allowMailto && /^mailto:/i.test(v)) return v;
+  // eslint-disable-next-line no-control-regex
+  const v = decodeEntities(value).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (v.includes("\\")) return null;
+  if (v.startsWith("/")) return v[1] === "/" ? null : v;
+  if (/^https?:\/\/[^/?#]/i.test(v)) return v;
+  if (allowMailto && /^mailto:[^\s]/i.test(v)) return v;
   return null;
 }
 

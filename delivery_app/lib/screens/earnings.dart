@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
+import 'payslips.dart';
+import 'wallet.dart';
 
 /// Figma "09 Earnings" + "10 Wallet": last 7 days of stops at the country's
 /// pay rates (`delivery.pay_per_stop`; not set = counts only, owner Q-P2).
-/// Payouts and an agent wallet are not built in the backend yet.
+/// The wallet (balances, withdrawals) and the payslips open from here.
 class EarningsScreen extends StatelessWidget {
   const EarningsScreen({super.key});
 
@@ -49,16 +51,38 @@ class EarningsScreen extends StatelessWidget {
                     SizedBox(width: 96, child: Text(d['earned'] == null ? '${d.i('delivered') ?? 0}' : money(context, d['earned']), textAlign: TextAlign.end, style: NawyText.bodyMedium)),
                   ]),
                 ),
-              SectionTitle(context.t('wallet.title')),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.account_balance_wallet_outlined),
-                  title: Text(context.t('wallet.pending')),
-                  subtitle: Text(context.t('wallet.notBuilt')),
-                ),
-              ),
+              SectionTitle(context.t('wallet.payouts')),
+              const PayoutLinks(),
             ]);
           },
         ),
+      );
+}
+
+/// "Wallet" and "Payslips" rows (Earnings and Profile).
+class PayoutLinks extends StatelessWidget {
+  const PayoutLinks({super.key});
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Column(children: [
+          ListTile(
+            key: const Key('open-wallet'),
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: Text(context.t('wallet.title')),
+            subtitle: Text(context.t('wallet.linkHint')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const Key('open-payslips'),
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: Text(context.t('payslips.title')),
+            subtitle: Text(context.t('payslips.linkHint')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PayslipsScreen())),
+          ),
+        ]),
       );
 }

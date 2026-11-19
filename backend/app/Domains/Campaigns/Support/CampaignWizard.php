@@ -39,7 +39,9 @@ use Illuminate\Support\Facades\DB;
  * amounts reserved, samples planned, auto-approve scheduled.
  * D (marketer request) → marketer_requested; the store approves with a
  * budget > 0 → active. E (peer promotion) → active at once. B (travel
- * agency) needs the travel module.
+ * agency) is closed by owner decision D11: travel pays no commission and
+ * no campaign fees, so no campaign of any origin runs on a travel
+ * agency's listing ({@see self::assertNotTravel()}).
  */
 class CampaignWizard
 {
@@ -62,11 +64,14 @@ class CampaignWizard
     public function create(CampaignOrigin $origin, array $data, ?Vendor $vendor, ?int $userId): MarketerCampaign
     {
         if ($origin === CampaignOrigin::TravelAgency) {
-            throw CampaignRefused::on('listing_id', __('Travel campaigns open with the travel module.'), 'not_available');
+            throw CampaignRefused::on('listing_id', __('Travel agencies do not run marketer campaigns on Nawy.'), 'travel_no_campaigns');
         }
+
+        $this->assertNotTravel(null, $vendor);
 
         $listing = Listing::query()->with('variant.product.category')->find($data['listing_id'] ?? 0)
             ?? throw CampaignRefused::on('listing_id', __('Choose one of your listings.'));
+        $this->assertNotTravel($listing);
 
         if ($origin === CampaignOrigin::Vendor && ($vendor === null || $listing->vendor_id !== $vendor->id)) {
             throw CampaignRefused::on('listing_id', __('Choose one of your listings.'));
@@ -159,6 +164,7 @@ class CampaignWizard
     public function requestByMarketer(MarketerProfile $marketer, Listing $listing, string $title, ?string $notes = null, ?int $userId = null): MarketerCampaign
     {
         $this->assertCanTakeCampaigns($marketer);
+        $this->assertNotTravel($listing);
 
         if ($listing->status !== ListingStatus::Active) {
             throw CampaignRefused::on('listing_id', __('This listing is not on sale.'));
@@ -237,6 +243,7 @@ class CampaignWizard
     public function peerPromotion(MarketerProfile $promoter, Listing $listing, ?int $userId = null): MarketerCampaign
     {
         $this->assertCanTakeCampaigns($promoter);
+        $this->assertNotTravel($listing);
 
         $owner = MarketerProfile::query()->where('vendor_id', $listing->vendor_id)->first();
 
@@ -294,6 +301,22 @@ class CampaignWizard
     /**
      * FR-MKT-1: active and current onboarding contract accepted.
      */
+    /**
+     * Owner decision D11: travel agencies pay no commission and no
+     * marketer-campaign fees, so no campaign (origin B or any other) runs
+     * for a travel agency or on its listing.
+     */
+    public function assertNotTravel(?Listing $listing, ?Vendor $vendor = null): void
+    {
+        $vendor ??= $listing === null ? null : Vendor::query()->find($listing->vendor_id);
+
+        if ($vendor === null || ! $vendor->isTravelAgency()) {
+            return;
+        }
+
+        throw CampaignRefused::on('listing_id', __('Travel agencies do not run marketer campaigns on Nawy.'), 'travel_no_campaigns');
+    }
+
     public function assertCanTakeCampaigns(MarketerProfile $marketer): void
     {
         if ($marketer->global_status !== MarketerStatus::Active) {
@@ -323,7 +346,7 @@ class CampaignWizard
             }
 
             $busy = MarketerCampaign::query()->where('listing_id', $listing->id)
-                ->whereNotIn('status', [CampaignStatus::Done, CampaignStatus::Cancelled, CampaignStatus::Rejected])
+                ->whereNotIn('status', [CampaignStatus::Done, CampaignStatus::Cancelled, CampaignStatus::Rejected, CampaignStatus::Completed])
                 ->where(fn ($query) => $query
                     ->whereJsonContains('planned_marketers', ['marketer_profile_id' => $influencer->id])
                     ->orWhereHas('invitations', fn ($inner) => $inner->where('marketer_profile_id', $influencer->id)->whereIn('status', [InvitationStatus::Pending, InvitationStatus::Accepted])))

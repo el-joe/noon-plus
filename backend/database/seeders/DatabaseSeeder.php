@@ -17,9 +17,12 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([CountrySeeder::class, CountryCalendarSeeder::class, AdminRoleSeeder::class, PaymentGatewaySeeder::class]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // WP11: the factory test login (password "password") is for local and test databases only.
+        if (app()->environment('local', 'testing')) {
+            User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
     }
 }

@@ -5,9 +5,11 @@ use App\Domains\Advertising\Enums\AdCampaignStatus;
 use App\Domains\Advertising\Enums\ParticipationInvitationStatus;
 use App\Domains\Advertising\Enums\ParticipationRequestStatus;
 use App\Domains\Advertising\Enums\SubscriptionStatus;
+use App\Domains\Advertising\Models\AdBooking;
 use App\Domains\Advertising\Models\AdCampaign;
 use App\Domains\Advertising\Models\AdEvent;
 use App\Domains\Advertising\Models\AdPackage;
+use App\Domains\Advertising\Models\AdPackageSubscription;
 use App\Domains\Advertising\Models\AdSlot;
 use App\Domains\Advertising\Support\AdBookings;
 use App\Domains\Advertising\Support\AdCampaigns;
@@ -26,6 +28,7 @@ use App\Domains\Finance\Support\Posting;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Vendors\Models\Vendor;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -297,4 +300,50 @@ describe('coupon participation', function () {
         $this->artisan('nawy:coupons:activate-participation-invitations')->assertSuccessful();
         expect($invitation->refresh()->status)->toBe(ParticipationInvitationStatus::Ended)->and($coupon->refresh()->is_active)->toBeFalse();
     });
+});
+
+it('QC-018: an admin uploads the sponsored video creative on a booking and the placement serves it', function () {
+    $this->withoutVite();
+    $slot = AdSlot::query()->create(['code' => 'home-video', 'name' => 'Homepage video', 'placement' => 'homepage', 'price_per_day' => '100.00', 'max_concurrent' => 1]);
+    $vendor = Vendor::factory()->create();
+    $bookings = app(AdBookings::class);
+    $booking = $bookings->draft($slot, AdvertiserBilling::VENDOR, $vendor->id, ['starts_on' => now()->addDays(1)->toDateString(), 'ends_on' => now()->addDays(2)->toDateString()], UploadedFile::fake()->image('poster.jpg'), 1);
+    $bookings->submit($booking, 1);
+    $admin = adminAccount('uae', 'marketing');
+
+    $this->actingAs($admin)->post(onPanel('admin', "marketing/bookings/{$booking->id}/video"), ['video' => UploadedFile::fake()->create('clip.pdf', 100, 'application/pdf')])->assertSessionHasErrors('video');
+    $this->post(onPanel('admin', "marketing/bookings/{$booking->id}/video"), ['video' => UploadedFile::fake()->create('clip.mp4', 900, 'video/mp4')])->assertSessionHasNoErrors();
+
+    expect($booking->refresh()->creative_type)->toBe('video')
+        ->and(StateTransition::query()->where('subject_type', 'ad_booking')->where('reason', 'Video creative uploaded by admin')->value('actor_user_id'))->toBe($admin->id);
+    Storage::disk('public')->assertExists($booking->creative_path);
+
+    $bookings->approve($booking->refresh(), $admin->id);
+    $this->artisan('nawy:ads:schedule-bookings')->assertSuccessful();
+    $this->travel(1)->days();
+    $this->artisan('nawy:ads:schedule-bookings')->assertSuccessful();
+    $this->getJson('/api/v1/uae-en/ads/placements/homepage')->assertOk()
+        ->assertJsonPath('data.0.creative_type', 'video')->assertJsonPath('data.0.image', null)
+        ->assertJsonPath('data.0.video', fn (?string $url): bool => str_contains((string) $url, '/video/'));
+});
+
+it('QC-010: a marketer subscribes to an ad package and books a paid placement from Creator Studio, paid from the wallet', function () {
+    $this->withoutVite();
+    $package = AdPackage::query()->create(['code' => 'pro', 'name_en' => 'Pro', 'name_ar' => 'برو', 'price' => '105.00', 'duration_days' => 30, 'features' => ['featured_profile']]);
+    $slot = AdSlot::query()->create(['code' => 'home-mk', 'name' => 'Homepage strip', 'placement' => 'homepage', 'price_per_day' => '20.00', 'max_concurrent' => 2]);
+    [$user, $marketer] = marketerAccount(['influencer']);
+    fundMarketer($marketer->id, '200.00');
+
+    $this->actingAs($user)->get(onPanel('marketer', 'advertising'))->assertOk()->assertSee('Pro')->assertSee('Homepage strip');
+    $this->post(onPanel('marketer', "advertising/packages/{$package->id}"), ['payment_method' => 'wallet'])->assertSessionHasNoErrors();
+    $this->post(onPanel('marketer', "advertising/packages/{$package->id}"), ['payment_method' => 'wallet'])->assertSessionHasErrors('action');
+    $this->post(onPanel('marketer', 'advertising/bookings'), [
+        'ad_slot_id' => $slot->id, 'starts_on' => now()->addDays(2)->toDateString(), 'ends_on' => now()->addDays(3)->toDateString(),
+        'creative' => UploadedFile::fake()->image('strip.jpg'),
+    ])->assertSessionHasNoErrors();
+
+    expect(AdPackageSubscription::query()->where('subscriber_id', $marketer->id)->sole()->status)->toBe(SubscriptionStatus::Active)
+        ->and(AdBooking::query()->where(['advertiser_type' => 'marketer', 'advertiser_id' => $marketer->id])->sole()->status)->toBe(AdBookingStatus::PendingReview)
+        ->and(ledgerBalance(AccountRef::marketer($marketer->id)))->toBe('55.00');
+    assertLedgerBalanced();
 });

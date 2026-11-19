@@ -1,0 +1,720 @@
+{
+ "title": "Vendor panel (Seller Center): growth, finance, FBN and account — browser test report",
+ "area": "Seller Center (partner panel)",
+ "date": "2026-11-19",
+ "summary": "Playwright browser test of Seller Center growth, finance, fulfilment and account pages: coupons and the D10 limits (90%, 365 days, 20 live), a flash-sale offer, a marketer campaign, a sponsored product campaign and a paid placement, earnings/statements/payouts, a subscription paid through the fake card gateway (declined then captured, PDF, auto-renew with the saved card, plan change, cancel and keep), Fulfilled by Nawy end to end (enrol, 0 fees, inbound plan draft → submit → carton labels HTML/PDF → shipped → received, removal and cancel), packaging supplies, team with a limited role and a full password reset, documents, store settings, contracts, support, notifications, Arabic RTL and 2FA sign-in. 16 tests, all passing on the final run (31/31 for the whole vendor area). Bugs found here: BT-VEN-002, -003, -004, -005, -007 (fixed); open: BT-VEN-009.",
+ "environment": [
+  "Storefront http://localhost:3000 (next start, production build)",
+  "API + panels http://localhost:8000; Seller Center host partner.nawy.test:8000 (Chromium host-resolver-rules)",
+  "Laravel dev DB (uae; Qatar for the Seller Agreement gate), MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake",
+  "Playwright project 'areas', Desktop Chrome, 2 workers, E2E_SKIP_SEED=1, --no-deps"
+ ],
+ "accounts": [
+  {
+   "role": "Seller (store owner)",
+   "login": "e2e-seller@nawy.test — E2E Store (E2eSeeder, email 2FA); one session per worker"
+  },
+  {
+   "role": "New store owner (per run)",
+   "login": "e2e-ven-<run>@nawy.test — store e2e-ven-<run>, created by support/setup.php"
+  },
+  {
+   "role": "Store not yet signed (Qatar)",
+   "login": "e2e-ven-gate-<run>@nawy.test — Seller Agreement published for Qatar only"
+  },
+  {
+   "role": "Applicant",
+   "login": "e2e-ven-apply-<run>j@nawy.test — created through /join"
+  },
+  {
+   "role": "Orders team member",
+   "login": "e2e-ven-staff-<run>@nawy.test — invited during the run, removed at the end"
+  },
+  {
+   "role": "Admin (approvals only)",
+   "login": "e2e-admin@nawy.test"
+  }
+ ],
+ "specs": [
+  "e2e/specs/areas/vendor/growth.spec.ts",
+  "e2e/specs/areas/vendor/finance-fbn.spec.ts",
+  "e2e/specs/areas/vendor/account.spec.ts",
+  "e2e/specs/areas/vendor/support/{vendor.ts,test.ts,setup.php}"
+ ],
+ "totals": {
+  "passed": 16,
+  "failed": 0,
+  "skipped": 0
+ },
+ "flows": [
+  {
+   "id": "VEN-20",
+   "name": "Coupons",
+   "goal": "Create, view, edit and switch off a store coupon.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/growth.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Coupons",
+     "expected": "List",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-20-1.png"
+    },
+    {
+     "action": "New coupon: lower-case code, 15%, max discount 50, 100 uses, 1 per customer, ends in 30 days",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-20-2.png"
+    },
+    {
+     "action": "Create coupon",
+     "expected": "'Coupon created', code stored in capitals",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-20-3.png"
+    },
+    {
+     "action": "Edit → 20%",
+     "expected": "Saved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-20-4.png"
+    },
+    {
+     "action": "Switch off from the list",
+     "expected": "Shown as off",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-20-5.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-21",
+   "name": "Coupon limits (D10)",
+   "goal": "20 live coupons, 90% max, 365 days max.",
+   "preconditions": "Brand-new store of the run.",
+   "spec": "e2e/specs/areas/vendor/growth.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "91% off",
+     "expected": "Refused: at most 90%",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-21-1.png"
+    },
+    {
+     "action": "Ends in 370 days",
+     "expected": "Refused: 365 days",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-21-2.png"
+    },
+    {
+     "action": "90% for 364 days",
+     "expected": "Created (coupon 1)",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-21-3.png"
+    },
+    {
+     "action": "Coupons 2–19 (copies in tinker), then the 20th from the browser",
+     "expected": "Created",
+     "result": "pass"
+    },
+    {
+     "action": "The 21st",
+     "expected": "Refused: 20 live coupons",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-21-4.png"
+    },
+    {
+     "action": "Coupons list",
+     "expected": "20 coupons",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-21-5.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-22",
+   "name": "Flash sales",
+   "goal": "Offer a listing to an open flash sale, then withdraw.",
+   "preconditions": "'E2E vendor flash sale' open for submissions (setup).",
+   "spec": "e2e/specs/areas/vendor/growth.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Flash sales",
+     "expected": "Open event with its form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-22-1.png"
+    },
+    {
+     "action": "Listing E2E-VEN-ORD, flash price 59.5, 3 units → Submit offer",
+     "expected": "Offer listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-22-2.png"
+    },
+    {
+     "action": "Withdraw",
+     "expected": "Withdrawn",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-22-3.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-23",
+   "name": "Marketer campaign",
+   "goal": "Fee quote, launch, view, cancel.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/growth.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Marketer campaigns",
+     "expected": "List",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-23-1.png"
+    },
+    {
+     "action": "New campaign: name, listing, end date, open to affiliates, notes, budget 250",
+     "expected": "Fee quote filled in",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-23-2.png"
+    },
+    {
+     "action": "Launch campaign",
+     "expected": "Campaign page",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-23-3.png"
+    },
+    {
+     "action": "Cancel (confirm)",
+     "expected": "Cancelled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-23-4.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-24",
+   "name": "Advertising: sponsored products and paid placement",
+   "goal": "Sponsored campaign with decimal bid; pause/resume; book a paid placement.",
+   "preconditions": "e2e seller; test ad slot (setup).",
+   "spec": "e2e/specs/areas/vendor/growth.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Advertising",
+     "expected": "Campaigns, placements, coupon participation invitations",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-24-1.png"
+    },
+    {
+     "action": "CPC bid 0.75, daily budget 25.5 → Create campaign",
+     "expected": "Browser accepts the decimals; 'Campaign sent for review'",
+     "result": "pass",
+     "note": "Found BT-VEN-002 (decimals blocked) and BT-VEN-003 (Resume on a pending campaign)",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-24-2.png"
+    },
+    {
+     "action": "Pending campaign row",
+     "expected": "No Resume/Pause buttons until Nawy approves",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-24-3.png"
+    },
+    {
+     "action": "Book & pay: test placement, 3 days, link, headline, image",
+     "expected": "Booking listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-24-4.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-25",
+   "name": "Earnings, statements, payouts",
+   "goal": "Balances, period filter, statements → payouts.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/finance-fbn.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Earnings",
+     "expected": "Balances",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-25-1.png"
+    },
+    {
+     "action": "Change the period",
+     "expected": "Totals for the period",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-25-2.png"
+    },
+    {
+     "action": "Statements & invoices",
+     "expected": "Payouts page",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-25-3.png"
+    },
+    {
+     "action": "Open a payout",
+     "expected": "Payout detail",
+     "result": "skip",
+     "note": "the e2e store has no payout yet"
+    }
+   ]
+  },
+  {
+   "id": "VEN-26",
+   "name": "Subscription paid through the fake gateway",
+   "goal": "Subscribe, invoice PDF, card declined then captured, auto-renew, change plan, cancel and keep.",
+   "preconditions": "Brand-new store of the run.",
+   "spec": "e2e/specs/areas/vendor/finance-fbn.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Subscription",
+     "expected": "Plans",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-1.png"
+    },
+    {
+     "action": "Subscribe (pay by card)",
+     "expected": "Plan active, invoice pending",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-2.png"
+    },
+    {
+     "action": "Invoice PDF",
+     "expected": "HTTP 200 %PDF",
+     "result": "pass"
+    },
+    {
+     "action": "Pay with Stripe — gateway declines",
+     "expected": "Back on Subscription; invoice still Pending; decline message",
+     "result": "pass",
+     "note": "Found BT-VEN-005 (no message)",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-3.png"
+    },
+    {
+     "action": "Pay with Stripe — captured (card token saved)",
+     "expected": "'Invoice paid.', invoice Paid via Stripe",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-4.png"
+    },
+    {
+     "action": "Auto-renew: Turn on with Visa •••• 4242, then Turn off",
+     "expected": "On, then Off",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-5.png"
+    },
+    {
+     "action": "Change plan",
+     "expected": "'From the next period' shows the new plan",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-6.png"
+    },
+    {
+     "action": "Cancel at period end (confirm)",
+     "expected": "'Keep my plan' offered",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-7.png"
+    },
+    {
+     "action": "Keep my plan",
+     "expected": "Cancel button back",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-26-8.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-27",
+   "name": "Fulfilled by Nawy",
+   "goal": "Enrol, fee preview, inbound plan draft → submit → labels → ship, receive, removal.",
+   "preconditions": "FBN-able listing of the run; warehouse E2E-FC.",
+   "spec": "e2e/specs/areas/vendor/finance-fbn.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Inventory & warehouses",
+     "expected": "FBN listings, enrol form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-1.png"
+    },
+    {
+     "action": "Enrol the run's listing",
+     "expected": "Listed under FBN",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-2.png"
+    },
+    {
+     "action": "FBN fees preview for it",
+     "expected": "Fulfilment fee 0 AED per unit (fees 0 by owner decision)",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-3.png"
+    },
+    {
+     "action": "New inbound plan: E2E-FC, arrival in 4 days, 6 units in 2 cartons",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-4.png"
+    },
+    {
+     "action": "Save draft, then Submit plan",
+     "expected": "Submitted, ship form shown",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-5.png"
+    },
+    {
+     "action": "Carton labels HTML and PDF",
+     "expected": "HTTP 200; PDF starts with %PDF",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-6.png"
+    },
+    {
+     "action": "Mark as shipped (carrier, tracking)",
+     "expected": "In transit",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-7.png"
+    },
+    {
+     "action": "Warehouse receives 6 units (service call)",
+     "expected": "Inbound list updated; 6 units on hand",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-8.png"
+    },
+    {
+     "action": "Removal: return 1 unit to the seller with address",
+     "expected": "Removal listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-9.png"
+    },
+    {
+     "action": "Submit",
+     "expected": "Removal requested",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-10.png"
+    },
+    {
+     "action": "Cancel the removal",
+     "expected": "Cancelled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-27-11.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-28",
+   "name": "Packaging supplies",
+   "goal": "Order packaging with delivery address.",
+   "preconditions": "uae packaging catalogue.",
+   "spec": "e2e/specs/areas/vendor/finance-fbn.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Packaging supplies",
+     "expected": "Catalogue and delivery form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-28-1.png"
+    },
+    {
+     "action": "Minimum quantity of the first item, address, notes → Place order",
+     "expected": "Order page, 'Packaging order … placed'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-28-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-30",
+   "name": "Team: limited role, password reset, removal",
+   "goal": "Invite an Orders member, accept, check the limited panel, reset the member's password, remove them.",
+   "preconditions": "e2e seller (owner).",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Team & permissions",
+     "expected": "Members and invite form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-1.png"
+    },
+    {
+     "action": "Invite 'E2E Orders' with role Orders & fulfilment",
+     "expected": "Pending invitation",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-2.png"
+    },
+    {
+     "action": "Open the emailed invitation link",
+     "expected": "Join page for the Orders role",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-3.png"
+    },
+    {
+     "action": "Set a password, sign in with 2FA",
+     "expected": "Sidebar without Coupons, Earnings, Team, Documents, Subscription",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-4.png"
+    },
+    {
+     "action": "team, coupons, earnings, products/create",
+     "expected": "403 each; no 'Add a product' button",
+     "result": "pass",
+     "note": "Found BT-VEN-006",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-5.png"
+    },
+    {
+     "action": "Forgot password → mail",
+     "expected": "Reset mail received",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-6.png"
+    },
+    {
+     "action": "Open the reset link, new password",
+     "expected": "Back on sign-in",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-7.png"
+    },
+    {
+     "action": "Sign in with the new password",
+     "expected": "Seller Center",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-8.png"
+    },
+    {
+     "action": "Owner removes the member",
+     "expected": "Member gone",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-30-9.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-31",
+   "name": "Documents",
+   "goal": "Upload a document and download it.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Documents",
+     "expected": "Form and list",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-31-1.png"
+    },
+    {
+     "action": "Type, PDF file, valid until → upload; download",
+     "expected": "Listed; download HTTP 200 %PDF",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-31-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-32",
+   "name": "Store settings and contracts",
+   "goal": "Edit contact phone and description; contracts list.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Store settings",
+     "expected": "Business details (locked) and editable fields",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-32-1.png"
+    },
+    {
+     "action": "Phone and description → save",
+     "expected": "Saved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-32-2.png"
+    },
+    {
+     "action": "Open Contracts",
+     "expected": "Agreement and signatures",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-32-3.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-33",
+   "name": "Support ticket",
+   "goal": "Open a ticket and reply.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Category, subject, message → send",
+     "expected": "Ticket created",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-33-1.png"
+    },
+    {
+     "action": "Reply",
+     "expected": "Reply shown in the thread",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-33-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-34",
+   "name": "Notifications",
+   "goal": "List and mark all read.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Notifications",
+     "expected": "List",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-34-1.png"
+    },
+    {
+     "action": "Mark all read",
+     "expected": "No unread",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-34-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-35",
+   "name": "Arabic (RTL)",
+   "goal": "Switch the panel to Arabic and back.",
+   "preconditions": "Run's own store owner (language is saved on the user).",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Language → العربية on the dashboard",
+     "expected": "dir=rtl, lang=ar, Arabic sidebar",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-35-1.png"
+    },
+    {
+     "action": "Orders in Arabic",
+     "expected": "RTL",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-35-2.png"
+    },
+    {
+     "action": "New coupon form in Arabic",
+     "expected": "RTL form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-35-3.png"
+    },
+    {
+     "action": "Back to English",
+     "expected": "dir=ltr",
+     "result": "pass"
+    }
+   ]
+  },
+  {
+   "id": "VEN-36",
+   "name": "Sign-in, 2FA, sign-in history, forgot password",
+   "goal": "Password + emailed 2FA code, wrong password refused, sign-in history, reset mail.",
+   "preconditions": "Run's store owner (signed out).",
+   "spec": "e2e/specs/areas/vendor/account.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open the sign-in page",
+     "expected": "Form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-36-1.png"
+    },
+    {
+     "action": "Wrong password",
+     "expected": "Refused",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-36-2.png"
+    },
+    {
+     "action": "Password + 2FA code from the mail",
+     "expected": "Seller Center",
+     "result": "pass"
+    },
+    {
+     "action": "Sign-in history",
+     "expected": "This sign-in listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-36-3.png"
+    },
+    {
+     "action": "Forgot password",
+     "expected": "Reset mail sent",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-finance-fbn-and-settings/VEN-36-4.png"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "id": "BT-VEN-002",
+   "severity": "major",
+   "area": "Advertising (and 4 other panel forms)",
+   "description": "Money fields rendered as type=\"number\" without step accept whole numbers only, so the browser blocked a CPC bid of 0.75 or a daily budget of 25.5. Same defect on Travel Partner room price per person, Open Souq 'mark as sold' final price (an ad priced 1000.5 could not be marked sold), broker lead budget and admin coupon-participation minimum fee.",
+   "status": "fixed",
+   "fix": "step=\"any\" min=\"0\" on those inputs. Pest: PanelMoneyInputsTest scans every panel view for money number fields without a step."
+  },
+  {
+   "id": "BT-VEN-003",
+   "severity": "major",
+   "area": "Advertising → sponsored product campaigns",
+   "description": "A campaign 'Pending review' showed a 'Resume' button; clicking it took the campaign live without Nawy's ad review (the state machine allows pending_review → active for the admin decision).",
+   "status": "fixed",
+   "fix": "SellerAdvertisingController only moves active/paused/budget-exhausted campaigns (SELLER_MOVABLE) and the view only offers buttons for those. Pest: VerticalPanelsTest 'creates a sponsored campaign for review…'."
+  },
+  {
+   "id": "BT-VEN-004",
+   "severity": "minor",
+   "area": "Subscription → history",
+   "description": "The seller's subscription history said 'Times in Oman' and showed Oman time (the shared admin partial) on a UAE store.",
+   "status": "fixed",
+   "fix": "The transitions partial takes an optional timezone; Seller Center passes the country's. Pest: VendorSubscriptionsTest (first test)."
+  },
+  {
+   "id": "BT-VEN-005",
+   "severity": "major",
+   "area": "Subscription → pay invoice by card",
+   "description": "Back from the card gateway the seller landed on Subscription with no message at all; after a declined card nothing said the payment failed (the ?payment=&status= the return URL adds was ignored).",
+   "status": "fixed",
+   "fix": "SellerSubscriptionController::show reads the store's own payment by reference and shows 'Invoice paid.', the decline message, or 'not confirmed yet'. Pest: VendorSubscriptionsTest 'tells the store how the card payment ended…'."
+  },
+  {
+   "id": "BT-VEN-007",
+   "severity": "cosmetic",
+   "area": "Advertising → coupon participation",
+   "description": "The offered-fee input was prefilled with the raw '10.0000'.",
+   "status": "fixed",
+   "fix": "Value trimmed to '10' in advertising.blade.php."
+  },
+  {
+   "id": "BT-VEN-009",
+   "severity": "cosmetic",
+   "area": "Subscription",
+   "description": "The gateway result banner stays on later actions of the same visit because ?payment= stays in the URL that back() returns to.",
+   "status": "open",
+   "fix": ""
+  }
+ ],
+ "notes": [
+  "Dev-only: uploaded images are served from APP_URL (http://localhost:8000/storage/…) while the panel CSP allows img-src 'self' https:, so product images do not render on partner.nawy.test:8000 in dev. On the https production hosts they load; the specs drop exactly that console line (dropDevImageCsp).",
+  "Panel sign-in is rate-limited per IP (30/min) and per account (30/hour); every agent's browser is 127.0.0.1, so the specs keep one e2e-seller session per worker in the OS temp dir (the shared e2e/.auth files are never rewritten) and serialise sign-ins of one email (two parallel 2FA logins read each other's mail code).",
+  "Panel language is saved on the user (preferred_locale), so the Arabic test runs as the run's own store owner, never the shared e2e seller.",
+  "Test data per run (support/setup.php, test values only): two new catalogue variants and an FBN variant of the first active product, sub-orders on the e2e store's own variant E2E-VEN-ORD (never listing 19 or the seeded e2e orders), a COD cash record for the delivered ones, a published review and an approved question, a return, a new uae store, a Qatar store, a Seller Agreement template published for Qatar only, a test ad slot (placement e2e_test, never requested by the storefront) and an 'E2E vendor flash sale' open for submissions.",
+  "The warehouse receiving of the inbound plan (arrive → receive 6 → finish) is a warehouse-staff step and was run through the InboundShipments service in tinker, so the removal flow had units to remove.",
+  "Order labels: the seller moved the COD order to Shipped (confirmed → processing → packed → shipped). No carrier shipment is allocated by that path, so the parcel label button did not show; the invoice PDF is only issued once the order is invoiced (after delivery for COD). Packing slip HTML was checked. Carrier label / delivery are covered in the order-lifecycle report.",
+  "FBN fees: the fee preview shows 0 per unit (owner decision).",
+  "Coupon limits D10 checked on a brand-new store: 91% refused, an end date more than 365 days away refused, the 20th live coupon accepted and the 21st refused (coupons 2–19 were copies made in tinker)."
+ ]
+}

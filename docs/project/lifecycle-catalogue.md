@@ -49,6 +49,7 @@ States: `draft`, `active`, `discontinued` **(T)**, `restricted`.
 | active / restricted → discontinued | admin | — | Listings archived; open campaigns → `done` (stock rule) |
 
 ### 1.3 Product request — SRS §5.1 (FR-CAT-2)
+Implemented: `ProductRequestStatus`, `App\Domains\Catalog\Support\ProductRequests` (2026-11-19).
 States: `pending`, `approved` **(T)**, `rejected` **(T)**, `cancelled` **(T)**.
 
 | Transition | Actor | Guards | Side effects |
@@ -100,7 +101,8 @@ States: `placed`, `confirmed`, `processing`, `packed`, `shipped`, `out_for_deliv
 | delivered → completed | system **AutoCompleteOrdersJob 02:00** | Return window passed; no open return/dispute | Unlocks payout eligibility (COD also needs remittance) and conversion approval |
 | placed/confirmed/processing/packed → cancelled | customer (before shipped) | Not shipped | Release inventory; refund starts; conversion reversed (§4.3); notify |
 | any pre-delivered → cancelled | vendor | — | Same + **seller score penalty / strike** |
-| any → cancelled | admin (force) | Reason | Same; shipment cancelled |
+| any → cancelled | admin (force) | Reason | Same; shipment cancelled. Built for every pre-completion state including `delivered` (QC-034): a delivered force-cancel refunds and cancels warranty plans but puts no stock back (the parcel is with the customer; a return restocks it). `completed`, `returned`, `refunded` stay closed |
+| shipped → delivered *(built exception, QC-034)* | admin, system | No Nawy agent assignment (third-party carrier hand-over or admin confirmation) | Same as delivered. Agents always go through `out_for_delivery`; sellers and customers cannot take this move |
 | delivered → returned | system (return `received`) | Return approved and received | Event `SubOrderReturned`; restock per item |
 | returned → refunded | system (refund `completed`) | — | Conversion reversed; payout line negative |
 Ledger at placement (card): Dr `gateway_clearing` / Cr `seller_payable` (net), `platform_commission`, `vat_payable`, shipping income. Warranty plan: Cr `warranty_revenue`.
@@ -240,15 +242,16 @@ States: `accruing`, `issued`, `deducted` **(T)**, `paid` **(T)**, `waived` **(T)
 | issued → paid / waived | vendor (wallet) / admin | — | Ledger accordingly |
 
 ### 3.6 Subscription (vendor plan) — SRS §9
+Implemented: `VendorSubscriptionStatus`, `App\Domains\Finance\Support\VendorSubscriptions` (2026-11-19). Related machine: **acquisition commission** `pending → approved → paid | rejected` (`AcquisitionCommissionStatus`, four-eyes: the acquirer never approves or pays their own).
 States: `trialing`, `active`, `past_due`, `cancelled` **(T)**, `expired` **(T)**.
 
 | Transition | Actor | Guards | Side effects |
 |---|---|---|---|
 | (subscribe) → trialing / active | vendor, admin | Plan priced in country currency | Invoice; Dr `seller_payable` or gateway / Cr `subscription_revenue` |
 | trialing → active | system | Trial end + payment | — |
-| active → past_due | system **subscription invoices job (monthly)** | Invoice unpaid after grace | Notify; feature limits (proposed) |
+| active → past_due | system **`nawy:subscriptions:bill` (daily 02:15)** | Invoice unpaid after its due date (issued + `subscription.grace_days`) | Notify (mail + panel); listings cannot be submitted, plan listing cap |
 | past_due → active | payment | — | — |
-| past_due → cancelled / expired | system / admin | Grace exceeded / term ended | — |
+| past_due → cancelled / expired | system / admin | A further `subscription.grace_days` unpaid (final notice the day before) / admin cancel | Open invoices voided (or deducted from payout when `subscription.deduct_unpaid_from_payout`) |
 | active → cancelled | vendor / admin | — | End of period |
 Nawy One membership uses the same pattern (see Appendix A).
 
@@ -297,7 +300,8 @@ States: `pending`, `approved`, `released` *(spendable; proposed name)*, `paid` *
 | pending → approved | system **ApproveMarketerConversionsJob 03:15** | product_sale: sub-order delivered/completed and return window passed; classified_sale: `marketer_classified_approval_days` (2) after sale; travel_booking: booking completed; classified_inquiry never auto-approved | Net → marketer **pending** balance |
 | approved → released | system **ReleaseMarketerPendingCommissionJob 03:30** | `marketer_payout_clearing_days` passed | Dr `seller_payable` (vendor) or `platform_revenue` (platform campaign) gross / Cr `marketer_payable_spendable` net, `platform_commission` fee |
 | pending/approved/released → reversed | system | Cancel, return, booking cancel, classified un-sold | Wallet taken back (pending or spendable); ledger mirrored; budget freed (campaign not reopened) |
-| paid → clawback_pending (N) | system | Reversal after payout | Negative balance / recovery entry; notify marketer |
+| released → paid *(built, QC-035)* | system (withdrawal processed) | The marketer's processed withdrawals cover the conversion, oldest released first (spendable money is pooled, so FIFO is the attribution); `paid_at` set | — |
+| paid → reversed / clawback_pending (N) | system | Reversal after payout: taken from spendable first, the shortfall goes to clawback | Negative balance / recovery entry; notify marketer |
 | clawback_pending → recovered | system **clawback recovery job** | Next earnings or manual settlement | Ledger recovery |
 
 ### 4.4 Sample — SRS §11.9 (states *proposed*)
@@ -368,7 +372,7 @@ States: `pending`, `active`, `expired` **(T)**, `rejected` **(T)**, `cancelled` 
 
 ### 4.10 Flash-sale event — SRS §10
 States: `draft`, `submission_open`, `submission_closed`, `under_review`, `approved`, `live`, `ended` **(T)**, `cancelled` **(T)**.
-Marketer invite sub-machine: `pending → accepted | declined`.
+Marketer invite sub-machine: `pending → accepted | declined` (implemented: `FlashSaleInviteStatus`, 2026-11-19).
 
 | Transition | Actor | Guards | Side effects |
 |---|---|---|---|
@@ -481,6 +485,7 @@ States: `draft`, `in_transit`, `received` **(T)**, `cancelled` **(T)**.
 | draft/in_transit → cancelled | admin | — | Movement reversed |
 
 ### 6.3 Packaging order — SRS §4.1.3
+Implemented: `PackagingOrderStatus`, `App\Domains\Fulfilment\Support\PackagingOrders` (2026-11-19); the "wallet or payout deduction" is a payout-statement deduction (stores have no separate wallet).
 States: `pending`, `approved`, `shipped`, `delivered` **(T)**, `rejected` **(T)**.
 
 | Transition | Actor | Guards | Side effects |
@@ -527,6 +532,7 @@ States: `pending`, `approved`, `rejected`, `expired` *(proposed)*.
 | approved → expired *(proposed)* | system | Document validity date | Notify; may put vendor on hold |
 
 ### 7.3 Change request (locked profile sections) — SRS §4.1.5, §12.2
+Implemented: `ChangeRequestStatus`, `App\Domains\Vendors\Support\ChangeRequests` (2026-11-19) for stores and travel agencies.
 States: `pending`, `approved` **(T)**, `rejected` **(T)**, `cancelled` **(T)** *(proposed)*.
 
 | Transition | Actor | Guards | Side effects |
@@ -652,9 +658,10 @@ Live broadcast states: `scheduled` / `idle`, `live`, `ended` **(T)**. Recorded c
 | Customer account | `active ⇄ suspended`, `banned` | SRS §4.1.5 | — |
 | Delivery agent | `pending_documents → active ⇄ unavailable`, `suspended` | SRS §4.1.11, §4.6 | — |
 | Voucher | `active → partially_used → used`, `expired`, `cancelled` | Spec §6.1 | daily expiry (proposed with gift cards 00:30) |
-| Nawy One membership | `trialing → active → past_due → cancelled | expired` | MP §7a, §10 | **membership renewals** |
+| Nawy One membership | `incomplete → active`, `trialing → active → past_due → cancelled | expired` (`incomplete`: first payment started but not yet captured; a failed or abandoned first payment leaves it `incomplete` and it can `expire`; QC-068) | MP §7a, §10 | **membership renewals** |
 | Promotional credit | `granted → partially_used → used`, `expired` | MP §10 | promotion expiry 15 min |
-| Real-estate lead | `new → contacted → viewing_scheduled → negotiating → won | lost` + follow-ups | Spec §5.7 | follow-up reminders (proposed) |
+| Real-estate lead | `new → contacted → viewing_scheduled → negotiating → won | lost` + follow-ups | Spec §5.7 | follow-up reminders (proposed). Its own pipeline, moved only by the broker (D12: a viewing request no longer moves it) |
+| Viewing / reserve request (Open Souq, all verticals) | **No lifecycle: a record only** (owner decision D12, 2026-11-18). The customer's name, email, phone, preferred time and message, plus `created_at`. No confirm, reject, schedule, complete or cancel; no status, no history rows, no status notifications or emails. The advertiser is mailed once that a new request arrived, sees it in a list (Seller Center → Marketplace → Requests, Creator Studio → Broker → Requests, website / app "On my ads") and contacts the customer outside Nawy. The legacy `property_viewings.status` / `scheduled_at` columns are frozen (default `requested`, never written, read or exposed). | D8, D12 | — |
 | Campaign application (marketplace) | `applied → accepted | rejected | withdrawn` | MP §8 | — |
 | Content submission | `submitted → approved | changes_requested | rejected` | MP §8 | — |
 | Cross-promotion participation | `eligible → enrolled → compliant | in_violation → penalised | suspended → reinstated`, `exempt` | Spec §5.6 | **cross-promotion obligation evaluation (weekly/monthly)** |
@@ -662,7 +669,7 @@ Live broadcast states: `scheduled` / `idle`, `live`, `ended` **(T)**. Recorded c
 | Flash-sale marketer invite | `pending → accepted | declined` | SRS §10 | — |
 | Classified abuse report | `open → reviewing → actioned | dismissed` | MP §12 | — |
 | Saved search alert | `active ⇄ paused`, `deleted` | MP §11 | **saved-search alerts hourly** |
-| Gateway webhook event | `received → verified → processed | duplicate | failed` | ADR 6 | retry (proposed) |
+| Gateway webhook event | `received → verified → processed | duplicate | failed` (built, QC-032: `verified` = matched to a payment with an outcome; `duplicate` = the payment already had that outcome; a redelivery of the same event id adds no row and only increments `deliveries`; extra `ignored` = signed but nothing to act on — unknown payment or event type) | ADR 6 | a gateway redelivery re-processes a `failed` event |
 | Advertise inquiry | `new → contacted → closed` | PORTAL_PAGES §8 | — |
 
 ## Appendix B — Jobs → machines
@@ -704,3 +711,62 @@ Live broadcast states: `scheduled` / `idle`, `live`, `ended` **(T)**. Recorded c
 | delayed | ProcessCampaignAutoApproveJob; ProcessInvitationTimeoutJob | Campaign, Invitation |
 
 Open point: daily times above are the old system's; whether they run at each country's local time or one UTC time is PRD OQ6 / risk T7.
+
+## Appendix C — Job name traceability (QC-039, QC-069)
+
+The SRS job classes (Appendix B) run as Artisan commands, each per country through `ForEachCountry`. Times are admin (Oman) time.
+
+| SRS name | Command | Schedule |
+|---|---|---|
+| ReleaseExpiredLocksJob | `nawy:cart:release-expired-locks` | every minute |
+| `streams:sync-recorded` | `nawy:streams:sync-recorded` | every minute |
+| travel seat-hold expiry | `nawy:travel:expire-holds` | every minute |
+| TransitionFlashSaleStatusJob / FlashSaleSchedulerJob | `nawy:flash-sales:transition` | every 5 min |
+| BannerSchedulerJob / PageSchedulerJob / PublishScheduledBlogPostsJob | `nawy:content:publish-scheduled` (banners and homepage media use per-block visibility windows) | every 5 min |
+| PaidAdSchedulerJob | `nawy:ads:schedule-bookings` | every 5 min |
+| ExpirePendingPaymentsJob | `nawy:payments:expire-pending` | every 5 min |
+| gift-card scheduled email | `nawy:gift-cards:deliver-scheduled` | every 5 min |
+| CheckSlaBreachJob | `nawy:delivery:check-sla` | every 15 min |
+| `coupons:close-expired-participation-invitations` | `nawy:coupons:close-participation-invitations` (the SRS name is kept as an alias) | every 15 min |
+| `promotion:expire-items` | `nawy:wallet:expire-promotional` (the SRS name is kept as an alias) | every 15 min |
+| ProcessCampaignAutoApproveJob (delayed) | `nawy:campaigns:auto-approve` (sweeps campaigns past `marketer_campaign_auto_approve_hours`) | every 15 min |
+| ProcessInvitationTimeoutJob (delayed) | `nawy:campaigns:expire-invitations` (sweeps invitations past their timeout) | every 5 min |
+| AutoCompleteOrdersJob | `nawy:orders:auto-complete --scheduled` | checked every 15 min; each country runs once a day at its `order.auto_complete_time` (country override, default 02:00) |
+| MonitorCampaignStockJob | `nawy:campaigns:monitor-stock` | hourly |
+| `ad-packages:expire` | `nawy:ad-packages:expire` | hourly |
+| `contracts:apply-effective` | `nawy:contracts:apply-effective` | hourly |
+| AggregateAnalyticsCacheJob | `nawy:analytics:aggregate` | hourly |
+| saved-search alerts | `nawy:classifieds:saved-search-alerts` | hourly |
+| membership renewals | `nawy:membership:renew` | hourly |
+| ResetAdCampaignDailyBudgetJob | `nawy:ads:reset-daily-budgets` | daily 00:00 |
+| coupon expiry | `nawy:coupons:expire` | daily 00:15 |
+| gift-card expiry | `nawy:gift-cards:expire` | daily 00:30 |
+| activate fulfilled coupon invitations | `nawy:coupons:activate-participation-invitations` | daily 00:30 |
+| exclusive-contract expiry | `nawy:exclusive-contracts:sync` | daily 00:45 |
+| classified expiry | `nawy:classifieds:expire` | daily 01:00 |
+| certification / document expiry | `nawy:documents:expire` | daily 01:30 |
+| Generate vendor payouts | `nawy:payouts:generate` | daily 02:00 (see below) |
+| ExpireWarrantyPurchasesJob | `nawy:warranty:expire` | daily 03:00 |
+| ApproveMarketerConversionsJob | `nawy:conversions:approve` | daily 03:15 |
+| ReleaseMarketerPendingCommissionJob (+ clawback recovery) | `nawy:conversions:release` | daily 03:30 |
+| CompleteTravelBookingsJob | `nawy:travel:complete-bookings` | daily 03:45 |
+| CompleteEndedMarketerCampaignsJob | `nawy:campaigns:complete-ended` | daily 04:00 |
+| `portal-analytics:prune` | `nawy:analytics:prune` | daily 04:30 |
+| GenerateCodSettlementsJob | `nawy:cod:generate-settlements` | daily 23:30 |
+| bestseller ranking | `nawy:catalog:rank-bestsellers` | weekly Mon 03:30 |
+| cross-promotion obligation evaluation | `nawy:marketers:evaluate-cross-promotion` | monthly 1st 05:00 |
+| support ticket auto-close | `nawy:support:auto-close` | see §9.3 |
+| FBN storage snapshot / flags / inbound reminders / storage invoices | `nawy:fbn:storage-snapshot` / `nawy:fbn:flag-storage` / `nawy:fbn:inbound-reminders` / `nawy:fbn:invoice-storage` | daily 01:00 / 01:15 / weekly Sun 09:00 / monthly 1st 02:30 |
+| Acquisition commissions | `nawy:finance:acquisition-commissions` | monthly 1st 02:00 (previous country-local month) |
+| Subscription invoices + past_due handling | `nawy:subscriptions:bill` | daily 02:15 (each subscription's monthly or annual invoice at its period end; past_due after the due date; expiry after `subscription.grace_days`) |
+| Nightly reporting ETL | `nawy:reporting:etl` | daily 01:30 (yesterday per country into `nawy_reporting`) |
+| Celebrity monthly report | `nawy:marketers:celebrity-reports` | monthly 1st 06:00 |
+| Search index rebuild | `nawy:search:rebuild-index` | daily 04:20 |
+| Exchange-rate sync (PayPal USD) | `nawy:exchange-rates:sync` | daily 00:05 (manual driver: nothing fetched) |
+
+**Dropped: SettleMarketerSalesJob (daily 03:20).** Owner decision M13: a marketer who sells on Nawy does so through a store, so marketer-as-seller sales settle with the store payouts (`nawy:payouts:generate`) like any vendor. There is no separate marketer-sale settlement and no command for it.
+
+**All Appendix B jobs are built** (2026-11-19: acquisition commissions, subscription invoices, reporting ETL, celebrity report and search index rebuild closed the QC-015 list; FBN jobs were built with the FBN module).
+
+**Vendor payouts (QC-069).** The SRS lists payout schedules weekly Monday / 1st & 15th / monthly 1st. `nawy:payouts:generate` runs **daily at 02:00** (`nawy.finance.payout_generation_time`) and, per country, creates a statement only for vendors whose own `payout_schedule` is due that day in the country's time zone (`PayoutSchedule::isDue`: `weekly` → Monday, `biweekly` → 1st and 15th, `monthly` → 1st). So each vendor still gets their SRS schedule; the daily run is how several schedules share one job. Admins can generate out of schedule from the Finance panel. Nothing is paid automatically.
+

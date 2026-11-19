@@ -16,6 +16,7 @@ import { cardFromApi } from "@/lib/api/mappers";
 import type { BrandDetail } from "@/lib/api/schemas";
 import { getT } from "@/lib/i18n";
 import { parseMarket, type Market } from "@/lib/markets";
+import { withoutBrandSuffix } from "@/lib/format";
 
 const SLUG = /^[A-Za-z0-9-]{1,120}$/;
 
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: PageProps<"/[market]/brands/[
   const t = getT(market.locale);
   if (!brand) return { title: t("brand.notFound") };
   const cms = brand.page ? (await loadCmsPage(market, brand.page)).page : null;
-  const title = cms?.seo?.title || brand.name;
+  const title = withoutBrandSuffix(cms?.seo?.title) || brand.name;
   const description = cms?.seo?.description || t("brand.metaDescription", { brand: brand.name, count: brand.product_count });
   return { title, description, openGraph: { title, description, images: brand.logo ? [brand.logo] : undefined } };
 }

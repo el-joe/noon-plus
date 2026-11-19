@@ -62,6 +62,8 @@ export const application = z.object({
   status: z.string(),
   editable: z.boolean(),
   next_step: z.string().nullable(),
+  /** QA-002: the 6-digit code mailed to the application email was confirmed. Submit is refused until then. */
+  email_verified: z.boolean().default(false),
   steps: z.array(z.object({ key: z.string(), completed: z.boolean() })),
   account: z.looseObject({ name: z.string().nullable(), email: z.string().nullable(), phone: z.string().nullable() }),
   data: z.record(z.string(), record).or(z.array(z.unknown()).transform((): Record<string, Record<string, unknown>> => ({}))),
@@ -125,6 +127,12 @@ const errorEnvelope = z.object({
   error: z.looseObject({ code: z.string(), message: z.string(), fields: z.record(z.string(), z.array(z.string())).or(z.array(z.unknown())).optional() }),
 });
 
+function retryAfterSeconds(response: Response): number | null {
+  if (response.status !== 429) return null;
+  const seconds = Number(response.headers.get("retry-after"));
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null;
+}
+
 async function wizardCall<S extends z.ZodType>(market: string, path: string, schema: S, init: { method?: "GET" | "POST" | "DELETE"; body?: unknown; query?: Record<string, string> } = {}): Promise<Envelope<z.infer<S>>> {
   const isForm = typeof FormData !== "undefined" && init.body instanceof FormData;
   const qs = init.query ? `?${new URLSearchParams(init.query).toString()}` : "";
@@ -144,9 +152,9 @@ async function wizardCall<S extends z.ZodType>(market: string, path: string, sch
     const parsed = errorEnvelope.safeParse(json);
     if (parsed.success) {
       const { code, message, fields, ...details } = parsed.data.error;
-      throw new ApiError(response.status, code, message, Array.isArray(fields) ? {} : (fields ?? {}), details);
+      throw new ApiError(response.status, code, message, Array.isArray(fields) ? {} : (fields ?? {}), details, retryAfterSeconds(response));
     }
-    throw new ApiError(response.status, "http_error", response.statusText || "Request failed");
+    throw new ApiError(response.status, response.status === 429 ? "too_many_requests" : "http_error", response.statusText || "Request failed", {}, {}, retryAfterSeconds(response));
   }
   const parsed = z.object({ data: schema, meta: z.unknown().optional() }).safeParse(json);
   if (!parsed.success) throw new ApiError(response.status, "invalid_response", "The server returned an unexpected response.");
@@ -172,8 +180,29 @@ export const removeApplicationDocument = (market: string, number: string, docume
 export const getApplicationAgreement = (market: string, number: string) => wizardCall(market, `${enc(number)}/agreement`, agreement);
 export const submitApplication = (market: string, number: string, fullName: string) =>
   wizardCall(market, `${enc(number)}/submit`, application, { method: "POST", body: { accept: true, full_name: fullName } });
+// QA-002: confirm the application email with the mailed 6-digit code.
+export const verifyApplicationEmail = (market: string, number: string, code: string) =>
+  wizardCall(market, `${enc(number)}/email/verify`, application, { method: "POST", body: { code } });
+export const resendApplicationEmailCode = (market: string, number: string) =>
+  wizardCall(market, `${enc(number)}/email/resend`, z.object({ sent: z.boolean() }), { method: "POST" });
 export const withdrawApplication = (market: string, number: string) => wizardCall(market, `${enc(number)}/withdraw`, application, { method: "POST" });
 export const checkStoreSlug = (market: string, slug: string) =>
   wizardCall(market, "check-slug", z.object({ slug: z.string(), available: z.boolean() }), { query: { slug } });
 export const requestResumeLink = (market: string, email: string, type: ApplicationType) =>
   wizardCall(market, "resume-link", z.unknown(), { method: "POST", body: { email, type } });
+
+/** QC-042: partner agreements with a public page (`GET contracts/current/{kind}`). */
+export const PUBLIC_AGREEMENTS = ["seller_platform", "travel_agency", "broker", "marketer_onboarding", "shipping_company"] as const;
+export type PublicAgreement = (typeof PUBLIC_AGREEMENTS)[number];
+export const isPublicAgreement = (value: string | undefined): value is PublicAgreement => (PUBLIC_AGREEMENTS as readonly string[]).includes(value ?? "");
+export const currentAgreement = z.object({
+  id: z.number(),
+  kind: z.string(),
+  title: z.string(),
+  version: z.union([z.number(), z.string()]),
+  has_file: z.boolean(),
+  text: z.string().nullable(),
+  published_at: z.string().nullable(),
+});
+export type CurrentAgreement = z.infer<typeof currentAgreement>;
+export const getCurrentAgreement = (market: string, kind: PublicAgreement) => get(market, `contracts/current/${kind}`, currentAgreement);

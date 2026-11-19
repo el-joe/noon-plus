@@ -6,7 +6,9 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import type { Cart } from "@/lib/api/schemas";
 import * as api from "@/lib/api/endpoints";
 import { formatMoney, isZero } from "@/lib/format";
-import { errorMessage, useCartMutation } from "@/lib/hooks";
+import { ApiError } from "@/lib/api/client";
+import { useCartMutation, useErrorMessage, useLoginRedirect } from "@/lib/hooks";
+import { Alert } from "@/components/ui/misc";
 import { Button } from "../../components/ui/button";
 
 export function Row({ label, value, tone }: { label: ReactNode; value: ReactNode; tone?: "success" }) {
@@ -46,14 +48,16 @@ export function Totals({ cart }: { cart: Cart }) {
 export function CouponBox({ cart }: { cart: Cart }) {
   const t = useTranslations();
   const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; code: string } | null>(null);
+  const message = useErrorMessage();
+  const toLogin = useLoginRedirect();
   const apply = useCartMutation((m, c: string) => api.applyCoupon(m, c));
   const remove = useCartMutation((m, c: string) => api.removeCoupon(m, c));
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    apply.mutate(code.trim(), { onSuccess: () => setCode(""), onError: (e) => setError(errorMessage(e, t("common.error"))) });
+    apply.mutate(code.trim(), { onSuccess: () => setCode(""), onError: (e) => setError({ message: message(e), code: e instanceof ApiError ? e.code : "" }) });
   };
 
   return (
@@ -74,7 +78,20 @@ export function CouponBox({ cart }: { cart: Cart }) {
           {t("common.apply")}
         </Button>
       </form>
-      {error ? <p className="text-body-sm text-danger-text">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-body-sm text-danger-text">
+          {error.message}
+          {/* QC-014: first-order / segment coupons need an account. */}
+          {error.code === "coupon_sign_in_required" ? (
+            <>
+              {" "}
+              <button type="button" onClick={toLogin} className="text-link underline">
+                {t("checkout.signIn")}
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       {cart.coupons.map((c) => (
         <p key={c.code} className="flex items-center gap-2 text-body-sm text-success-text">
           <Check className="size-4" />
@@ -85,5 +102,32 @@ export function CouponBox({ cart }: { cart: Cart }) {
         </p>
       ))}
     </div>
+  );
+}
+
+/**
+ * `data.warnings` (localised strings from the API): a deal over its limit, a
+ * removed warranty plan, or a coupon that is kept on the cart but no longer
+ * applies (QC-014).
+ */
+export function CartWarnings({ cart, className }: { cart: Cart; className?: string }) {
+  const t = useTranslations("cart");
+  const warnings = cart.warnings.filter((w): w is string => typeof w === "string" && w.trim() !== "");
+  if (cart.warnings.length === 0) return null;
+  return (
+    <Alert tone="warning" className={className}>
+      {warnings.length === 0 ? (
+        t("warning")
+      ) : (
+        <>
+          <p className="font-semibold">{t("warningsTitle")}</p>
+          <ul className="mt-1 list-disc ps-5">
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Alert>
   );
 }

@@ -25,7 +25,7 @@ class _MarketerShellState extends State<MarketerShell> {
       const CampaignsScreen(),
       const LinksScreen(),
       const ConversionsScreen(),
-      const SettingsScreen(logoutPath: MarketerApi.logoutPath),
+      const SettingsScreen(logoutPath: MarketerApi.logoutPath, extra: [DocumentsMenuTile(base: 'ops/marketer/documents')]),
     ];
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),

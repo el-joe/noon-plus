@@ -79,7 +79,7 @@ class TenantProvisioner
         $user->notify(new PartnerWelcomeNotification(
             $application->type->label(),
             $country->name_en,
-            'http://'.Panel::find($application->type->panel())->host.'/login',
+            Panel::find($application->type->panel())->url('/login'),
             $existing,
             $temporaryPassword,
             $existing ? URL::temporarySignedRoute(Panel::find($application->type->panel())->key.'.password.setup', now()->addDays(3), ['user' => $user->id]) : null,

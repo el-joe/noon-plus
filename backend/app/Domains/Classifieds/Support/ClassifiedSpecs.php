@@ -102,11 +102,25 @@ class ClassifiedSpecs
             'type' => $attribute->type->value,
             'options' => $attribute->options ?? [],
             'unit' => $attribute->unit,
-            'min' => $attribute->min_value,
-            'max' => $attribute->max_value,
+            'min' => self::number($attribute->min_value),
+            'max' => self::number($attribute->max_value),
             'required' => $attribute->is_required,
             'filterable' => $attribute->is_filterable,
         ]);
+    }
+
+    /**
+     * QA-039: a bound as a JSON number (1980, 2.5), not the DECIMAL string "1980.0000".
+     */
+    private static function number(?string $value): int|float|null
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = str_contains($value, '.') ? rtrim(rtrim($value, '0'), '.') : $value;
+
+        return str_contains($trimmed, '.') ? (float) $trimmed : (int) $trimmed;
     }
 
     private function check(ClassifiedAttribute $attribute, mixed $value): ?string
@@ -116,8 +130,8 @@ class ClassifiedSpecs
         return match ($attribute->type) {
             AttributeType::Number, AttributeType::Year => match (true) {
                 ! is_numeric($value) => __(':label must be a number.', ['label' => $label]),
-                $attribute->min_value !== null && bccomp((string) $value, (string) $attribute->min_value, 4) < 0 => __(':label must be at least :min.', ['label' => $label, 'min' => (float) $attribute->min_value]),
-                $attribute->max_value !== null && bccomp((string) $value, (string) $attribute->max_value, 4) > 0 => __(':label must be at most :max.', ['label' => $label, 'max' => (float) $attribute->max_value]),
+                $attribute->min_value !== null && bccomp((string) $value, (string) $attribute->min_value, 4) < 0 => __(':label must be at least :min.', ['label' => $label, 'min' => self::number($attribute->min_value)]),
+                $attribute->max_value !== null && bccomp((string) $value, (string) $attribute->max_value, 4) > 0 => __(':label must be at most :max.', ['label' => $label, 'max' => self::number($attribute->max_value)]),
                 default => null,
             },
             AttributeType::Select => in_array((string) $value, $this->optionValues($attribute), true) ? null : __('Choose a valid :label.', ['label' => $label]),

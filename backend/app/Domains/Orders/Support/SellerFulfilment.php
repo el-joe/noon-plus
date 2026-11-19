@@ -4,6 +4,7 @@ namespace App\Domains\Orders\Support;
 
 use App\Domains\Delivery\Enums\AssignmentStatus;
 use App\Domains\Delivery\Models\DeliveryAssignment;
+use App\Domains\Fulfilment\Support\FbnOrders;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
@@ -58,11 +59,25 @@ class SellerFulfilment
     {
         return in_array(SubOrderStatus::Cancelled, $subOrder->status->allowedNext(), true)
             && $subOrder->status !== SubOrderStatus::OutForDelivery
+            && $subOrder->status !== SubOrderStatus::Delivered
             && ! DeliveryAssignment::query()->where('sub_order_id', $subOrder->id)->where('status', AssignmentStatus::PickedUp)->exists();
+    }
+
+    /**
+     * The seller's next step for this sub-order: none when the FBN
+     * warehouse fulfils it ({@see FbnOrders}).
+     */
+    public function nextStepFor(SubOrder $subOrder): ?SubOrderStatus
+    {
+        return app(FbnOrders::class)->isWarehouseFulfilled($subOrder) ? null : $this->nextStep($subOrder->status);
     }
 
     public function advance(SubOrder $subOrder, SubOrderStatus $to, int $actorUserId): SubOrder
     {
+        if (app(FbnOrders::class)->isWarehouseFulfilled($subOrder)) {
+            throw new SubOrderTransitionRefused(__('Fulfilled by Nawy: the warehouse picks, packs and ships this order.'));
+        }
+
         if ($this->nextStep($subOrder->status) !== $to) {
             throw new SubOrderTransitionRefused(__('This order cannot move to :status from here.', ['status' => $to->value]));
         }

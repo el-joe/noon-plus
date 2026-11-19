@@ -1,0 +1,55 @@
+{
+  "title": "Admin panel — finance — browser test report",
+  "area": "Admin panel: payouts (maker-checker), COD settlements, acquisition commissions, vendor subscriptions, exchange rates",
+  "date": "2026-11-19",
+  "summary": "A card-paid order was walked to Delivered so the seller had a payable balance; ‘Generate statements now’ produced statement ST-2026-00001 (gross AED 899.00, Nawy fees 94.40, net 804.60); the maker (E2E Admin) was refused when approving it, a second finance admin invited through Staff approved it, and the bank transfer was then sent and the statement completed. Acquisition rules were added and edited, E2E Admin credited as acquirer of SoundMax, November computed (1 commission), the acquirer was refused approving their own commission and a finance admin approved and paid it; 'My acquisition commissions' shows the acquirer's view. Seller plans were added/edited, a seller subscribed (pays by payout), the invoice PDF opened, the plan changed and the subscription cancelled; exchange rates validated and saved. One bug fixed (BT-ADM-003).",
+  "environment": [
+    "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
+    "Storefront http://localhost:3000 (next start) — not used by these flows",
+    "Dev databases (central noon-plus + nawy_uae …), MAIL_MAILER=log (2FA codes and invitation links read from storage/logs/laravel.log), NAWY_PAYMENTS_DRIVER=fake",
+    "Playwright 'areas' project, Desktop Chrome 1280×720, screenshots per step; servers shared with two other QA agents",
+    "Each worker signs the e2e admin in once with its own session (password + emailed code), cached in the OS temp dir; the shared e2e/.auth/admin.json is never used or rewritten (a shared session loses flash messages and validation errors to parallel requests)",
+    "Run: cd website && E2E_SKIP_SEED=1 npx playwright test --project=areas --no-deps e2e/specs/areas/admin --workers=2 (iteration used e2e/specs/areas/admin/.qa.config.ts, the same config without the global setup that signs the shared customer in and was rate-limited by parallel suites). Report JSON: node e2e/docx/admin-report.mjs <report>; .docx: node e2e/docx/build-docx.mjs e2e/docx/reports/<report>.json"
+  ],
+  "accounts": [
+    {
+      "role": "Super admin",
+      "login": "e2e-admin@nawy.test (E2eSeeder), own session per worker, password + emailed 2FA"
+    },
+    {
+      "role": "Finance admins (checkers)",
+      "login": "qa-fin2-<run>@nawy.test, qa-fin3-<run>@nawy.test, invited through Staff (role Finance)"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/admin/finance.spec.ts"
+  ],
+  "issues": [
+    {
+      "id": "BT-ADM-003",
+      "severity": "major",
+      "area": "Finance / Nawy One / warranty / shipping rates",
+      "description": "Edit forms prefill money with the 4-decimal storage value ('0.0000', '25.0000') which their own decimal:0,3 (or currency-decimals) rule refuses, so an acquisition rule, membership plan, seller plan, warranty plan or shipping rate could not be saved without retyping every amount ('must have 0-3 decimal places').",
+      "status": "fixed",
+      "fix": "x-ui.input shows a 4-decimal storage value without the trailing zeros ('25.0000' → '25'). Regression: AcquisitionCommissionsTest 'lets finance manage rules…' asserts value=\"500\" on the edit form."
+    },
+    {
+      "id": "BT-ADM-007",
+      "severity": "minor",
+      "area": "Payouts, histories",
+      "description": "Actors are shown as 'Admin #37' (statement 'Prepared by', voucher/flash-sale history 'By') instead of the staff member's name.",
+      "status": "open",
+      "fix": "Resolve the user name in the views."
+    }
+  ],
+  "notes": [
+    "ADM-40 could only be run in full once: the only payable seller balance in dev became statement ST-2026-00001 and a seller gets one statement per day. The documented (latest) run sent the bank transfer and completed that statement; the run just before it (11:58 Oman, same spec) generated the statement ('1 statement generated.'), the maker's own approval was refused with the 'Another admin…' message and the invited finance admin approved it — its step log is kept in e2e/docx/reports/_log/admin-panel-finance.jsonl, the screenshots of that run were overwritten by the latest run.",
+    "There is no separate ledger screen in the admin panel; ledger effects are visible through payout statements, COD settlements and the reconciliation report (migration).",
+    "ADM-40 and ADM-42 consume one-time data (the only payable balance and the November commission); their documented run is the one that performed the full sequence.",
+    "COD settlements: no open settlement in dev, the queue only renders.",
+    "Exchange-rate sync uses the 'manual' provider in dev: the button answers 'No rates fetched: the manual driver does not fetch rates'.",
+    "Totals and steps are the latest recorded run of each flow (e2e/docx/reports/_log/*.jsonl, generated by e2e/docx/admin-report.mjs). Earlier runs that failed were test-script fixes or the bugs listed in 'Issues found', all fixed before the final run.",
+    "All data created by these flows carries a run suffix (e.g. 'QA Brand 9abc12x'). Records of today's e2e suites (E2E Store parcels, E2E travel agency, listing 19, E2E Open Souq ads) were not decided or changed.",
+    "Backend fixes take effect immediately (PHP/Blade); no website or panel asset rebuild is needed for any fix in this report."
+  ]
+}

@@ -4,6 +4,7 @@ namespace App\Domains\Payments\Http\Controllers;
 
 use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Payments\Support\PaymentCurrencyConversion;
 use App\Domains\Payments\Support\PaymentMethodCatalog;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
@@ -17,7 +18,7 @@ use Illuminate\Http\Request;
  */
 class PaymentMethodController extends Controller
 {
-    public function index(Request $request, CountryContext $countryContext, PaymentMethodCatalog $catalog, MoneyFactory $money): JsonResponse
+    public function index(Request $request, CountryContext $countryContext, PaymentMethodCatalog $catalog, MoneyFactory $money, PaymentCurrencyConversion $conversion): JsonResponse
     {
         $country = $countryContext->current();
         $decimals = $money->zero($country->currency)->getCurrency()->getDefaultFractionDigits();
@@ -33,6 +34,8 @@ class PaymentMethodController extends Controller
             'description' => $option['method']->description(),
             'recommended' => $option['recommended'],
             'fee' => $option['fee'] === null ? null : MoneyResource::make((string) $option['fee']->getAmount()),
+            // PayPal USD conversion: what the provider will charge ({currency, amount, rate}); null = charged in the market currency.
+            'charge' => $conversion->quote($option['method'], $amount),
         ]);
 
         return ApiResponse::success($methods->values(), ['currency' => $country->currency, 'amount' => (string) $amount->getAmount()]);

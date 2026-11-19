@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, Heart, Radio, ShoppingCart } from "lucide-react";
+import { Check, Eye, Heart, Radio, RefreshCw, ShoppingCart } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { ProductImage } from "@/components/ui/misc";
@@ -10,9 +12,14 @@ import { likeStream, type StreamDetail } from "@/lib/api/live";
 import { formatAmount, formatDateTime } from "@/lib/format";
 import { errorMessage, useCartMutation } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
+import { LiveChat, useViewerCount } from "./live-chat";
 import { useLivePlayer } from "./player-context";
+import { playerFallback } from "./player-state";
 
 const HLS_MIME = "application/vnd.apple.mpegurl";
+
+/** D16: the LiveKit browser viewer, loaded only on a watch page whose room is joinable. */
+const LiveKitViewer = dynamic(() => import("./livekit-viewer"), { ssr: false });
 
 /** True when this browser plays HLS in a plain <video> (no player library on the web). */
 function useNativeHls(): boolean {
@@ -29,17 +36,24 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
   const t = useTranslations("live");
   const market = useMarket();
   const locale = useLocale();
+  const router = useRouter();
   const { play, position, nowPlaying } = useLivePlayer();
   const video = useRef<HTMLVideoElement>(null);
   const [likes, setLikes] = useState(stream.likes);
   const [liked, setLiked] = useState(false);
   const isLive = stream.status === "live";
+  const [viewers, setViewers] = useViewerCount(stream.slug, isLive, stream.viewers);
   const recorded = stream.playback?.type === "recorded" ? stream.playback : null;
   const playable = recorded && (isLive || stream.status === "ended") ? recorded : null;
   // LiveKit room with an HLS egress: native <video> where the browser plays HLS (Safari, iOS, Android Chrome).
   const hlsUrl = isLive && stream.playback?.type === "live" ? (stream.playback.hls_url ?? null) : null;
   const nativeHls = useNativeHls();
   const hls = hlsUrl && nativeHls ? hlsUrl : null;
+  // D16: WebRTC viewer when the API says the room is joinable; HLS / poster otherwise or after a failure.
+  const [webrtcFailed, setWebrtcFailed] = useState(false);
+  const room = isLive && stream.playback?.type === "live" && stream.playback.webrtc && stream.playback.url && stream.playback.token && !webrtcFailed
+    ? { url: stream.playback.url, token: stream.playback.token }
+    : null;
 
   // Register with the floating player so playback continues after navigating away.
   useEffect(() => {
@@ -83,13 +97,16 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
     }
   };
 
+  const fallback = playerFallback({ isLive, status: stream.status, webrtcFailed, hlsUrl, nativeHls });
   const when = stream.scheduled_at ? formatDateTime(stream.scheduled_at, market.locale, market.country.timeZone) : "";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
       <section className="flex flex-col gap-3">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-ink text-white">
-          {playable ? (
+          {room ? (
+            <LiveKitViewer url={room.url} token={room.token} poster={stream.thumbnail_url} onFailed={() => setWebrtcFailed(true)} />
+          ) : playable ? (
             <video ref={video} src={playable.media_url} poster={stream.thumbnail_url ?? undefined} controls playsInline autoPlay className="size-full bg-black object-contain">
               {playable.mime ? <source src={playable.media_url} type={playable.mime} /> : null}
             </video>
@@ -104,12 +121,37 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
                 <img src={stream.thumbnail_url} alt="" className="absolute inset-0 size-full object-cover opacity-40" />
               ) : null}
               <Radio className="relative size-12" />
-              <p className="relative max-w-md text-body">
-                {isLive ? t("playerSoon") : stream.status === "ended" ? t("ended") : t("notStarted", { date: when })}
+              <p className="relative max-w-md text-body" role="status">
+                {fallback === "failed"
+                  ? t("player.failed")
+                  : fallback === "unsupported"
+                    ? t("player.unsupported")
+                    : fallback === "unavailable"
+                      ? t("player.unavailable")
+                      : fallback === "ended"
+                        ? t("ended")
+                        : t("notStarted", { date: when })}
               </p>
+              {fallback === "failed" || fallback === "unavailable" ? (
+                <button
+                  type="button"
+                  onClick={() => (fallback === "failed" ? setWebrtcFailed(false) : router.refresh())}
+                  className="relative inline-flex h-9 items-center gap-2 rounded-full bg-surface px-4 text-body-sm font-semibold text-ink"
+                >
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t("player.retry")}
+                </button>
+              ) : null}
             </div>
           )}
-          {isLive ? <span className="absolute start-3 top-3 rounded-xs bg-danger px-2 py-0.5 text-caption font-semibold">{t("status.live")}</span> : null}
+          {isLive ? (
+            <span className="absolute start-3 top-3 flex items-center gap-2">
+              <span className="rounded-xs bg-danger px-2 py-0.5 text-caption font-semibold">{t("status.live")}</span>
+              <span className="flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-caption font-medium text-ink">
+                <Eye className="size-3.5" /> {t("watching", { count: viewers })}
+              </span>
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -128,15 +170,25 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
           </button>
         </div>
         {stream.description ? <p className="whitespace-pre-line text-body text-secondary" lang={locale}>{stream.description}</p> : null}
+        <div className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3">
+          <h2 className="text-h4 font-semibold">{t("inThisLive", { count: stream.products.length })}</h2>
+          {stream.products.length === 0 ? <p className="text-body-sm text-secondary">{t("noProducts")}</p> : null}
+          <ul className="grid gap-x-4 divide-line sm:grid-cols-2">
+            {stream.products.map((product) => (
+              <ProductRow key={product.listing_id} product={product} />
+            ))}
+          </ul>
+        </div>
       </section>
-      <aside className="flex flex-col gap-2 self-start rounded-lg border border-line bg-surface p-3">
-        <h2 className="text-h4 font-semibold">{t("inThisLive", { count: stream.products.length })}</h2>
-        {stream.products.length === 0 ? <p className="text-body-sm text-secondary">{t("noProducts")}</p> : null}
-        <ul className="flex flex-col divide-y divide-line">
-          {stream.products.map((product) => (
-            <ProductRow key={product.listing_id} product={product} />
-          ))}
-        </ul>
+      <aside className="self-start lg:sticky lg:top-32">
+        <LiveChat
+          slug={stream.slug}
+          live={isLive}
+          onMeta={(meta) => {
+            if (meta.viewers !== undefined && isLive) setViewers(meta.viewers);
+            if (meta.likes !== undefined) setLikes((n) => Math.max(n, meta.likes!));
+          }}
+        />
       </aside>
     </div>
   );
@@ -148,7 +200,7 @@ function ProductRow({ product }: { product: StreamDetail["products"][number] }) 
   const add = useCartMutation((m, listingId: number) => api.setCartItem(m, listingId, 1));
   const [error, setError] = useState<string | null>(null);
   return (
-    <li className="flex items-center gap-3 py-2">
+    <li className="flex items-center gap-3 border-b border-line py-2">
       <div className="size-12 shrink-0 overflow-hidden rounded-md">
         <ProductImage src={product.image?.url} alt={product.image?.alt || product.title || ""} />
       </div>

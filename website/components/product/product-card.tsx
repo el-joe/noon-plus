@@ -31,7 +31,22 @@ export type ProductCardData = {
   rating?: { average: string | number | null; count: number } | null;
   /** Show the wishlist heart (default true when the card has a slug). */
   wishlist?: boolean;
+  /** Merchandising badges from the API (bestseller · new · top_rated; QC-057). */
+  badges?: { key: string; label: string }[];
 };
+
+const BADGE_TONES: Record<string, string> = {
+  bestseller: "bg-ink text-white",
+  top_rated: "bg-success-subtle text-success-text",
+  new: "bg-info-subtle text-link",
+  deal: "bg-danger text-white",
+  fulfilled_by_nawy: "bg-brand text-ink",
+};
+
+/** One merchandising badge chip (cards and PDP). */
+export function MerchBadge({ badge, className }: { badge: { key: string; label: string }; className?: string }) {
+  return <span className={clsx("inline-flex items-center rounded-xs px-1.5 py-0.5 text-caption font-medium", BADGE_TONES[badge.key] ?? "bg-subtle text-secondary", className)}>{badge.label}</span>;
+}
 
 /** Record a sponsored click (CPC) without delaying navigation. */
 export function trackAdClick(market: string, token: string | null | undefined) {
@@ -54,7 +69,15 @@ export function ProductCard({ product, compact = false }: { product: ProductCard
       <Link href={link} onClick={() => product.sponsored && trackAdClick(market.slug, product.adToken)} className="flex flex-1 flex-col gap-2">
         <div className="relative aspect-square w-full overflow-hidden">
           <ProductImage src={product.image} alt={product.imageAlt || title} />
-          {product.badge ? <span className="absolute start-2 top-2 rounded-xs bg-ink px-1.5 py-0.5 text-caption font-medium text-white">{product.badge}</span> : null}
+          {product.badge ? (
+            <span className="absolute start-2 top-2 rounded-xs bg-ink px-1.5 py-0.5 text-caption font-medium text-white">{product.badge}</span>
+          ) : product.badges && product.badges.length > 0 ? (
+            <span className="absolute start-2 top-2 flex flex-col items-start gap-1">
+              {product.badges.slice(0, 2).map((b) => (
+                <MerchBadge key={b.key} badge={b} />
+              ))}
+            </span>
+          ) : null}
           {product.sponsored ? <AdLabel className="absolute end-2 top-2 bg-surface/90">{product.label || t("common.ad")}</AdLabel> : null}
         </div>
         <div className="flex flex-col gap-1.5 px-2.5">

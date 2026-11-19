@@ -22,10 +22,10 @@ class IoHttpTransport implements HttpTransport {
       req.add(request.body!);
     }
     final res = await req.close().timeout(_timeout);
-    final body = await res.transform(utf8.decoder).join().timeout(_timeout);
+    final bytes = await res.fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk)).timeout(_timeout);
     final headers = <String, String>{};
     res.headers.forEach((name, values) => headers[name.toLowerCase()] = values.join(','));
-    return HttpResponseData(res.statusCode, body, headers);
+    return HttpResponseData(res.statusCode, utf8.decode(bytes, allowMalformed: true), headers, bytes);
   }
 }
 

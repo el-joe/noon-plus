@@ -21,7 +21,7 @@
         <x-ui.table :headers="[__('Customer'), __('Credit'), __('When (Oman)')]" :rows="$redemptions->isNotEmpty()" :empty="__('Not redeemed yet.')">
             @foreach ($redemptions as $redemption)
                 <tr class="border-t border-line">
-                    <td class="px-5 py-3">#{{ $redemption->customer_user_id }}</td>
+                    <td class="px-5 py-3">{{ app(\App\Shared\Support\UserNames::class)->name($redemption->customer_user_id) }}</td>
                     <td class="px-5 py-3">#{{ $redemption->promotional_credit_id }}</td>
                     <td class="px-5 py-3 text-xs">{{ $redemption->created_at?->setTimezone(config('nawy.admin_timezone'))->format('j M Y, H:i') }}</td>
                 </tr>

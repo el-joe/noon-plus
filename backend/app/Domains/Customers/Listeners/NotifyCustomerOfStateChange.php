@@ -6,19 +6,22 @@ use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Customers\Support\CustomerNotifications;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Models\SubOrder;
-use App\Domains\RealEstate\Models\PropertyViewing;
 use App\Domains\Returns\Models\ReturnRequest;
 use App\Domains\Reviews\Models\ProductQuestion;
 use App\Domains\Reviews\Models\ProductReview;
 use App\Domains\Travel\Models\TravelBooking;
+use App\Models\User;
+use App\Shared\Localization\InLocale;
+use App\Shared\Localization\Label;
 use App\Shared\StateMachine\StateMoved;
 
 /**
  * Fills the customer's notification centre from lifecycle moves (G-W29):
- * sub-order status, travel booking decisions, return progress, viewing /
- * reserve request answers, classified ad review and product review / Q&A
- * moderation. Moves the customer made themselves are not echoed back.
- * Links are storefront paths without the market prefix.
+ * sub-order status, travel booking decisions, return progress, classified
+ * ad review and product review / Q&A moderation. Viewing / reserve
+ * requests are records only (owner decision D12), so they send none.
+ * Moves the customer made themselves are not echoed back. Links are
+ * storefront paths without the market prefix.
  */
 class NotifyCustomerOfStateChange
 {
@@ -28,16 +31,7 @@ class NotifyCustomerOfStateChange
 
     public function handle(StateMoved $event): void
     {
-        $notice = match (true) {
-            $event->subject instanceof SubOrder => $this->subOrder($event),
-            $event->subject instanceof TravelBooking => $this->booking($event),
-            $event->subject instanceof ReturnRequest => $this->returnRequest($event),
-            $event->subject instanceof PropertyViewing => $this->viewing($event),
-            $event->subject instanceof ClassifiedAd => $this->classifiedAd($event),
-            $event->subject instanceof ProductReview => $this->review($event),
-            $event->subject instanceof ProductQuestion => $this->question($event),
-            default => null,
-        };
+        $notice = $this->notice($event);
 
         if ($notice === null || $notice['user_id'] === null) {
             return;
@@ -47,7 +41,30 @@ class NotifyCustomerOfStateChange
             return;
         }
 
+        // QC-028: written in the customer's language, whoever made the move.
+        $locale = User::query()->whereKey($notice['user_id'])->value('preferred_locale');
+
+        if (in_array($locale, ['en', 'ar'], true) && $locale !== app()->getLocale()) {
+            $notice = InLocale::run($locale, fn (): ?array => $this->notice($event)) ?? $notice;
+        }
+
         $this->notifications->notify((int) $notice['user_id'], $notice['type'], $notice['title'], $notice['body'] ?? null, $notice['link'] ?? null, $notice['data'] ?? []);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function notice(StateMoved $event): ?array
+    {
+        return match (true) {
+            $event->subject instanceof SubOrder => $this->subOrder($event),
+            $event->subject instanceof TravelBooking => $this->booking($event),
+            $event->subject instanceof ReturnRequest => $this->returnRequest($event),
+            $event->subject instanceof ClassifiedAd => $this->classifiedAd($event),
+            $event->subject instanceof ProductReview => $this->review($event),
+            $event->subject instanceof ProductQuestion => $this->question($event),
+            default => null,
+        };
     }
 
     /**
@@ -62,12 +79,16 @@ class NotifyCustomerOfStateChange
         /** @var SubOrder $subOrder */
         $subOrder = $event->subject;
         $order = $subOrder->order()->first(['id', 'number', 'customer_user_id']);
-        $status = str_replace('_', ' ', $event->to->value);
+        $status = mb_strtolower(Label::of($event->to));
+        // QA-024: an order with several shipments gets one notice per shipment, so the title names it.
+        $multiShipment = $order !== null && SubOrder::query()->where('order_id', $order->id)->count() > 1;
 
         return [
             'user_id' => $order?->customer_user_id,
             'type' => 'order.'.$event->to->value,
-            'title' => __('Your order :number is :status', ['number' => $order?->number, 'status' => $status]),
+            'title' => $multiShipment
+                ? __('Shipment :shipment of your order :number is :status', ['shipment' => $subOrder->number, 'number' => $order->number, 'status' => $status])
+                : __('Your order :number is :status', ['number' => $order?->number, 'status' => $status]),
             'body' => $event->to->value === 'cancelled' && $event->reason !== null ? __('Reason: :reason', ['reason' => $event->reason]) : __('Shipment :number is now :status.', ['number' => $subOrder->number, 'status' => $status]),
             'link' => '/account/orders/'.$order?->number,
             'data' => ['order' => $order?->number, 'shipment' => $subOrder->number, 'status' => $event->to->value],
@@ -117,26 +138,6 @@ class NotifyCustomerOfStateChange
     /**
      * @return array<string, mixed>|null
      */
-    private function viewing(StateMoved $event): ?array
-    {
-        /** @var PropertyViewing $viewing */
-        $viewing = $event->subject;
-        $ad = $viewing->ad()->first(['id', 'number', 'title']);
-        $kind = $viewing->type === 'reserve' ? __('reserve request') : __('viewing request');
-
-        return [
-            'user_id' => $viewing->customer_user_id,
-            'type' => ($viewing->type === 'reserve' ? 'reserve.' : 'viewing.').$event->to->value,
-            'title' => __('Your :kind for :title is :status', ['kind' => $kind, 'title' => $ad?->title, 'status' => str_replace('_', ' ', $event->to->value)]),
-            'body' => $viewing->scheduled_at === null ? null : __('Time: :at', ['at' => $viewing->scheduled_at->toDayDateTimeString()]),
-            'link' => '/account/inquiries',
-            'data' => ['request_id' => $viewing->id, 'ad' => $ad?->number, 'status' => $event->to->value],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
     private function classifiedAd(StateMoved $event): ?array
     {
         if (! in_array($event->to->value, ['active', 'rejected', 'expired'], true) || $event->actorType === ActorType::Customer) {
@@ -165,7 +166,10 @@ class NotifyCustomerOfStateChange
      */
     private function review(StateMoved $event): ?array
     {
-        if (! in_array($event->to->value, ['approved', 'rejected'], true)) {
+        // QC-012: tell the author when a review goes live the first time, or is rejected / hidden; flags stay internal.
+        $firstPublication = $event->to->value === 'published' && in_array($event->from?->value, ['pending', 'auto_flagged'], true);
+
+        if (! $firstPublication && ! in_array($event->to->value, ['rejected', 'hidden'], true)) {
             return null;
         }
 
@@ -176,8 +180,8 @@ class NotifyCustomerOfStateChange
         return [
             'user_id' => $review->customer_user_id,
             'type' => 'review.'.$event->to->value,
-            'title' => $event->to->value === 'approved' ? __('Your review is published') : __('Your review was not published'),
-            'body' => $event->to->value === 'rejected' ? $event->reason : null,
+            'title' => $event->to->value === 'published' ? __('Your review is published') : __('Your review was not published'),
+            'body' => $event->to->value === 'published' ? null : $event->reason,
             'link' => $slug === null ? '/account/reviews' : '/products/'.$slug,
             'data' => ['review_id' => $review->id, 'product' => $slug, 'status' => $event->to->value],
         ];

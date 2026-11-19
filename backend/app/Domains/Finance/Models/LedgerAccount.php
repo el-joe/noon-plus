@@ -32,6 +32,9 @@ class LedgerAccount extends Model
 
     public const OWNER_CARRIER = 'carrier';
 
+    /** An admin staff member (acquisition commissions, FR-FIN-6). */
+    public const OWNER_STAFF = 'staff';
+
     /**
      * @var array<string, mixed>
      */

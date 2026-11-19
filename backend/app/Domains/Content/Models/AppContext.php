@@ -3,6 +3,8 @@
 namespace App\Domains\Content\Models;
 
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Http\FlushesPublicCache;
+use App\Shared\Http\PublicCache;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +17,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['key', 'name_en', 'name_ar', 'icon', 'sort_order', 'is_active', 'theme', 'tabs', 'home_page_id'])]
 class AppContext extends Model
 {
-    use UsesCountryDatabase;
+    use FlushesPublicCache, UsesCountryDatabase;
+
+    /**
+     * Public API answers built from this model (forgotten on every change).
+     *
+     * @return array<int, string>
+     */
+    public function publicCacheGroups(): array
+    {
+        return [PublicCache::APP_CONTEXTS];
+    }
 
     /**
      * Get the attributes that should be cast.

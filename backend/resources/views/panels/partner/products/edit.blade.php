@@ -3,7 +3,7 @@
                  :breadcrumbs="[__('Products'), __('Manage listing')]">
     <x-slot:actions>
         <x-ui.status-badge :status="$listing->status" />
-        @php($next = $listing->status->allowedNext())
+        @php($next = $canWrite ? $listing->status->allowedNext() : [])
         @foreach ([
             'submit' => [\App\Domains\Listings\Enums\ListingStatus::PendingReview, __('Submit for review'), 'primary'],
             'pause' => [\App\Domains\Listings\Enums\ListingStatus::Paused, __('Pause'), 'outline'],
@@ -24,9 +24,14 @@
         <div role="alert" class="rounded-lg bg-danger-subtle px-4 py-3 text-sm text-fg-danger">{{ __('Rejected: :reason', ['reason' => $listing->rejection_reason]) }}</div>
     @endif
 
+    @unless ($canWrite)
+        <div role="status" class="rounded-lg bg-info-subtle px-4 py-3 text-sm" data-read-only>{{ __('Your team role can view this listing but not change it. Ask the owner or a catalog manager.') }}</div>
+    @endunless
+
     <div class="grid gap-6 xl:grid-cols-3">
         <div class="flex flex-col gap-6 xl:col-span-2">
             <x-ui.card :title="__('Price & handling')">
+                @if ($canWrite)
                 <form method="POST" action="{{ route('partner.products.update', $listing->id) }}" class="grid gap-4 sm:grid-cols-2">
                     @csrf
                     @method('PUT')
@@ -36,6 +41,14 @@
                     <x-ui.input :label="__('Your SKU')" name="vendor_sku" :value="$listing->vendor_sku" />
                     <div class="flex justify-end sm:col-span-2"><x-ui.button type="submit">{{ __('Save') }}</x-ui.button></div>
                 </form>
+                @else
+                    <dl class="grid gap-4 text-sm sm:grid-cols-2">
+                        <div><dt class="text-fg-secondary">{{ __('Price (VAT included)') }}</dt><dd class="font-medium"><x-ui.money :amount="(string) $listing->price" :currency="$currency" /></dd></div>
+                        <div><dt class="text-fg-secondary">{{ __('Sale price') }}</dt><dd class="font-medium">@if ($listing->sale_price)<x-ui.money :amount="(string) $listing->sale_price" :currency="$currency" />@else — @endif</dd></div>
+                        <div><dt class="text-fg-secondary">{{ __('Handling days') }}</dt><dd class="font-medium">{{ $listing->handling_days }}</dd></div>
+                        <div><dt class="text-fg-secondary">{{ __('Your SKU') }}</dt><dd class="font-medium">{{ $listing->vendor_sku ?: '—' }}</dd></div>
+                    </dl>
+                @endif
             </x-ui.card>
 
             <x-ui.card :title="__('Product images')" :subtitle="__(':count of :max images from your store · lower position shows first · EN/AR alt text', ['count' => $images->count(), 'max' => $maxImages])">
@@ -45,6 +58,7 @@
                             <li class="flex gap-3 rounded-lg border border-line p-3" data-image="{{ $image->id }}">
                                 <img src="{{ $image->url() }}" alt="{{ $image->alt_en }}" class="size-20 shrink-0 rounded object-cover">
                                 <div class="flex flex-1 flex-col gap-2">
+                                    @if ($canWrite)
                                     <form method="POST" action="{{ route('partner.products.images.update', [$listing->id, $image->id]) }}" class="grid gap-2">
                                         @csrf
                                         @method('PUT')
@@ -61,12 +75,17 @@
                                         @method('DELETE')
                                         <x-ui.button type="submit" size="sm" variant="ghost">{{ __('Remove') }}</x-ui.button>
                                     </form>
+                                    @else
+                                        <p class="text-sm">{{ $image->alt_en ?: '—' }}</p>
+                                        <p class="text-sm" dir="rtl">{{ $image->alt_ar ?: '—' }}</p>
+                                        <p class="text-xs text-fg-secondary">{{ __('Position') }} {{ $image->sort_order }} · {{ $image->product_variant_id ? __('This variant only') : __('All variants') }}</p>
+                                    @endif
                                 </div>
                             </li>
                         @endforeach
                     </ul>
                 @endif
-                @if ($images->count() < $maxImages)
+                @if ($canWrite && $images->count() < $maxImages)
                     <form method="POST" action="{{ route('partner.products.images.store', $listing->id) }}" enctype="multipart/form-data" class="grid gap-4 sm:grid-cols-2">
                         @csrf
                         <div class="flex flex-col gap-1.5 sm:col-span-2">
@@ -84,6 +103,7 @@
             </x-ui.card>
 
             <x-ui.card :title="__('Stock')" :subtitle="__(':count units available · every change is recorded with a reason', ['count' => $available])">
+                @if ($canWrite)
                 <form method="POST" action="{{ route('partner.products.stock', $listing->id) }}" class="grid gap-4 sm:grid-cols-3">
                     @csrf
                     <x-ui.input :label="__('Change (+ add, − remove)')" name="quantity" type="number" required />
@@ -91,6 +111,7 @@
                                  :options="collect(config('nawy.vendors.stock_reasons'))->mapWithKeys(fn ($reason) => [$reason => ucfirst($reason)])->all()" />
                     <div class="flex items-end"><x-ui.button type="submit" variant="outline">{{ __('Update stock') }}</x-ui.button></div>
                 </form>
+                @endif
                 <x-ui.table class="mt-4" :headers="[__('When'), __('Change'), __('Reason')]" :rows="$movements->isNotEmpty()">
                     @foreach ($movements as $movement)
                         <tr class="border-t border-line">

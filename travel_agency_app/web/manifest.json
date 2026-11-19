@@ -1,11 +1,11 @@
 {
-    "name": "travel_agency_app",
-    "short_name": "travel_agency_app",
+    "name": "Nawy Travel",
+    "short_name": "Nawy Travel",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0D1526",
+    "theme_color": "#F9BB25",
+    "description": "Nawy travel agency app: booking requests and departures.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

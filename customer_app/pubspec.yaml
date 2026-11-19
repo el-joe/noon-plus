@@ -1,5 +1,5 @@
 name: customer_app
-description: "Nawy customer app (Noon structure, MASTER_PLAN §14c)."
+description: "Nawy customer app (super-app structure, MASTER_PLAN §14c)."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -7,13 +7,26 @@ version: 1.0.0+1
 environment:
   sdk: ^3.13.7
 
-# Project rule: no pub packages without owner approval (see
-# docs/project/owner-review.md → WP10). Only SDK packages are used.
+# Pub packages: only the owner-approved ones (docs/project/owner-review.md
+# → D16, P1–P15).
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  cached_network_image: ^4.0.7
+  flutter_secure_storage: ^11.2.0
+  image_picker: ^1.2.4
+  path_provider: ^2.1.6
+  url_launcher: ^6.3.3
+  video_player: ^2.14.1
+  # Property map (D16): flutter_map + OpenStreetMap tiles; latlong2 is
+  # flutter_map's required companion for `LatLng`. Exact pins.
+  flutter_map: 8.3.2
+  latlong2: 0.9.1
+  # Local path package (not from pub): shared design tokens and theme (QC-065).
+  nawy_core:
+    path: ../packages/nawy_core
 
 dev_dependencies:
   flutter_test:

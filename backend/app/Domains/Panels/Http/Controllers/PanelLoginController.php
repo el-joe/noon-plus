@@ -30,6 +30,7 @@ class PanelLoginController extends Controller
         return view('panels.auth.login', [
             'panelName' => $panel->name,
             'action' => route($panel->route('login.store')),
+            'forgotUrl' => route($panel->route('password.request')),
         ]);
     }
 
@@ -49,6 +50,12 @@ class PanelLoginController extends Controller
 
         $user = User::query()->where('email', $credentials['email'])->sole();
 
+        if (in_array($user->status, ['suspended', 'banned'], true)) {
+            $this->recordLoginEvent->handle($request, $panel->key, LoginOutcome::Rejected, $user);
+
+            throw ValidationException::withMessages(['email' => __('This account is suspended. Contact Nawy support.')]);
+        }
+
         if (! $panel->allows($user)) {
             $this->recordLoginEvent->handle($request, $panel->key, LoginOutcome::NoPanelAccess, $user);
 
@@ -66,6 +73,7 @@ class PanelLoginController extends Controller
                 'user_id' => $user->id,
                 'panel' => $panel->key,
                 'remember' => $request->boolean('remember'),
+                'expires_at' => now()->addMinutes((int) config('nawy.panel_auth.two_factor_challenge_minutes', 10))->getTimestamp(),
             ]);
             $this->recordLoginEvent->handle($request, $panel->key, LoginOutcome::SecondStepSent, $user);
 

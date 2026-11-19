@@ -85,6 +85,29 @@
                 @endif
             </x-ui.card>
 
+            {{-- FR-FIN-6: who brought the partner in; approval credits the new store to them (acquisition commissions). --}}
+            <x-ui.card :title="__('Acquisition')" :subtitle="__('Account manager credited for this partner')">
+                <div class="flex flex-col gap-3 text-sm" data-acquirer>
+                    <p>{{ $acquirer ? $acquirer->name.' · '.$acquirer->email : __('Nobody recorded') }}</p>
+                    @if ($application->referral_code)
+                        <p class="text-xs text-fg-secondary" data-referral-code>{{ __('From referral link :code', ['code' => $application->referral_code]) }}</p>
+                    @endif
+                    @if ($application->tenant_id && $application->tenant_type === 'vendor')
+                        <p class="text-xs text-fg-secondary">{{ __('Change it on the seller page (Users & vendors → Vendors).') }}</p>
+                    @endif
+                    @can('applications.approve')
+                        @if (! in_array($application->status->value, ['approved', 'rejected', 'withdrawn'], true))
+                            <form method="POST" action="{{ route('admin.applications.acquirer', $application->id) }}" class="flex flex-col gap-2" data-acquirer-form>
+                                @csrf
+                                <x-ui.select :label="__('Referred by / account manager')" name="acquired_by_user_id" :selected="(string) ($application->acquired_by_user_id ?? '')"
+                                    :placeholder="__('Nobody')" :options="$acquirers->mapWithKeys(fn ($user) => [$user->id => $user->name.' · '.$user->email])->all()" />
+                                <x-ui.button type="submit" size="sm" variant="outline">{{ __('Save acquirer') }}</x-ui.button>
+                            </form>
+                        @endif
+                    @endcan
+                </div>
+            </x-ui.card>
+
             @if ($application->decision_reason || $application->requested_changes)
                 <x-ui.card :title="__('Last decision')">
                     <p class="text-sm">{{ $application->decision_reason ?? ($application->requested_changes['note'] ?? '') }}</p>

@@ -1,0 +1,79 @@
+{
+  "title": "Customer profile & account — browser test report",
+  "area": "Customer account (storefront)",
+  "date": "2026-11-19",
+  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. All 18 flows passed. One website bug was found and fixed in code (gift card expiry without the year, QA-C03); the saved-cards screen is missing on the website (QA-C05, known gap). The Google / Apple OAuth round trip itself was not run (real provider apps needed).",
+  "environment": [
+    "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
+    "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
+    "Panels on {admin|partner|carrier|delivery}.nawy.test:8000 via Chromium --host-resolver-rules (playwright.config.ts).",
+    "Chromium (Playwright Desktop Chrome), viewport 1280×800, project `areas`, run with E2E_SKIP_SEED=1 --no-deps (E2eSeeder already run).",
+    "Market uae-en (UAE, AED, VAT 5%) unless the step says otherwise; Arabic steps on uae-ar.",
+    "Email codes read from backend/storage/logs/laravel.log (e2e/support/mail.ts); SMS codes from the SMS log driver lines in the same log.",
+    "Fake card gateway: https://pay.fake.test is intercepted; the outcome is scripted with FakeGateway::willReport (and willTokenise) through artisan tinker, then the browser follows Laravel's return URL.",
+    "Shared servers with two other QA agents: every test creates its own shoppers (unique emails with a run suffix) and orders."
+  ],
+  "accounts": [
+    {
+      "role": "New shoppers (per test)",
+      "login": "qa-<tag>-<run>@nawy.test — created through the email-code sign-up (CUS-01) or, to stay under the 5-requests-a-minute email-code limit shared by all agents, with User::createPasswordless + SignInCustomer via artisan tinker"
+    },
+    {
+      "role": "Seeded shopper",
+      "login": "e2e-customer@nawy.test (E2eSeeder) — e2e/.auth/customer.json"
+    },
+    {
+      "role": "Seller",
+      "login": "e2e-seller@nawy.test — Seller Center (partner panel), store 'E2E Store' (e2e-store)"
+    },
+    {
+      "role": "Nawy admin",
+      "login": "e2e-admin@nawy.test — admin panel (Dispatch, Pick & pack, Refunds)"
+    },
+    {
+      "role": "Shipping company supervisor",
+      "login": "e2e-carrier@nawy.test — carrier panel, company 'E2E Couriers'"
+    },
+    {
+      "role": "Driver",
+      "login": "e2e-driver@nawy.test — delivery panel, agent 'E2E Driver'"
+    }
+  ],
+  "specs": [
+    "website/e2e/specs/areas/customer/account.spec.ts (CUS-01…CUS-18)",
+    "helpers: e2e/specs/areas/customer/kit.ts, data.ts"
+  ],
+  "issues": [
+    {
+      "id": "QA-C03",
+      "severity": "minor",
+      "area": "Website — account gift cards",
+      "description": "Gift card expiry is shown as 'Expires 19 Nov' for a card bought on 19 Nov 2026 that expires in 2027: formatDay never shows the year.",
+      "status": "fixed in code — verify after rebuild",
+      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts."
+    },
+    {
+      "id": "QA-C05",
+      "severity": "minor",
+      "area": "Website — account",
+      "description": "No saved-cards screen on the website: cards saved by the gateway (tokens only, verified through GET me/cards) can only be managed in the customer app. Listed as 'Left' in STATUS.md (M13).",
+      "status": "open",
+      "fix": "Feature gap, not changed."
+    },
+    {
+      "id": "QA-C07",
+      "severity": "minor",
+      "area": "E2E test harness",
+      "description": "Global setup signs the shared e2e customer in with its password on every run; with several QA runs the per-account limit (30 an hour) is hit and every run aborts with 429 before any test.",
+      "status": "fixed",
+      "fix": "e2e/support/global-setup.ts keeps the stored customer session when the API answers 429 and the stored token still works."
+    }
+  ],
+  "notes": [
+    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
+    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "Social sign-in: Google / Apple buttons render; the OAuth round trip needs real provider apps and is not driven (production provider pages may not be automated).",
+    "Saved cards are checked through the API (GET me/cards) here and after a real tokenised card payment in CHK-04.",
+    "An unknown referral code (/r/NOPE0000) answers a real HTTP 404 page by design (QA-012 proxy check), not the in-page 'This referral link does not exist' message."
+  ]
+}

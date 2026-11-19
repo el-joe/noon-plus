@@ -89,6 +89,18 @@ it('rejects an invalid signature and stores nothing', function () {
     expect(PaymentWebhookEvent::query()->count())->toBe(0)->and($payment->fresh()->status)->toBe(PaymentStatus::Pending);
 });
 
+it('rejects every fake webhook when no secret is configured (no built-in fallback secret)', function () {
+    $payment = pendingStripePayment();
+    $body = json_encode(['id' => 'evt_nosecret', 'gateway_reference' => $payment->gateway_reference, 'status' => 'captured']);
+    $knownOldDefault = hash_hmac('sha256', $body, 'fake-webhook-secret');
+    config(['nawy.payments.fake_webhook_secret' => null]);
+
+    fakeWebhook(json_decode($body, true), signature: $knownOldDefault)->assertUnauthorized()->assertJsonPath('error.code', 'invalid_signature');
+
+    expect(PaymentWebhookEvent::query()->count())->toBe(0)->and($payment->fresh()->status)->toBe(PaymentStatus::Pending)
+        ->and(fn () => FakeGateway::sign($body))->toThrow(LogicException::class);
+});
+
 it('never moves a payment backwards on a late or out-of-order event', function () {
     $payment = pendingStripePayment();
 

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Container, Skeleton } from "@/components/ui/misc";
 import { BookingStatusView } from "@/features/travel/booking-status";
 import type { MarketParams } from "@/features/travel/page-types";
+import { privatePageMetadata } from "@/lib/server-market";
 
-export const metadata: Metadata = { robots: { index: false } };
+export const generateMetadata = privatePageMetadata("meta.travelBooking");
 
 // The booking is read in the browser (guest token cookie or session), so navigations may wait.
 export const instant = false;

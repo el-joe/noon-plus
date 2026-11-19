@@ -6,6 +6,7 @@ use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Payments\Exceptions\GatewayError;
 use App\Domains\Payments\Exceptions\InvalidWebhookSignature;
 use App\Domains\Payments\Models\Payment;
+use App\Domains\Payments\Models\SavedPaymentCard;
 use App\Domains\Payments\Support\Data\GatewayOutcome;
 use App\Domains\Payments\Support\Data\GatewayRefund;
 use App\Domains\Payments\Support\Data\GatewaySession;
@@ -29,8 +30,12 @@ use Illuminate\Http\Request;
  * `amount_total`; `POST /v1/refunds {payment_intent, amount}` with `Idempotency-Key`.
  * Webhooks: `Stripe-Signature: t={unix},v1={hex}` where v1 = HMAC-SHA256(`{t}.{raw body}`, `whsec_…` secret);
  * events older than 5 minutes are refused (replay protection). Event id = `evt_…`.
+ * Saved cards (merchant-initiated, e.g. vendor plan auto-renewal): `POST /v1/payment_intents` with `customer`
+ * (`gateway_customer_ref`), `payment_method` (the token), `off_session=true`, `confirm=true`; the gateway reference
+ * is then the PaymentIntent id (`pi_…`), verified with `GET /v1/payment_intents/{id}` (`status` succeeded |
+ * processing | requires_action | requires_payment_method | canceled, `amount_received`) and refunded by id.
  */
-class StripeGateway extends HttpGateway
+class StripeGateway extends HttpGateway implements ChargesSavedCards
 {
     public const SIGNATURE_TOLERANCE_SECONDS = 300;
 
@@ -64,7 +69,31 @@ class StripeGateway extends HttpGateway
 
     public function verify(Payment $payment): GatewayOutcome
     {
+        if (str_starts_with((string) $payment->gateway_reference, 'pi_')) {
+            return $this->outcomeFromIntent($this->call(fn () => $this->client()->get('/v1/payment_intents/'.$payment->gateway_reference)));
+        }
+
         return $this->outcomeFromSession($this->session($payment));
+    }
+
+    public function chargeSavedCard(PaymentRequest $request, SavedPaymentCard $card): GatewayOutcome
+    {
+        if (! self::acceptsAmount($request->amount)) {
+            throw new GatewayError('Stripe needs 3-decimal amounts in multiples of 0.010.');
+        }
+
+        $body = $this->call(fn () => $this->client()->asForm()->withHeaders(['Idempotency-Key' => $request->idempotencyKey])->post('/v1/payment_intents', array_filter([
+            'amount' => $this->minorUnits($request->amount),
+            'currency' => strtolower($request->amount->getCurrency()->getCurrencyCode()),
+            'customer' => $card->gateway_customer_ref,
+            'payment_method' => $card->gateway_token,
+            'off_session' => 'true',
+            'confirm' => 'true',
+            'description' => $request->description,
+            'metadata' => ['payment_reference' => $request->reference, 'order_number' => $request->orderNumber],
+        ], fn (mixed $value): bool => $value !== null)));
+
+        return $this->outcomeFromIntent($body);
     }
 
     /**
@@ -77,7 +106,9 @@ class StripeGateway extends HttpGateway
 
     public function refund(Payment $payment, Money $amount, string $idempotencyKey, ?string $reason = null): GatewayRefund
     {
-        $paymentIntent = $this->session($payment)['payment_intent'] ?? throw new GatewayError('Stripe session has no payment to refund.');
+        $paymentIntent = str_starts_with((string) $payment->gateway_reference, 'pi_')
+            ? $payment->gateway_reference
+            : ($this->session($payment)['payment_intent'] ?? throw new GatewayError('Stripe session has no payment to refund.'));
 
         $body = $this->call(fn () => $this->client()->asForm()->withHeaders(['Idempotency-Key' => $idempotencyKey])->post('/v1/refunds', [
             'payment_intent' => is_array($paymentIntent) ? $paymentIntent['id'] : $paymentIntent,
@@ -152,6 +183,26 @@ class StripeGateway extends HttpGateway
             ),
             ($session['status'] ?? null) === 'expired' => new GatewayOutcome(PaymentStatus::Expired, $id),
             default => new GatewayOutcome(PaymentStatus::Pending, $id),
+        };
+    }
+
+    /**
+     * A PaymentIntent (saved-card charge): succeeded = captured; one that
+     * needs the cardholder or a new card has failed for this attempt.
+     *
+     * @param  array<string, mixed>  $intent
+     */
+    private function outcomeFromIntent(array $intent): GatewayOutcome
+    {
+        $id = $intent['id'] ?? null;
+
+        return match ($intent['status'] ?? null) {
+            'succeeded' => new GatewayOutcome(PaymentStatus::Captured, $id,
+                isset($intent['amount_received']) ? $this->fromMinorUnits((int) $intent['amount_received'], strtoupper((string) $intent['currency'])) : null),
+            'processing' => new GatewayOutcome(PaymentStatus::Pending, $id),
+            'canceled' => new GatewayOutcome(PaymentStatus::Failed, $id, failureCode: 'canceled'),
+            default => new GatewayOutcome(PaymentStatus::Failed, $id, failureCode: (string) (data_get($intent, 'last_payment_error.code') ?? $intent['status'] ?? 'declined'),
+                failureMessage: data_get($intent, 'last_payment_error.message') ?? __('The saved card needs the cardholder; pay the invoice by card instead.')),
         };
     }
 

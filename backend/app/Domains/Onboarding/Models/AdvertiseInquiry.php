@@ -42,6 +42,42 @@ class AdvertiseInquiry extends Model
     ];
 
     /**
+     * QA-023: the band edges in each currency (the keys above are ids named
+     * after the AED edges). OMR / KWD / BHD are worth ~10 AED, JOD ~5, EGP ~0.07.
+     *
+     * @var array<string, array{0: int, 1: int, 2: int, 3: int}>
+     */
+    public const BUDGET_EDGES = [
+        'AED' => [1000, 5000, 20000, 50000],
+        'SAR' => [1000, 5000, 20000, 50000],
+        'QAR' => [1000, 5000, 20000, 50000],
+        'OMR' => [100, 500, 2000, 5000],
+        'KWD' => [100, 500, 2000, 5000],
+        'BHD' => [100, 500, 2000, 5000],
+        'JOD' => [200, 1000, 4000, 10000],
+        'EGP' => [10000, 50000, 200000, 500000],
+    ];
+
+    /**
+     * The band's [min, max] in a currency.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    public static function budgetRange(string $budget, string $currency): array
+    {
+        [$first, $second, $third, $fourth] = self::BUDGET_EDGES[$currency] ?? self::BUDGET_EDGES['AED'];
+
+        return match ($budget) {
+            'under_1000' => [null, $first],
+            '1000_5000' => [$first, $second],
+            '5000_20000' => [$second, $third],
+            '20000_50000' => [$third, $fourth],
+            'over_50000' => [$fourth, null],
+            default => [null, null],
+        };
+    }
+
+    /**
      * The band's label in a currency, e.g. "AED 1,000 – 5,000"; free text as is.
      */
     public static function budgetLabel(?string $budget, string $currency): ?string
@@ -50,7 +86,7 @@ class AdvertiseInquiry extends Model
             return $budget;
         }
 
-        [$min, $max] = self::BUDGET_BANDS[$budget];
+        [$min, $max] = self::budgetRange($budget, $currency);
 
         return match (true) {
             $min === null && $max === null => __('Not sure yet'),

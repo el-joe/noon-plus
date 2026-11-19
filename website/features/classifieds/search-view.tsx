@@ -65,7 +65,7 @@ export async function ClassifiedSearch({ market, params }: { market: Market; par
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label="Breadcrumb">
+      <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label={t("common.breadcrumb")}>
         <Link href={`/${market.slug}`} aria-label={t("common.home")}>
           <Home className="size-3.5" />
         </Link>

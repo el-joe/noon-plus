@@ -18,11 +18,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * order on hold so the customer can retry with another method until
  * `expires_at`. Status changes only through {@see PaymentStateMachine}.
  * A payment without an order pays a `payable` (gift card purchase,
- * membership invoice — WP4).
+ * membership invoice — WP4). `charge_currency` / `charge_amount` /
+ * `exchange_rate` are set when the gateway is charged in another currency
+ * (PayPal USD); every other amount stays in `currency`.
  */
 #[Fillable([
     'reference', 'order_id', 'payable_type', 'payable_id', 'customer_user_id', 'method', 'mode', 'currency', 'amount', 'idempotency_key',
-    'gateway_reference', 'redirect_url', 'client_data', 'expires_at',
+    'charge_currency', 'charge_amount', 'exchange_rate', 'exchange_rate_id',
+    'gateway_reference', 'redirect_url', 'return_url', 'client_data', 'expires_at',
 ])]
 #[Hidden(['client_data', 'idempotency_key'])]
 class Payment extends Model

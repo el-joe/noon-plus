@@ -9,6 +9,7 @@ use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Vendors\Models\Vendor;
+use App\Shared\StateMachine\StateTransition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -153,13 +154,15 @@ it('QC-003: an admin edits a product and its variant; an inactive product blocks
     $this->actingAs($admin)->get(onPanel('admin', 'catalog/products?q='.urlencode($listing->variant->sku)))->assertOk()->assertSee($product->title_en);
     $this->actingAs($admin)->put(onPanel('admin', "catalog/products/{$product->id}"), [
         'title_en' => 'New title', 'title_ar' => 'عنوان', 'slug' => $product->slug, 'category_id' => $product->category_id,
-        'status' => 'inactive', 'fulfilment_mode' => 'ready_to_ship',
+        'status' => 'restricted', 'status_reason' => 'Import licence pending', 'fulfilment_mode' => 'ready_to_ship',
     ])->assertRedirect()->assertSessionHasNoErrors();
     $this->actingAs($admin)->put(onPanel('admin', "catalog/variants/{$listing->product_variant_id}"), ['sku' => 'NEW-SKU-1', 'weight_grams' => 900])->assertRedirect();
 
-    expect(Product::query()->find($product->id)->status)->toBe('inactive')
+    expect(Product::query()->find($product->id)->status)->toBe('restricted')
         ->and($listing->variant->refresh()->sku)->toBe('NEW-SKU-1')
-        ->and(Activity::query()->where('log_name', 'products')->where('event', 'updated')->count())->toBe(2);
+        // Product fields, the status move (QC-016 machine, wave 3) and the variant.
+        ->and(Activity::query()->where('log_name', 'products')->where('event', 'updated')->count())->toBe(3)
+        ->and(StateTransition::query()->where('subject_type', 'product')->where('to_status', 'restricted')->value('reason'))->toBe('Import licence pending');
 
     $this->actingAs($admin)->post(onPanel('admin', "approvals/listings/{$listing->id}/approve"))->assertSessionHasErrors();
     expect(Listing::query()->find($listing->id)->status)->toBe(ListingStatus::PendingReview);

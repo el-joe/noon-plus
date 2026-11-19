@@ -20,11 +20,12 @@ class ApiResponse
 
     /**
      * @param  array<string, array<int, string>>  $fields
+     * @param  array<string, mixed>  $extra  more keys inside `error` (e.g. the contracts to accept)
      */
-    public static function error(string $code, string $message, int $status, array $fields = []): JsonResponse
+    public static function error(string $code, string $message, int $status, array $fields = [], array $extra = []): JsonResponse
     {
         return response()->json([
-            'error' => ['code' => $code, 'message' => $message, 'fields' => (object) $fields],
+            'error' => ['code' => $code, 'message' => $message, 'fields' => (object) $fields] + $extra,
         ], $status);
     }
 }

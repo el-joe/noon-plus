@@ -21,7 +21,7 @@
       "page": "Page {page} of {total}"
     },
     "help": {
-      "title": "Help centre",
+      "title": "Help center",
       "heroTitle": "How can we help?",
       "searchLabel": "Search help articles",
       "searchPlaceholder": "e.g. return an item, change address",
@@ -61,7 +61,9 @@
     },
     "pages": {
       "updated": "Last updated {date}",
-      "countrySpecific": "Applies in {country}"
+      "countrySpecific": "Applies in {country}",
+      "placeholderTitle": "Placeholder page.",
+      "placeholderBody": "This page has not been published yet. The text below is temporary and does not set out any terms."
     },
     "cookies": {
       "title": "Your privacy, your choice",
@@ -93,7 +95,7 @@
       "about": "About us",
       "contact": "Contact us",
       "blog": "Blog",
-      "helpCenter": "Help centre",
+      "helpCenter": "Help center",
       "adsHub": "Ads Knowledge Hub",
       "nawyTv": "Nawy TV",
       "creators": "Creators",

@@ -7,6 +7,7 @@ use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Payments\Exceptions\GatewayError;
 use App\Domains\Payments\Exceptions\InvalidWebhookSignature;
 use App\Domains\Payments\Models\Payment;
+use App\Domains\Payments\Models\SavedPaymentCard;
 use App\Domains\Payments\Support\Data\GatewayOutcome;
 use App\Domains\Payments\Support\Data\GatewayRefund;
 use App\Domains\Payments\Support\Data\GatewaySession;
@@ -22,12 +23,12 @@ use Illuminate\Support\Facades\Cache;
  * stays pending until a test scripts the provider answer with
  * {@see willReport()}; failures are scripted with {@see failNext()}.
  * Webhooks are signed `X-Fake-Signature: hex HMAC-SHA256(raw body, secret)`
- * where the secret is the `webhook_secret` credential or {@see SECRET}.
+ * where the secret is the country's `webhook_secret` credential or, when that
+ * is empty, `nawy.payments.fake_webhook_secret` (NAWY_FAKE_WEBHOOK_SECRET).
+ * There is no built-in fallback: without either, every webhook is rejected.
  */
-class FakeGateway implements PaymentGateway
+class FakeGateway implements ChargesSavedCards, PaymentGateway
 {
-    public const SECRET = 'fake-webhook-secret';
-
     public const HEADER = 'X-Fake-Signature';
 
     public function __construct(private PaymentMethod $method, private ?string $webhookSecret = null) {}
@@ -38,6 +39,61 @@ class FakeGateway implements PaymentGateway
     public static function willReport(string $gatewayReference, PaymentStatus $status): void
     {
         Cache::forever('fake-gateway:outcome:'.$gatewayReference, $status->value);
+    }
+
+    /**
+     * Tests (G-A6): the next verify of this payment reports a tokenised card.
+     *
+     * @param  array{token: string, last4: string, brand?: string|null, exp_month?: int|null, exp_year?: int|null}  $card
+     */
+    public static function willTokenise(string $gatewayReference, array $card): void
+    {
+        Cache::forever('fake-gateway:card:'.$gatewayReference, $card);
+    }
+
+    /**
+     * Tests: the next saved-card charge is declined (or, with
+     * `$unreachable`, the provider cannot be reached).
+     */
+    public static function declineNextCardCharge(bool $unreachable = false): void
+    {
+        Cache::forever('fake-gateway:token-charge', $unreachable ? 'unreachable' : 'declined');
+    }
+
+    /**
+     * @return array<int, array{reference: string, amount: string, currency: string, token: string}>
+     */
+    public static function cardCharges(): array
+    {
+        return Cache::get('fake-gateway:token-charges', []);
+    }
+
+    /**
+     * Saved-card charge (merchant-initiated): captured at once unless a test
+     * scripted a decline with {@see declineNextCardCharge()}.
+     */
+    public function chargeSavedCard(PaymentRequest $request, SavedPaymentCard $card): GatewayOutcome
+    {
+        $scripted = Cache::pull('fake-gateway:token-charge');
+
+        if ($scripted === 'unreachable') {
+            throw new GatewayError('Fake gateway is unreachable.');
+        }
+
+        $reference = self::referenceFor($request->reference, $this->method);
+        Cache::forever('fake-gateway:token-charges', [...self::cardCharges(), [
+            'reference' => $request->reference, 'amount' => (string) $request->amount->getAmount(), 'currency' => $request->amount->getCurrency()->getCurrencyCode(), 'token' => (string) $card->gateway_token,
+        ]]);
+
+        if ($scripted === 'declined') {
+            self::willReport($reference, PaymentStatus::Failed);
+
+            return new GatewayOutcome(PaymentStatus::Failed, $reference, failureCode: 'card_declined', failureMessage: __('The card was declined.'));
+        }
+
+        self::willReport($reference, PaymentStatus::Captured);
+
+        return new GatewayOutcome(PaymentStatus::Captured, $reference, (string) $request->amount->getAmount());
     }
 
     /**
@@ -75,7 +131,8 @@ class FakeGateway implements PaymentGateway
 
         return new GatewayOutcome($status, $payment->gateway_reference, $status->isSuccessful() ? (string) $payment->amount : null,
             $status === PaymentStatus::Failed ? 'declined' : null,
-            $status === PaymentStatus::Failed ? __('The card was declined.') : null);
+            $status === PaymentStatus::Failed ? __('The card was declined.') : null,
+            $status->isSuccessful() ? Cache::get('fake-gateway:card:'.$payment->gateway_reference) : null);
     }
 
     public function capture(Payment $payment, Money $amount): GatewayOutcome
@@ -98,7 +155,13 @@ class FakeGateway implements PaymentGateway
      */
     public function parseWebhook(Request $request): WebhookNotification
     {
-        $expected = hash_hmac('sha256', $request->getContent(), $this->webhookSecret ?? self::SECRET);
+        $secret = self::secret($this->webhookSecret);
+
+        if ($secret === null) {
+            throw new InvalidWebhookSignature('The fake gateway has no webhook secret configured (credential webhook_secret or NAWY_FAKE_WEBHOOK_SECRET).');
+        }
+
+        $expected = hash_hmac('sha256', $request->getContent(), $secret);
         $signature = (string) $request->header(self::HEADER);
 
         if ($signature === '' || ! hash_equals($expected, $signature)) {
@@ -123,7 +186,17 @@ class FakeGateway implements PaymentGateway
      */
     public static function sign(string $body, ?string $secret = null): string
     {
-        return hash_hmac('sha256', $body, $secret ?? self::SECRET);
+        return hash_hmac('sha256', $body, self::secret($secret) ?? throw new \LogicException('Set nawy.payments.fake_webhook_secret to sign fake webhooks.'));
+    }
+
+    /**
+     * The signing secret: the given credential, else the configured one; null when neither is set.
+     */
+    private static function secret(?string $credential): ?string
+    {
+        $secret = $credential ?: (string) config('nawy.payments.fake_webhook_secret');
+
+        return $secret === '' ? null : $secret;
     }
 
     private function failIfScripted(string $call): void

@@ -4,6 +4,10 @@ namespace App\Domains\Cart\Http;
 
 use App\Domains\Cart\Models\Cart;
 use App\Domains\Cart\Support\CheckoutQuote;
+use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Settings\SettingsService;
+use App\Shared\Money\MoneyFactory;
+use Brick\Math\RoundingMode;
 use Brick\Money\Money;
 
 /**
@@ -87,8 +91,40 @@ class CartPresenter
                 'tax_included' => $money($quote->taxIncluded),
                 'tax_rate' => $quote->taxRate,
             ],
+            'free_delivery' => self::freeDelivery($quote),
             'warnings' => $quote->warnings,
             'hold_minutes' => (int) config('nawy.checkout.cart_lock_minutes'),
+        ];
+    }
+
+    /**
+     * G-A5: the free-delivery threshold (`checkout.free_shipping_threshold`)
+     * and what is left to spend for the "spend X more" bar. The subtotal is
+     * the items' value before coupons, as the calculator compares it.
+     *
+     * @return array{threshold: array{amount: string, currency: string}, remaining: array{amount: string, currency: string}, progress_percent: int, qualified: bool}|null
+     */
+    private static function freeDelivery(CheckoutQuote $quote): ?array
+    {
+        $country = app(CountryContext::class)->current();
+        $default = config("nawy.checkout.defaults.{$country->code}.free_shipping_threshold");
+        $value = app(SettingsService::class)->get('checkout.free_shipping_threshold', $default, $country);
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $threshold = app(MoneyFactory::class)->of((string) $value, $country->currency);
+        $subtotal = $quote->subtotal;
+        $remaining = $subtotal->isGreaterThanOrEqualTo($threshold) ? $threshold->multipliedBy(0) : $threshold->minus($subtotal);
+        $progress = $threshold->isZero() ? 100 : min(100, $subtotal->getAmount()->multipliedBy(100)->dividedBy($threshold->getAmount(), 0, RoundingMode::Down)->toInt());
+        $money = fn (Money $value): array => ['amount' => (string) $value->getAmount(), 'currency' => $value->getCurrency()->getCurrencyCode()];
+
+        return [
+            'threshold' => $money($threshold),
+            'remaining' => $money($remaining),
+            'progress_percent' => $progress,
+            'qualified' => $remaining->isZero() || ! $quote->shippingAbsorbedTotal->isZero(),
         ];
     }
 }

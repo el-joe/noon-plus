@@ -2,14 +2,20 @@
 
 namespace App\Domains\Delivery\Http\Controllers\Panel;
 
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Delivery\Enums\AssignmentStatus;
+use App\Domains\Delivery\Http\Controllers\Api\DeliveryAgentApiController;
 use App\Domains\Delivery\Models\DeliveryAgent;
 use App\Domains\Delivery\Models\DeliveryAssignment;
+use App\Domains\Delivery\Models\DeliveryPayslip;
+use App\Domains\Delivery\Models\DeliveryWithdrawal;
 use App\Domains\Delivery\Support\AgentAssignments;
 use App\Domains\Delivery\Support\AgentEarnings;
+use App\Domains\Delivery\Support\AgentPay;
 use App\Domains\Delivery\Support\AgentWorkspace;
 use App\Domains\Delivery\Support\DeliveryAgents;
 use App\Domains\Delivery\Support\DeliverySettings;
+use App\Domains\Delivery\Support\PayslipDocument;
 use App\Domains\Documents\Enums\DocumentOwner;
 use App\Domains\Documents\Models\Document;
 use App\Domains\Documents\Support\Documents;
@@ -17,11 +23,13 @@ use App\Domains\Finance\Models\CodCollection;
 use App\Domains\Finance\Models\CodSettlement;
 use App\Domains\Panels\Http\Controllers\PanelDashboardController;
 use App\Http\Controllers\Controller;
+use App\Shared\Money\MoneyFactory;
 use App\Shared\Validation\CountryPhone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Delivery agent web panel (delivery., SRS §4.6, Figma "delivery my day"):
@@ -107,13 +115,21 @@ class DeliveryPanelController extends Controller
      * Earnings (Figma 108:8009): the last 7 days at the country's pay rates
      * ({@see AgentEarnings}). Payouts of these earnings are not built yet.
      */
-    public function earnings(Request $request, AgentEarnings $earnings): View
+    public function earnings(Request $request, AgentEarnings $earnings, AgentPay $pay): View
     {
         $agent = $this->agent($request);
         $summary = $earnings->lastSevenDays($agent);
+        $currency = $this->countryContext()->current()->currency;
+        $withdrawals = DeliveryWithdrawal::query()->where('delivery_agent_id', $agent->id)->latest('id')->limit(30)->get();
 
         return view('panels.delivery.earnings', [
-            'agent' => $agent,
+            'agent' => $agent->loadMissing('carrier'),
+            'payslips' => DeliveryPayslip::query()->where('delivery_agent_id', $agent->id)->latest('period_end')->latest('id')->limit(30)->get(),
+            'wallet' => $pay->balances($agent, $currency),
+            'minimum' => $pay->minimum($currency),
+            'withdrawals' => $withdrawals,
+            'openWithdrawal' => $withdrawals->first(fn (DeliveryWithdrawal $withdrawal): bool => $withdrawal->status->isOpen()),
+            'lastPayout' => $withdrawals->first()?->maskedPayout(),
             'days' => $summary['days'],
             'perStop' => $summary['per_stop'],
             'perFailed' => $summary['per_failed'],
@@ -121,6 +137,42 @@ class DeliveryPanelController extends Controller
             'stops' => $summary['stops'],
             'failedTotal' => $summary['failed'],
         ]);
+    }
+
+    public function payslip(Request $request, string $number, PayslipDocument $document): \Illuminate\Contracts\View\View
+    {
+        return $document->view($this->ownPayslip($request, $number));
+    }
+
+    public function payslipPdf(Request $request, string $number, PayslipDocument $document): Response
+    {
+        return $document->pdf($this->ownPayslip($request, $number));
+    }
+
+    public function withdraw(Request $request, AgentPay $pay, MoneyFactory $money): RedirectResponse
+    {
+        $data = $request->validate(DeliveryAgentApiController::withdrawalRules());
+        $withdrawal = $pay->requestWithdrawal($this->agent($request), $money->of((string) $data['amount'], $this->countryContext()->current()->currency), $data, $request->user()->id);
+
+        return back()->with('status', __('Withdrawal :number requested.', ['number' => $withdrawal->number]));
+    }
+
+    public function cancelWithdrawal(Request $request, string $number, AgentPay $pay): RedirectResponse
+    {
+        $withdrawal = DeliveryWithdrawal::query()->where('delivery_agent_id', $this->agent($request)->id)->where('number', $number)->firstOrFail();
+        $pay->cancel($withdrawal, $request->user()->id);
+
+        return back()->with('status', __('Withdrawal :number cancelled.', ['number' => $withdrawal->number]));
+    }
+
+    private function ownPayslip(Request $request, string $number): DeliveryPayslip
+    {
+        return DeliveryPayslip::query()->where('delivery_agent_id', $this->agent($request)->id)->where('number', $number)->firstOrFail();
+    }
+
+    private function countryContext(): CountryContext
+    {
+        return app(CountryContext::class);
     }
 
     public function profile(Request $request): View
@@ -156,12 +208,12 @@ class DeliveryPanelController extends Controller
     public function storeDocument(Request $request, Documents $documents): RedirectResponse
     {
         $agent = $this->agent($request);
+        $type = $documents->requirements(DocumentOwner::DeliveryAgent)->firstWhere('id', $request->integer('document_type_id')) ?? abort(404);
         $data = $request->validate([
             'document_type_id' => ['required', 'integer'],
-            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:20480'],
-            'valid_until' => ['nullable', 'date', 'after:today'],
+            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:'.(1024 * min(20, (int) ($type->max_mb ?: 10)))],
+            'valid_until' => [$type->has_expiry ? 'required' : 'nullable', 'date', 'after:today'],
         ]);
-        $type = $documents->requirements(DocumentOwner::DeliveryAgent)->firstWhere('id', (int) $data['document_type_id']) ?? abort(404);
         $documents->upload($type, DocumentOwner::DeliveryAgent->value, $agent->id, $request->file('file'), $request->user()->id, null, $data['valid_until'] ?? null);
 
         return back()->with('status', __('Uploaded — Nawy will review it.'));

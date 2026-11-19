@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Skeleton } from "@/components/ui/misc";
 import { ProductGrid } from "@/components/product/product-grid";
+import { OffersForYou } from "@/features/offers/offers-for-you";
 import { loadCmsPage } from "@/features/page-builder/cms-page";
 import { PageZone } from "@/features/page-builder/render";
 import { orNull } from "@/lib/api/client";
@@ -43,7 +44,12 @@ async function Home({ market }: { market: Market }) {
   const { page, categories } = await loadCmsPage(market, "home");
   const ctx = { market, categories };
   if (page && (page.zones.main?.length ?? 0) > 0) {
-    return <PageZone blocks={page.zones.main} ctx={ctx} />;
+    return (
+      <div className="flex flex-col gap-6">
+        <PageZone blocks={page.zones.main} ctx={ctx} />
+        <OffersForYou />
+      </div>
+    );
   }
   return <HomeFallback market={market} categories={categories} />;
 }
@@ -84,6 +90,7 @@ async function HomeFallback({ market, categories }: { market: Market; categories
           </div>
         </section>
       ) : null}
+      <OffersForYou />
       <section>
         <h2 className="mb-3 text-h3 font-semibold">{t("home.newArrivals")}</h2>
         {latest.length > 0 ? <ProductGrid products={latest.map(cardFromApi)} columns={6} /> : <p className="rounded-lg bg-surface p-6 text-body text-secondary">{t("home.emptyCatalog")}</p>}

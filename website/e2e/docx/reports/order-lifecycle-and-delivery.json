@@ -1,0 +1,637 @@
+{
+  "title": "Order lifecycle & delivery — browser test report",
+  "area": "Orders across customer, seller, admin, carrier and driver",
+  "date": "2026-11-19",
+  "summary": "Real orders placed in the browser were driven through every actor's own screens. ORD-01: a card-paid seller-fulfilled order — Seller Center confirm, processing, packing slip, packed, ready for pickup; Admin → Dispatch hands it to E2E Couriers; the seller prints the parcel label (HTML + PDF); the carrier assigns E2E Driver; the driver accepts, picks up, arrives, sees the same 4-digit code the customer has on the order page and taps 'Codes match — delivered' (no typing); the customer sees Delivered, opens the invoice (HTML + PDF), reviews the item and returns it; the seller approves, moves and inspects the return and the refund lands in the customer's Nawy Credits. ORD-02: a COD Fulfilled-by-Nawy order through Admin → Pick & pack (confirm, pick, pack, dispatch, auto-assignment) and delivery with a proof photo and cash collection. ORD-03: cancellation by the customer (COD) and by the seller with a reason (card, refunded). ORD-04: a failed delivery ('not home'), reschedule in Admin → Dispatch, second assignment and delivery on attempt 2. All 4 flows (73 steps) passed; no new bug in these paths.",
+  "environment": [
+    "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
+    "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
+    "Panels on {admin|partner|carrier|delivery}.nawy.test:8000 via Chromium --host-resolver-rules (playwright.config.ts).",
+    "Chromium (Playwright Desktop Chrome), viewport 1280×800, project `areas`, run with E2E_SKIP_SEED=1 --no-deps (E2eSeeder already run).",
+    "Market uae-en (UAE, AED, VAT 5%) unless the step says otherwise; Arabic steps on uae-ar.",
+    "Email codes read from backend/storage/logs/laravel.log (e2e/support/mail.ts); SMS codes from the SMS log driver lines in the same log.",
+    "Fake card gateway: https://pay.fake.test is intercepted; the outcome is scripted with FakeGateway::willReport (and willTokenise) through artisan tinker, then the browser follows Laravel's return URL.",
+    "Shared servers with two other QA agents: every test creates its own shoppers (unique emails with a run suffix) and orders."
+  ],
+  "accounts": [
+    {
+      "role": "New shoppers (per test)",
+      "login": "qa-<tag>-<run>@nawy.test — created through the email-code sign-up (CUS-01) or, to stay under the 5-requests-a-minute email-code limit shared by all agents, with User::createPasswordless + SignInCustomer via artisan tinker"
+    },
+    {
+      "role": "Seeded shopper",
+      "login": "e2e-customer@nawy.test (E2eSeeder) — e2e/.auth/customer.json"
+    },
+    {
+      "role": "Seller",
+      "login": "e2e-seller@nawy.test — Seller Center (partner panel), store 'E2E Store' (e2e-store)"
+    },
+    {
+      "role": "Nawy admin",
+      "login": "e2e-admin@nawy.test — admin panel (Dispatch, Pick & pack, Refunds)"
+    },
+    {
+      "role": "Shipping company supervisor",
+      "login": "e2e-carrier@nawy.test — carrier panel, company 'E2E Couriers'"
+    },
+    {
+      "role": "Driver",
+      "login": "e2e-driver@nawy.test — delivery panel, agent 'E2E Driver'"
+    }
+  ],
+  "specs": [
+    "website/e2e/specs/areas/orders/lifecycle.spec.ts (ORD-01…ORD-04)"
+  ],
+  "issues": [
+    {
+      "id": "QA-C08",
+      "severity": "minor",
+      "area": "Admin — Delivery → Dispatch",
+      "description": "'Ready to dispatch' lists only the 50 oldest ready parcels (orderBy id, limit 50) with no pagination or total; once more than 50 parcels wait, newer ones (like the test orders) cannot be assigned from this board. 26 were waiting during the run, so the tests were not affected.",
+      "status": "open",
+      "fix": "Not changed (admin area): add pagination or sort by SLA."
+    },
+    {
+      "id": "QA-C06",
+      "severity": "question",
+      "area": "Checkout / fulfilment",
+      "description": "A Fulfilled-by-Nawy item and a seller-fulfilled item of the same seller in one cart become ONE shipment / sub-order (CheckoutCalculator groups by seller). FbnOrders::isWarehouseFulfilled is then false, so the seller is asked to fulfil the whole sub-order, including the FBN unit stored in the Nawy warehouse.",
+      "status": "open — needs a product decision",
+      "fix": "Not changed (ShippingFeeCalculator already expects mixed fbm/fbn shipments, so this looks deliberate)."
+    },
+    {
+      "id": "QA-C07",
+      "severity": "minor",
+      "area": "E2E test harness",
+      "description": "Global setup signs the shared e2e customer in with its password on every run; with several QA runs the per-account limit (30 an hour) is hit and every run aborts with 429 before any test.",
+      "status": "fixed",
+      "fix": "e2e/support/global-setup.ts keeps the stored customer session when the API answers 429 and the stored token still works."
+    }
+  ],
+  "notes": [
+    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
+    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "The driver never types the delivery code: the test reads the 4-digit code on the customer's order page and checks it equals the code on the driver's screen, then taps 'Codes match — delivered' (the form posts codes_match=1 only).",
+    "Proof is required for COD parcels (delivery.proof_required_for_cod): ORD-02 / ORD-04 attach a proof photo before confirming.",
+    "Auto-assign (delivery.auto_assign = nearest) may pick another active agent on FBN dispatch; ORD-02 then reassigns the parcel to E2E Driver in Admin → Dispatch → assignment.",
+    "The parcel label is available to the seller once the delivery is booked (shipment created by the hand-over / first assignment), not right after 'Mark as packed'."
+  ],
+  "totals": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "ORD-01",
+      "name": "Full lifecycle of a seller-fulfilled order (card)",
+      "goal": "A real order placed in the browser is driven through every actor: the seller confirms, processes, packs (packing slip, parcel label) and marks it ready; Nawy admin hands it to the shipping company; the carrier assigns its driver; the driver accepts, picks up and delivers with the code match; the customer sees tracking, Delivered, the invoice, reviews the item and returns it; the seller handles the return and the refund reaches the customer.",
+      "preconditions": "A new shopper; Seller Center as the e2e seller, admin, carrier supervisor and driver sessions (e2e/.auth or password + 2FA).",
+      "spec": "e2e/specs/areas/orders/lifecycle.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Customer: add the seller-fulfilled (AED 120) offer and check out with card (fake gateway captures)",
+          "expected": "'Thank you! Your order is placed.' with the order number",
+          "result": "pass",
+          "note": "NW-AE-1000221",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-1.png"
+        },
+        {
+          "action": "Seller Center → Orders: search NW-AE-1000221-1 and open it",
+          "expected": "Order page with items, customer & delivery, totals, history and the next-step button",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-2.png"
+        },
+        {
+          "action": "Customer: order detail right after paying",
+          "expected": "Status Placed / Confirmed, sold by E2E Store, paid by card",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-3.png"
+        },
+        {
+          "action": "Seller: Confirm order",
+          "expected": "Status Confirmed; history logs the seller",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-4.png"
+        },
+        {
+          "action": "Seller: Start processing",
+          "expected": "Status Processing",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-5.png"
+        },
+        {
+          "action": "Seller: Print packing slip",
+          "expected": "Packing slip page lists the order, items and address",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-6.png"
+        },
+        {
+          "action": "Seller: Mark as packed",
+          "expected": "Status Packed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-7.png"
+        },
+        {
+          "action": "Seller: Ready for pickup",
+          "expected": "Status Shipped (handed to carrier)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-8.png"
+        },
+        {
+          "action": "Admin → Delivery → Dispatch: 'Ready to dispatch' row NW-AE-1000221-1 → Hand over to E2E Couriers",
+          "expected": "Flash ':number handed to E2E Couriers'; the row now says 'With E2E Couriers'",
+          "result": "pass",
+          "note": "NW-AE-1000221-1 handed to E2E Couriers.",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-9.png"
+        },
+        {
+          "action": "Seller: Print parcel label (HTML + PDF) — available once the delivery is booked",
+          "expected": "Label with the shipment number/barcode and the destination; PDF downloads",
+          "result": "pass",
+          "note": "label.pdf 878856 bytes (application/pdf)",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-10.png"
+        },
+        {
+          "action": "Carrier panel → Pickup requests: SH-NW-AE-1000221-1 → Driver 'E2E Driver' → Assign",
+          "expected": "Flash 'SH-… assigned to E2E Driver.'; the parcel leaves the pickup list",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-11.png"
+        },
+        {
+          "action": "Driver (delivery panel) → Assignments: open DA-NW-AE-1000221-1-…",
+          "expected": "Assignment with the delivery code card, customer, items and 'Accept' / 'Decline'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-12.png"
+        },
+        {
+          "action": "Driver: Accept",
+          "expected": "Status Accepted; next step 'Picked up — start delivery'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-13.png"
+        },
+        {
+          "action": "Driver: Picked up — start delivery",
+          "expected": "Status Picked up; 'I have arrived' and the 'Codes match' form",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-14.png"
+        },
+        {
+          "action": "Driver: I have arrived",
+          "expected": "Arrival time recorded",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-15.png"
+        },
+        {
+          "action": "Customer: order detail while out for delivery",
+          "expected": "Status 'Out for delivery' and the 4-digit delivery code to read to the courier",
+          "result": "pass",
+          "note": "customer code 0256",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-16.png"
+        },
+        {
+          "action": "Driver: the delivery code card shows the same 4 digits (customer reads it aloud — no typing)",
+          "expected": "Driver's code equals the customer's code",
+          "result": "pass",
+          "note": "driver code 0256 = customer code 0256",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-17.png"
+        },
+        {
+          "action": "Driver: Codes match — delivered",
+          "expected": "Assignment closed: 'This assignment is closed.' Delivered; customer details hidden",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-18.png"
+        },
+        {
+          "action": "Customer: order detail after delivery",
+          "expected": "Shipment 'Delivered'; invoice links; Return item / Write review actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-19.png"
+        },
+        {
+          "action": "Customer: open the invoice (HTML) and the PDF",
+          "expected": "Tax invoice with the order number and VAT; PDF file",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-20.png"
+        },
+        {
+          "action": "Customer: Account → My reviews → Write review for the delivered item",
+          "expected": "'Thanks! Your review will appear once it has been checked.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-21.png"
+        },
+        {
+          "action": "Customer: order → Return item → reason 'Changed my mind', refund to Nawy Credits → Submit return",
+          "expected": "Returns list shows the new RT- return 'Requested'",
+          "result": "pass",
+          "note": "RT-NW-AE-1000221-1-22",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-22.png"
+        },
+        {
+          "action": "Seller Center → Returns → RT-NW-AE-1000221-1-22 → Approve return",
+          "expected": "Status Approved",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-23.png"
+        },
+        {
+          "action": "Seller: move the return through pickup / transit / received (Mark … buttons)",
+          "expected": "Status Received / Inspecting with the Inspection form",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-24.png"
+        },
+        {
+          "action": "Seller: inspection 'Good condition', put back in stock → Save inspection and refund",
+          "expected": "Return Completed with the refund amount",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-25.png"
+        },
+        {
+          "action": "Admin → Refunds: the refund for this order (approve and pay out if it waits for approval)",
+          "expected": "Refund paid to Nawy Credits",
+          "result": "pass",
+          "note": "Orders & disputes › Refunds › RF-NW-AE-1000221-22 RF-NW-AE-1000221-22 Refund in United Arab Emirates Amount AED 120.00 Still refundable on the order AED 0.00 Status Completed Details Order NW-AE-10002",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-26.png"
+        },
+        {
+          "action": "Customer: Returns & refunds and Nawy Credits",
+          "expected": "The return shows Completed / refund AED 120.00; credits balance AED 120.00",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-01-27.png"
+        }
+      ]
+    },
+    {
+      "id": "ORD-02",
+      "name": "Fulfilled by Nawy order through pick & pack (COD)",
+      "goal": "The FBN offer (listing 19, warehouse E2E-FC) is bought with cash on delivery; the seller cannot advance it; Nawy admin confirms, picks, packs and dispatches it in Inventory → Pick & pack; dispatch puts it with E2E Driver, who delivers with a proof photo and collects the cash.",
+      "preconditions": "A new shopper; admin, seller and driver sessions.",
+      "spec": "e2e/specs/areas/orders/lifecycle.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Customer: add the Fulfilled by Nawy (AED 95) offer and check out with cash on delivery",
+          "expected": "'Thank you! Your order is placed.' with the order number",
+          "result": "pass",
+          "note": "NW-AE-1000222",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-1.png"
+        },
+        {
+          "action": "Seller Center → Orders: search NW-AE-1000222-1 and open it",
+          "expected": "Order page with items, customer & delivery, totals, history and the next-step button",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-2.png"
+        },
+        {
+          "action": "Seller: the FBN order has no fulfilment buttons",
+          "expected": "No 'Confirm order' (the warehouse fulfils it)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-3.png"
+        },
+        {
+          "action": "Admin → Inventory → Pick & pack: NW-AE-1000222-1 → Confirm order",
+          "expected": "Status Confirmed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-4.png"
+        },
+        {
+          "action": "Admin → Inventory → Pick & pack: NW-AE-1000222-1 → Start picking",
+          "expected": "Status Processing",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-5.png"
+        },
+        {
+          "action": "Admin → Inventory → Pick & pack: NW-AE-1000222-1 → Mark as packed",
+          "expected": "Status Packed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-6.png"
+        },
+        {
+          "action": "Admin → Inventory → Pick & pack: NW-AE-1000222-1 → Dispatch",
+          "expected": "Status Shipped",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-7.png"
+        },
+        {
+          "action": "Admin → Dispatch: put the parcel with E2E Driver (assign, or reassign the auto-assignment)",
+          "expected": "An open assignment for E2E Driver",
+          "result": "pass",
+          "note": "auto-assigned to QA3 Agent Two; reassigned to E2E Driver",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-8.png"
+        },
+        {
+          "action": "Driver → Assignments: open the newest open assignment of the order",
+          "expected": "Assignment page",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-9.png"
+        },
+        {
+          "action": "Driver: Accept",
+          "expected": "Accepted",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-10.png"
+        },
+        {
+          "action": "Driver: Picked up — start delivery",
+          "expected": "Picked up; COD amount to collect shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-11.png"
+        },
+        {
+          "action": "Customer: order detail while out for delivery",
+          "expected": "Status 'Out for delivery' and the 4-digit delivery code to read to the courier",
+          "result": "pass",
+          "note": "customer code 9311",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-12.png"
+        },
+        {
+          "action": "Driver: the delivery code card shows the same 4 digits (customer reads it aloud — no typing)",
+          "expected": "Driver's code equals the customer's code",
+          "result": "pass",
+          "note": "driver code 9311 = customer code 9311",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-13.png"
+        },
+        {
+          "action": "Driver: add the proof photo required for a COD parcel and collect the cash",
+          "expected": "Photo attached; 'Collect cash: AED …' shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-14.png"
+        },
+        {
+          "action": "Driver: Codes match — delivered",
+          "expected": "Assignment closed: 'This assignment is closed.' Delivered; customer details hidden",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-15.png"
+        },
+        {
+          "action": "Customer: order detail after delivery",
+          "expected": "Shipment 'Delivered'; invoice links; Return item / Write review actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-16.png"
+        },
+        {
+          "action": "Driver → COD: the collection is in hand",
+          "expected": "COD page lists today's collection for this order",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-02-17.png"
+        }
+      ]
+    },
+    {
+      "id": "ORD-03",
+      "name": "Cancellation paths",
+      "goal": "The customer cancels a COD shipment from the order page with a reason; a card-paid order is cancelled by the seller with a reason and the customer sees it cancelled and refunded.",
+      "preconditions": "A new shopper; Seller Center session.",
+      "spec": "e2e/specs/areas/orders/lifecycle.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Customer: add the seller-fulfilled (AED 120) offer and check out with cash on delivery",
+          "expected": "'Thank you! Your order is placed.' with the order number",
+          "result": "pass",
+          "note": "NW-AE-1000223",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-1.png"
+        },
+        {
+          "action": "Customer: NW-AE-1000223 → Cancel items → reason → Cancel shipment",
+          "expected": "Shipment Cancelled",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-2.png"
+        },
+        {
+          "action": "Seller Center: the customer-cancelled order shows Cancelled",
+          "expected": "Status Cancelled with the customer as actor",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-3.png"
+        },
+        {
+          "action": "Customer: add the seller-fulfilled (AED 120) offer and check out with card (fake gateway captures)",
+          "expected": "'Thank you! Your order is placed.' with the order number",
+          "result": "pass",
+          "note": "NW-AE-1000224",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-4.png"
+        },
+        {
+          "action": "Seller Center → Orders: search NW-AE-1000224-1 and open it",
+          "expected": "Order page with items, customer & delivery, totals, history and the next-step button",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-5.png"
+        },
+        {
+          "action": "Seller: Cancel this order with reason 'Out of stock' → Cancel order",
+          "expected": "Status Cancelled; strike warning shown before",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-6.png"
+        },
+        {
+          "action": "Customer: NW-AE-1000224 shows Cancelled and the refund",
+          "expected": "Shipment Cancelled; a refund line for AED 120.00 (to the card)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-03-7.png"
+        }
+      ]
+    },
+    {
+      "id": "ORD-04",
+      "name": "Failed delivery and retry",
+      "goal": "Admin assigns a COD parcel straight to E2E Driver; the driver reports 'not home'; the parcel shows under Needs attention / Failed deliveries; admin reschedules it, assigns again, and the driver delivers on attempt 2.",
+      "preconditions": "A new shopper; seller, admin, carrier and driver sessions.",
+      "spec": "e2e/specs/areas/orders/lifecycle.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Customer: add the seller-fulfilled (AED 120) offer and check out with cash on delivery",
+          "expected": "'Thank you! Your order is placed.' with the order number",
+          "result": "pass",
+          "note": "NW-AE-1000225",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-1.png"
+        },
+        {
+          "action": "Seller Center → Orders: search NW-AE-1000225-1 and open it",
+          "expected": "Order page with items, customer & delivery, totals, history and the next-step button",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-2.png"
+        },
+        {
+          "action": "Seller: Confirm order",
+          "expected": "Next status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-3.png"
+        },
+        {
+          "action": "Seller: Start processing",
+          "expected": "Next status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-4.png"
+        },
+        {
+          "action": "Seller: Mark as packed",
+          "expected": "Next status",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-5.png"
+        },
+        {
+          "action": "Admin → Dispatch: assign NW-AE-1000225-1 to E2E Driver (no shipping company)",
+          "expected": "Flash ':number assigned to E2E Driver.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-6.png"
+        },
+        {
+          "action": "Driver (delivery panel) → Assignments: open DA-NW-AE-1000225-1-…",
+          "expected": "Assignment with the delivery code card, customer, items and 'Accept' / 'Decline'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-7.png"
+        },
+        {
+          "action": "Driver: Accept",
+          "expected": "Accepted",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-8.png"
+        },
+        {
+          "action": "Driver: Picked up — start delivery",
+          "expected": "Picked up",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-9.png"
+        },
+        {
+          "action": "Driver: Can't deliver → 'Not home', note → Report failed attempt",
+          "expected": "Assignment Failed; shipment Failed (attempt 1 of 3)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-10.png"
+        },
+        {
+          "action": "Customer: order detail after the failed attempt",
+          "expected": "The shipment says the delivery attempt failed / will be retried",
+          "result": "pass",
+          "note": "QO Hala, QA ord4 9r1w6dg! qa-ord4-9r1w6dg2@nawy.test MY ACCOUNT Overview Notifications Orders Returns & refunds Disputes Warranty My reviews Support tickets BOOKINGS & MARKETPLACE My bookings Inquirie",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-11.png"
+        },
+        {
+          "action": "Carrier panel → Failed deliveries",
+          "expected": "Exceptions board renders (the parcel was assigned by Nawy, not the carrier)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-12.png"
+        },
+        {
+          "action": "Admin → Dispatch → Needs attention: reschedule for tomorrow",
+          "expected": "Shipment Rescheduled and back in 'Ready to dispatch'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-13.png"
+        },
+        {
+          "action": "Admin → Dispatch: assign the rescheduled parcel to E2E Driver again",
+          "expected": "Assignment attempt 2",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-14.png"
+        },
+        {
+          "action": "Driver: open the attempt-2 assignment",
+          "expected": "Attempt 2",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-15.png"
+        },
+        {
+          "action": "Driver: Accept",
+          "expected": "Accepted",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-16.png"
+        },
+        {
+          "action": "Driver: Picked up — start delivery",
+          "expected": "Picked up",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-17.png"
+        },
+        {
+          "action": "Customer: order detail while out for delivery",
+          "expected": "Status 'Out for delivery' and the 4-digit delivery code to read to the courier",
+          "result": "pass",
+          "note": "customer code 8073",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-18.png"
+        },
+        {
+          "action": "Driver: the delivery code card shows the same 4 digits (customer reads it aloud — no typing)",
+          "expected": "Driver's code equals the customer's code",
+          "result": "pass",
+          "note": "driver code 8073 = customer code 8073",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-19.png"
+        },
+        {
+          "action": "Driver: add the proof photo required for a COD parcel and collect the cash",
+          "expected": "Photo attached; 'Collect cash: AED …' shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-20.png"
+        },
+        {
+          "action": "Driver: Codes match — delivered",
+          "expected": "Assignment closed: 'This assignment is closed.' Delivered; customer details hidden",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-21.png"
+        },
+        {
+          "action": "Customer: order detail after delivery",
+          "expected": "Shipment 'Delivered'; invoice links; Return item / Write review actions",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/order-lifecycle-and-delivery/ord-04-22.png"
+        }
+      ]
+    }
+  ]
+}

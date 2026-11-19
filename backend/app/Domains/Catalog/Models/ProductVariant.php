@@ -2,6 +2,7 @@
 
 namespace App\Domains\Catalog\Models;
 
+use App\Domains\Catalog\Support\SearchText;
 use App\Domains\Listings\Models\Listing;
 use App\Shared\Database\UsesCountryDatabase;
 use Database\Factories\ProductVariantFactory;
@@ -18,6 +19,15 @@ class ProductVariant extends Model
 {
     /** @use HasFactory<ProductVariantFactory> */
     use HasFactory, UsesCountryDatabase;
+
+    /**
+     * SKUs and barcodes are part of the product's search index (QC-015).
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn (ProductVariant $variant) => SearchText::refresh($variant->product_id));
+        static::deleted(fn (ProductVariant $variant) => SearchText::refresh($variant->product_id));
+    }
 
     /**
      * Get the attributes that should be cast.

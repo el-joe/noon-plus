@@ -6,6 +6,7 @@ import '../config.dart';
 import '../l10n.dart';
 import '../session.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 /// Root widget for every delivery / ops app: theme, EN/AR with RTL, and
 /// the sign-in guard (signed out → [signIn], signed in → [home]).
@@ -39,7 +40,7 @@ class NawyOpsApp extends StatelessWidget {
               child: MaterialApp(
                 title: title,
                 debugShowCheckedModeBanner: false,
-                theme: buildNawyTheme(),
+                theme: buildNawyTheme(arabic: session.isAr),
                 locale: Locale(session.locale),
                 supportedLocales: const [Locale('en'), Locale('ar')],
                 localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -77,6 +78,20 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _busy = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    final last = SessionScope.read(context).lastEmail;
+    if (last != null) _email.text = last;
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     final email = _email.text.trim();
     final password = _password.text;
@@ -91,7 +106,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await widget.onSubmit(context, email, password);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.fieldErrors.values.firstOrNull ?? e.message);
+      if (mounted) setState(() => _error = apiErrorMessage(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -120,6 +135,19 @@ class _SignInScreenState extends State<SignInScreen> {
               ]),
             ),
           ]),
+          if (session.signOutNotice != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              key: const Key('sign-out-notice'),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: NawyColors.bgWarningSubtle, borderRadius: BorderRadius.circular(NawyRadius.md)),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded, size: 20, color: NawyColors.textBrand),
+                const SizedBox(width: 8),
+                Expanded(child: Text(context.t(session.signOutNotice!), style: NawyText.bodySm)),
+              ]),
+            ),
+          ],
           const SizedBox(height: 24),
           Text(context.t('login.market'), style: NawyText.label),
           const SizedBox(height: 6),

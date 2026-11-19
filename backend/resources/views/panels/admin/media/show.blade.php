@@ -8,6 +8,7 @@
                 <div><dt class="text-fg-secondary">{{ __('Starts (Oman)') }}</dt><dd>{{ $stream->scheduled_at ? $clock->inAdminTime($stream->scheduled_at)->format('j M Y, H:i') : '—' }}</dd></div>
                 <div><dt class="text-fg-secondary">{{ $stream->isRecorded() ? __('Ends (Oman)') : __('Started / ended (Oman)') }}</dt>
                     <dd>{{ $stream->isRecorded() ? ($stream->scheduled_end_at ? $clock->inAdminTime($stream->scheduled_end_at)->format('j M Y, H:i') : '—') : (($stream->started_at ? $clock->inAdminTime($stream->started_at)->format('H:i') : '—').' / '.($stream->ended_at ? $clock->inAdminTime($stream->ended_at)->format('H:i') : '—')) }}</dd></div>
+                <div><dt class="text-fg-secondary">{{ __('Viewers now') }}</dt><dd>{{ $viewersNow }}</dd></div>
                 <div><dt class="text-fg-secondary">{{ __('Viewers (peak / total)') }}</dt><dd>{{ $stream->peak_viewers }} / {{ $stream->total_viewers }}</dd></div>
                 <div><dt class="text-fg-secondary">{{ __('Likes') }}</dt><dd>{{ $stream->likes_count }}</dd></div>
                 @if ($stream->isRecorded())<div><dt class="text-fg-secondary">{{ __('Duration') }}</dt><dd>{{ gmdate('H:i:s', (int) $stream->duration_seconds) }} · {{ $stream->playback_mode }}</dd></div>@endif
@@ -30,7 +31,31 @@
             @endcan
         </x-ui.card>
 
-        <div class="flex flex-col gap-6">
+        <x-ui.card :title="__('Comments')" :subtitle="__('Held comments matched the blocked words or a link; only shown comments are public.')" class="lg:col-span-2 lg:row-start-2">
+            <ul class="flex flex-col divide-y divide-line text-sm">
+                @forelse ($comments as $comment)
+                    <li class="flex items-start justify-between gap-3 py-2">
+                        <div>
+                            <p><span class="font-medium">{{ $comment->author_name }}</span> · <span class="text-fg-secondary">{{ $clock->inAdminTime($comment->created_at)->format('j M H:i') }}</span>
+                                @if ($comment->status->value !== 'visible')<x-ui.badge tone="warning">{{ \App\Shared\Localization\Label::of($comment->status) }}</x-ui.badge>@endif</p>
+                            <p>{{ $comment->body }}</p>
+                            @if ($comment->moderation_reason)<p class="text-xs text-fg-secondary">{{ $comment->moderation_reason }}</p>@endif
+                        </div>
+                        @can('live_media.manage')
+                            <form method="POST" action="{{ route('admin.media.comments.moderate', [$stream->id, $comment->id]) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="{{ $comment->status->value === 'visible' ? 'hidden' : 'visible' }}">
+                                <x-ui.button type="submit" size="sm" variant="outline">{{ $comment->status->value === 'visible' ? __('Hide') : __('Show') }}</x-ui.button>
+                            </form>
+                        @endcan
+                    </li>
+                @empty
+                    <li class="py-2 text-fg-secondary">{{ __('No comments yet.') }}</li>
+                @endforelse
+            </ul>
+        </x-ui.card>
+
+        <div class="flex flex-col gap-6 lg:col-start-3 lg:row-start-1 lg:row-span-2">
             @can('live_media.manage')
                 @if (! $stream->isRecorded())
                     <x-ui.card :title="__('Studio')" :subtitle="__('Publish from the browser studio with this room and token')">
@@ -68,7 +93,7 @@
                 </x-ui.card>
             @endcan
 
-            <x-ui.state-timeline :title="__('History')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => ucfirst($row->to_status), 'meta' => ucfirst((string) $row->actor_type).' · '.$clock->inAdminTime($row->created_at)->format('j M H:i')])->all()" />
+            <x-ui.state-timeline :title="__('History')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => ucfirst($row->to_status), 'meta' => ucfirst((string) $row->actor_type).($row->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($row->actor_user_id) : '').' · '.$clock->inAdminTime($row->created_at)->format('j M H:i')])->all()" />
         </div>
     </div>
 </x-layouts.panel>

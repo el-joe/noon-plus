@@ -100,6 +100,7 @@ Admin v2 IA = SRS §4.1 groups + Countries & locales + System health + Live & vi
 | Marketing & ads | `marketing_fees` | F | — | V | F | — | — | — | — |
 | Marketing & ads | `banners`, `cart_card_offers`, `newsletter`, `push` | F | — | — | F | — | E | — | — |
 | Marketing & ads | `ad_campaigns`, `ad_slots`, `ad_bookings` (creative review, admin uploads video creative), `sponsored_ranking` | F | — | V | F | — | — | — | — |
+| Marketing & ads | `travel_promotions` (D14: travel placement, options, promotions, cancel / refund) | F | — | V | F | — | — | — | — |
 | Marketing & ads | `coupons`, `coupon_participation` | F | — | V | F | — | — | — | S·V |
 | Marketing & ads | `vouchers`, `gift_cards` | F | — | V | F | — | — | V | — |
 | Classifieds | `classified_categories`, `classified_listings` (review, attachments), `classified_reports` (N) | F | A | — | — | A | — | A | S·A |
@@ -219,6 +220,7 @@ Video upload: listing video only (ADR 11). Sponsored **video** creative for an a
 | `bookable_units` | F | F | — |
 | `bookings` (documents, confirm, complete, cancel, modifications) | F | F | V |
 | `inquiries` | F | F | — |
+| `promotions` (D14 paid placement: buy, pay by card, receipts) | F | F | V |
 | `campaigns` (create, quote, pause, resume, cancel, export) | F | E | V |
 | `finance` (wallet, payouts, revenue, sales report, operator settlement) | F | — | F |
 | `reports`, `performance` | F | V | V |

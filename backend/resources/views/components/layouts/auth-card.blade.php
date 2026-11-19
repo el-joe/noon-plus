@@ -25,6 +25,7 @@
         <p class="rounded-lg bg-danger-subtle px-3 py-2 text-sm text-fg-danger" role="alert">{{ $errors->first('action') }}</p>
     @endif
     {{ $slot }}
+    <x-ui.locale-switch />
 </main>
 </body>
 </html>

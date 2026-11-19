@@ -18,7 +18,7 @@ class CodScreen extends StatelessWidget {
         load: () => DeliveryApi(context.api).cod(),
         builder: (context, data, _) {
           final locale = context.l10n.locale;
-          final inHand = Money.fromJson(data['in_hand']) ?? Money.zero(session.currency);
+          final inHand = Money.lenient(data['in_hand'], session.currency) ?? Money.zero(session.currency);
           final collections = data.l('collections');
           final sum = CodMath.total(collections.map((c) => c['amount']), inHand.currency);
           final ml = MaterialLocalizations.of(context);

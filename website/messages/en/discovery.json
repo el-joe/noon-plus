@@ -1,0 +1,89 @@
+{
+  "discovery": {
+    "search": {
+      "suggestions": "Suggestions",
+      "recent": "Recent searches",
+      "categories": "Categories",
+      "brands": "Brands",
+      "products": "Products",
+      "clearRecent": "Clear",
+      "removeRecent": "Remove “{query}” from recent searches",
+      "noSuggestions": "No suggestions for “{query}”",
+      "loading": "Searching…",
+      "searchFor": "Search for “{query}”",
+      "trending": "Trending now",
+      "popular": "Popular searches"
+    },
+    "recent": {
+      "clear": "Clear"
+    },
+    "pdp": {
+      "model": "Model:",
+      "badges": "Highlights",
+      "bnpl": "Split into {count} payments of {amount} — no interest.",
+      "delivery": "Delivery",
+      "fbnBadge": "Fulfilled by Nawy",
+      "fbnBadgeHint": "Ships fast from a Nawy warehouse",
+      "fbnHint": "Fulfilled by Nawy: ships from a Nawy fulfilment centre.",
+      "sellerRating": "Seller rating",
+      "ratings": "Ratings",
+      "otherOffersFrom": "{count, plural, one {# other offer} other {# other offers}} from {price}",
+      "warranty": "Warranty available",
+      "warrantyHint": "Add a protection plan before adding to cart"
+    },
+    "fbt": {
+      "title": "Frequently bought together",
+      "thisItem": "(this item)",
+      "include": "Include {title}",
+      "totalFor": "{count, plural, one {Total for # item} other {Total for # items}}",
+      "addAll": "{count, plural, one {Add # item to cart} other {Add all # to cart}}",
+      "adding": "Adding…",
+      "added": "Added to cart",
+      "viewCart": "View cart"
+    },
+    "coupons": {
+      "code": "Code:",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyCode": "Copy code {code}",
+      "apply": "Apply to cart",
+      "applying": "Applying…",
+      "applied": "Applied",
+      "minOrder": "min. order {amount}",
+      "maxDiscount": "up to {amount}",
+      "seller": "{name} only",
+      "firstOrder": "first order",
+      "endsOn": "ends {date}"
+    },
+    "compare": {
+      "title": "Compare products",
+      "add": "Add to compare",
+      "added": "Comparing",
+      "full": "You can compare up to {max} products",
+      "tray": "Products to compare",
+      "trayCount": "Compare ({count}/{max})",
+      "remove": "Remove {title}",
+      "clear": "Clear all",
+      "compareNow": "Compare now",
+      "pickMore": "Pick at least 2 products",
+      "emptyTitle": "Pick products to compare",
+      "emptyBody": "Use “Add to compare” on a product page to compare 2 to {max} products side by side.",
+      "browse": "Browse products",
+      "addMore": "Add a product",
+      "price": "Price",
+      "rating": "Rating",
+      "availability": "Availability",
+      "inStock": "In stock",
+      "brand": "Brand",
+      "modelNumber": "Model number"
+    },
+    "offers": {
+      "title": "Offers for you",
+      "liveNow": "Live now",
+      "upcoming": "Coming soon",
+      "deals": "{count, plural, one {# deal} other {# deals}}",
+      "endsIn": "Ends in",
+      "startsIn": "Starts in"
+    }
+  }
+}

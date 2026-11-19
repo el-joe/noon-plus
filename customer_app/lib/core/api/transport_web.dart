@@ -5,9 +5,10 @@ import 'api_client.dart';
 
 /// Browser `fetch` transport for the web build (dart:io has no HttpClient on
 /// the web). Response headers are limited to the ones the API exposes via
-/// CORS (`X-Cart-Token`, `X-Booking-Token`, `Retry-After`).
+/// CORS (`X-Cart-Token`, `X-Booking-Token`, `Retry-After`) plus the
+/// safelisted `Content-Language`.
 class WebHttpTransport implements HttpTransport {
-  static const _exposed = ['x-cart-token', 'x-booking-token', 'retry-after'];
+  static const _exposed = ['x-cart-token', 'x-booking-token', 'retry-after', 'content-language'];
 
   @override
   Future<HttpResponseData> send(HttpRequestData request) async {

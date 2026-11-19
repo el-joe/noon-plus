@@ -4,6 +4,7 @@ namespace App\Domains\Warranty\Models;
 
 use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\StateMachine\HasStateTransitions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class WarrantyPurchase extends Model
 {
-    use UsesCountryDatabase;
+    use HasStateTransitions, UsesCountryDatabase;
 
     /**
      * Get the attributes that should be cast.

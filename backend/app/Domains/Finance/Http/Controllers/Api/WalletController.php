@@ -60,6 +60,6 @@ class WalletController extends Controller
             'balance_after' => MoneyResource::make((string) $entry->balance_after),
             'description' => $entry->transaction->description,
             'at' => $entry->created_at->toIso8601String(),
-        ])->all(), ['total' => $entries->total(), 'page' => $entries->currentPage()]);
+        ])->all(), ['total' => $entries->total(), 'page' => $entries->currentPage(), 'per_page' => $entries->perPage(), 'last_page' => $entries->lastPage()]);
     }
 }

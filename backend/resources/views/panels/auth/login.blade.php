@@ -15,6 +15,9 @@
             <p class="text-xs text-fg-secondary">{{ __('Sign in with your work email') }}</p>
         </div>
     </div>
+    @if (session('status'))
+        <p class="rounded-lg bg-success-subtle px-3 py-2 text-sm text-fg" role="status">{{ session('status') }}</p>
+    @endif
     <form method="POST" action="{{ $action }}" class="flex flex-col gap-4">
         @csrf
         <x-ui.input :label="__('Email')" name="email" type="email" autocomplete="username" required autofocus />
@@ -24,6 +27,10 @@
         </label>
         <x-ui.button type="submit" size="lg">{{ __('Sign in') }}</x-ui.button>
     </form>
+    @isset($forgotUrl)
+        <a href="{{ $forgotUrl }}" class="text-center text-sm text-fg-secondary underline" data-forgot-password>{{ __('Forgot password?') }}</a>
+    @endisset
+    <x-ui.locale-switch />
 </main>
 </body>
 </html>

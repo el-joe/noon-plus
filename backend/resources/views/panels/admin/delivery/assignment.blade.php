@@ -20,13 +20,13 @@
                     @if ($assignment->signature_path)<a class="text-fg-link" href="{{ route('admin.delivery.assignments.proof', [$assignment->id, 'signature']) }}">{{ __('Signature') }}</a>@endif
                     @if (! $assignment->hasProof()) — @endif
                 </dd></div>
-                <div><dt class="text-fg-secondary">{{ __('Shipment') }}</dt><dd>{{ $assignment->shipment->number }} · <x-ui.status-badge :status="$assignment->shipment->status" /></dd></div>
+                <div><dt class="text-fg-secondary">{{ __('Shipment') }}</dt><dd>{{ $assignment->shipment->number }} · <x-ui.status-badge :status="$assignment->shipment->status" /> · <a class="text-fg-link underline" href="{{ route('admin.delivery.shipments.label', $assignment->shipment->id) }}" target="_blank">{{ __('Parcel label') }}</a></dd></div>
             </dl>
         </x-ui.card>
 
         <div class="flex flex-col gap-6">
-            <x-ui.state-timeline :title="__('Assignment history')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => str_replace('_', ' ', ucfirst($row->to_status)), 'meta' => ucfirst((string) $row->actor_type).' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
-            <x-ui.state-timeline :title="__('Shipment history')" :steps="$shipmentHistory->map(fn ($row) => ['state' => 'done', 'label' => str_replace('_', ' ', ucfirst($row->to_status)), 'meta' => ucfirst((string) $row->actor_type).' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
+            <x-ui.state-timeline :title="__('Assignment history')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => str_replace('_', ' ', ucfirst($row->to_status)), 'meta' => ucfirst((string) $row->actor_type).($row->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($row->actor_user_id) : '').' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
+            <x-ui.state-timeline :title="__('Shipment history')" :steps="$shipmentHistory->map(fn ($row) => ['state' => 'done', 'label' => str_replace('_', ' ', ucfirst($row->to_status)), 'meta' => ucfirst((string) $row->actor_type).($row->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($row->actor_user_id) : '').' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
 
             @can('delivery_assignments.manage')
                 @if (in_array($assignment->status, [\App\Domains\Delivery\Enums\AssignmentStatus::Assigned, \App\Domains\Delivery\Enums\AssignmentStatus::Accepted], true))

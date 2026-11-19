@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Design tokens mirrored from Figma file d2MhBJmRddMrMSHfjJY8Y8
 /// (variable collections Color / Spacing / Radius, text styles `en/*`, `ar/*`;
-/// page "App · Customer v2 (Noon structure)").
+/// page "App · Customer v2").
 class NawyColors {
   const NawyColors._();
 
@@ -46,37 +46,58 @@ class NawySpace {
 
 class NawyRadius {
   const NawyRadius._();
-  static const xs = 3.0;
-  static const sm = 4.0;
+  // Figma Radius collection (QC-065): xs 4, sm 6, md 8, lg 12, xl 16, 2xl 24.
+  static const xs = 4.0;
+  static const sm = 6.0;
   static const md = 8.0;
   static const card = 10.0;
-  static const lg = 14.0;
+  static const lg = 12.0;
+  static const xl = 16.0;
+  static const xxl = 24.0;
   static const pill = 999.0;
 }
 
-/// Text styles: `en/*` (Inter) and `ar/*` (Cairo). The fonts are not bundled
-/// (no font assets in the repo); the platform falls back to its sans font.
+/// Text styles from the Figma variables (QC-065): `en/*` (Inter) and
+/// `ar/*` (Cairo, taller line heights). [arabic] picks the family and line
+/// heights; the app sets it from the UI language before building. Both fonts
+/// are bundled in this package (`fonts/`, OFL, owner-review D16 / P15) as
+/// variable fonts: `fontWeight` drives the `wght` axis. Arabic text in an
+/// English screen falls back to Cairo, Latin text in Arabic stays Cairo.
 class NawyText {
   const NawyText._();
 
-  static const _fallback = ['Inter', 'Cairo', 'Roboto', 'Noto Sans Arabic'];
+  /// Use the `ar/*` line heights.
+  static bool arabic = false;
 
-  static TextStyle _t(double size, double height, FontWeight weight) =>
-      TextStyle(fontSize: size, height: height / size, fontWeight: weight, color: NawyColors.textPrimary, fontFamilyFallback: _fallback);
+  /// The package that ships the font files.
+  static const fontPackage = 'nawy_core';
 
-  static final h1 = _t(28, 36, FontWeight.w700);
-  static final h2 = _t(22, 30, FontWeight.w600);
-  static final h3 = _t(18, 26, FontWeight.w600);
-  static final h4 = _t(16, 24, FontWeight.w600);
-  static final body = _t(14, 20, FontWeight.w400);
-  static final bodyMedium = _t(14, 20, FontWeight.w500);
-  static final bodySm = _t(12, 16, FontWeight.w400);
-  static final label = _t(13, 16, FontWeight.w500);
-  static final caption = _t(11, 14, FontWeight.w500);
-  static final display = _t(44, 52, FontWeight.w700);
+  /// Family names as the engine knows them (package fonts are prefixed).
+  static const inter = 'packages/$fontPackage/Inter';
+  static const cairo = 'packages/$fontPackage/Cairo';
+
+  static String get family => arabic ? cairo : inter;
+  static List<String> get fallback => [arabic ? inter : cairo, 'Roboto', 'Noto Sans Arabic'];
+
+  static TextStyle _t(double size, double en, double ar, FontWeight weight) =>
+      TextStyle(fontSize: size, height: (arabic ? ar : en) / size, fontWeight: weight, color: NawyColors.textPrimary, fontFamily: family, fontFamilyFallback: fallback);
+
+  static TextStyle get h1 => _t(32, 40, 48, FontWeight.w700);
+  static TextStyle get h2 => _t(24, 32, 37, FontWeight.w700);
+  static TextStyle get h3 => _t(20, 28, 32, FontWeight.w600);
+  static TextStyle get h4 => _t(16, 24, 28, FontWeight.w600);
+  static TextStyle get body => _t(14, 20, 23, FontWeight.w400);
+  static TextStyle get bodyMedium => _t(14, 20, 23, FontWeight.w500);
+  static TextStyle get bodySm => _t(12, 16, 18, FontWeight.w400);
+  static TextStyle get label => _t(13, 16, 18, FontWeight.w500);
+  static TextStyle get caption => _t(11, 14, 16, FontWeight.w500);
+  static TextStyle get display => _t(40, 48, 60, FontWeight.w700);
+  static TextStyle get price => _t(16, 24, 27, FontWeight.w700);
+  static TextStyle get priceLg => _t(24, 32, 37, FontWeight.w700);
 }
 
-ThemeData buildNawyTheme() {
+ThemeData buildNawyTheme({bool arabic = false}) {
+  NawyText.arabic = arabic;
   final scheme = ColorScheme.fromSeed(
     seedColor: NawyColors.bgBrand,
     primary: NawyColors.bgBrand,
@@ -104,6 +125,8 @@ ThemeData buildNawyTheme() {
   final roundedSm = RoundedRectangleBorder(borderRadius: BorderRadius.circular(NawyRadius.md));
   return ThemeData(
     useMaterial3: true,
+    fontFamily: NawyText.family,
+    fontFamilyFallback: NawyText.fallback,
     colorScheme: scheme,
     scaffoldBackgroundColor: NawyColors.bgPage,
     textTheme: textTheme,

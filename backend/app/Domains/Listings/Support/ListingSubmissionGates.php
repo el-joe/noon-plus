@@ -5,6 +5,8 @@ namespace App\Domains\Listings\Support;
 use App\Domains\Catalog\Models\Category;
 use App\Domains\Contracts\Support\ContractGates;
 use App\Domains\Documents\Support\Documents;
+use App\Domains\Finance\Models\VendorSubscription;
+use App\Domains\Finance\Support\VendorSubscriptions;
 use App\Domains\Listings\Exceptions\ListingTransitionRefused;
 use App\Domains\Vendors\Models\Vendor;
 
@@ -40,6 +42,7 @@ class ListingSubmissionGates
 
         return [
             'active' => ['label' => __('Store active'), 'passed' => $vendor->isActive(), 'required' => true],
+            ...$this->subscriptionGate($vendor),
             'agreement' => ['label' => __('Seller Agreement accepted'), 'passed' => $vendor->hasAcceptedSellerAgreement(), 'required' => true],
             'category_contract' => [
                 'label' => __('Category contract signed'),
@@ -62,6 +65,9 @@ class ListingSubmissionGates
         $messages = [
             'active' => __('Your store is not active, so you cannot list products yet.'),
             'agreement' => __('Accept the Seller Agreement before listing products.'),
+            'subscription' => app(VendorSubscriptions::class)->isRestricted($vendor->id)
+                ? __('Your subscription is past due or expired. Pay the open invoice or subscribe again to submit listings.')
+                : __('Your plan\'s active listing limit is reached. Upgrade the plan to submit more listings.'),
             'category_contract' => __('This category needs a signed category contract before you can list in it.'),
             'certification' => __('This category needs an approved product certification before you can list in it.'),
         ];
@@ -89,6 +95,28 @@ class ListingSubmissionGates
     public function hasApprovedCertification(Vendor $vendor, Category $category): bool
     {
         return app(Documents::class)->hasApprovedCertification($vendor->id, $category);
+    }
+
+    /**
+     * FR-FIN-7 feature limits: only for a store that has (had) a vendor
+     * plan — no listing submissions while the latest subscription is
+     * past_due or expired, and at most the plan's active listings.
+     *
+     * @return array<string, array{label: string, passed: bool, required: bool}>
+     */
+    private function subscriptionGate(Vendor $vendor): array
+    {
+        if (! VendorSubscription::query()->where('vendor_id', $vendor->id)->exists()) {
+            return [];
+        }
+
+        $subscriptions = app(VendorSubscriptions::class);
+
+        return ['subscription' => [
+            'label' => __('Subscription in good standing'),
+            'passed' => ! $subscriptions->isRestricted($vendor->id) && ! $subscriptions->listingLimitReached($vendor->id),
+            'required' => true,
+        ]];
     }
 
     private function categoryRequires(Category $category, string $switch): bool

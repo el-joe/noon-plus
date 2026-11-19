@@ -12,6 +12,7 @@ use App\Domains\RealEstate\Models\BrokerLeadFollowUp;
 use App\Domains\RealEstate\Models\SpecialRequest;
 use App\Domains\RealEstate\Support\BrokerLeads;
 use App\Domains\RealEstate\Support\SpecialRequests;
+use App\Domains\RealEstate\Support\Viewings;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +44,22 @@ class BrokerStudioController extends Controller
             ],
             'dueToday' => BrokerLeadFollowUp::query()->whereNull('done_at')->where('due_at', '<=', now()->endOfDay())
                 ->whereHas('lead', fn ($query) => $query->where('marketer_profile_id', $broker->id))->with('lead')->orderBy('due_at')->get(),
+        ]);
+    }
+
+    /**
+     * Viewing / reserve requests on the broker's ads (owner decision D12: a
+     * record only — no actions). Each one also opened a lead in the
+     * pipeline, which the broker moves on their own.
+     */
+    public function requests(Request $request, Viewings $viewings): View
+    {
+        $type = $request->query('type');
+
+        return view('panels.shared.viewing-requests', [
+            'requests' => $viewings->received(['marketer_profile_id' => $this->broker()->id], is_string($type) ? $type : null)->paginate(25)->withQueryString(),
+            'type' => $type,
+            'breadcrumbs' => [__('Broker'), __('Requests')],
         ]);
     }
 

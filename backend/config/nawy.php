@@ -15,6 +15,16 @@ return [
 
     'base_domain' => env('NAWY_BASE_DOMAIN', 'nawy.test'),
 
+    /*
+    | QC-044 domain mapping (Admin → Countries → Domains): the DNS targets
+    | shown for new hostnames (CNAME / ALIAS) — storefront hosts point at the
+    | website edge, panel / API hosts at the backend. See docs/deploy/domains.md.
+    */
+    'domains' => [
+        'storefront_target' => env('NAWY_DOMAINS_STOREFRONT_TARGET'),
+        'backend_target' => env('NAWY_DOMAINS_BACKEND_TARGET'),
+    ],
+
     'admin_timezone' => env('NAWY_ADMIN_TIMEZONE', 'Asia/Muscat'),
 
     'ops_alert_email' => env('NAWY_OPS_ALERT_EMAIL'),
@@ -34,6 +44,11 @@ return [
         'travel_agency' => ['host' => 'travel-agency', 'name' => 'Travel Partner', 'roles' => ['travel_agency']],
         'carrier' => ['host' => 'carrier', 'name' => 'Shipping', 'roles' => ['carrier_supervisor']],
         'delivery' => ['host' => 'delivery', 'name' => 'Delivery', 'roles' => ['delivery_agent']],
+    ],
+
+    // Blade panel sign-in: how long the pending two-step challenge (after a correct password) stays valid.
+    'panel_auth' => [
+        'two_factor_challenge_minutes' => (int) env('NAWY_PANEL_2FA_CHALLENGE_MINUTES', 10),
     ],
 
     /*
@@ -59,6 +74,8 @@ return [
         'cart_lock_minutes' => 15,
         'cart_lock_max_minutes' => 60,               // a hold is never renewed past this (QA-010)
         'guest_hold_max_quantity' => 3,              // units a guest cart line holds (QA-010)
+        'guest_hold_max_per_ip' => 6,                // units of one listing all guest carts from one IP hold together (RT-002)
+        'guest_carts_per_hour' => 10,                // new guest carts one IP may open per hour (RT-002)
         'guest_cart_writes_per_minute' => 30,
         'defaults' => [
             'uae' => ['shipping_fee_per_seller' => '10.00', 'free_shipping_threshold' => '100.00', 'cod_fee' => '10.00'],
@@ -87,6 +104,30 @@ return [
     | category (inheriting the parent); this is the country default, setting
     | key "return_window_days".
     */
+    /*
+    | Reviews (SRS §7.8, lifecycle §2.9; QC-012). Setting
+    | `reviews.auto_flag_rules` overrides the keyword list; a matching review
+    | is created `auto_flagged` for moderation instead of `pending`.
+    */
+    /*
+    | Analytics (QC-015): raw ad events are kept this long after the daily
+    | rollup (setting `analytics.raw_retention_days`).
+    */
+    'analytics' => [
+        'raw_retention_days' => 180,
+        // FR-CTY-10 / ADR 2: nightly load of `nawy_reporting` (setting `analytics.reporting_etl_time`, admin time).
+        'reporting_etl_time' => '01:30',
+        // FR-ANL-2: celebrity (influencer) monthly report for the previous month, on the 1st (admin time).
+        'celebrity_report_time' => '06:00',
+    ],
+
+    'reviews' => [
+        'auto_flag_rules' => [
+            'words' => ['fuck', 'shit', 'bitch', 'scam', 'whatsapp me', 'كس', 'زب', 'شرموط', 'نصاب'],
+            'flag_links' => true,
+        ],
+    ],
+
     'orders' => [
         'return_window_days' => 14,
         'auto_complete_time' => '02:00',
@@ -95,6 +136,24 @@ return [
     /*
     | Flash sale defaults (settings catalogue §9), setting keys "flash_sale.{key}".
     */
+    /*
+    | Discovery (QA wave 5a, QC-043 / QC-064 / QC-057): popular and trending
+    | searches, recently viewed, frequently bought together and badges.
+    */
+    'discovery' => [
+        'popular_window_days' => 30,          // popular searches look this far back
+        'popular_min_hits' => 3,              // a query needs this many searches to be shown
+        'trending_recent_days' => 3,          // trending: searches per day in the last N days…
+        'trending_baseline_days' => 14,       // …against the N days before them
+        'recently_viewed_max' => 50,          // products kept per customer
+        'fbt_window_days' => 90,              // order co-occurrence window
+        'fbt_min_orders' => 2,                // orders that must share both products
+        'bestseller_badge_top' => 20,         // bestseller_rank 1…N gets the badge
+        'new_badge_days' => 30,
+        'top_rated_min_reviews' => 10,
+        'top_rated_min_average' => '4.50',
+    ],
+
     'flash_sale' => [
         'max_qty_per_customer' => 2,
     ],
@@ -110,6 +169,21 @@ return [
         'listing_conditions' => ['new', 'refurbished', 'used'],
         'fulfilment_models' => ['fbm', 'fbn', 'cross_dock'],
         'stock_reasons' => ['restock', 'correction', 'damaged', 'lost'],
+    ],
+
+    /*
+    | Exchange rates (central `exchange_rates`, Admin → Countries → Exchange
+    | rates). `driver`: manual (admins only, default), log (logs the sync),
+    | openexchangerates (needs the owner's NAWY_EXCHANGE_RATES_APP_ID; see
+    | docs/deploy/exchange-rates.md). `quotes`: currencies rates are kept
+    | against; the sync job (`nawy:exchange-rates:sync`, daily 00:05 Oman)
+    | stores every active country currency → each quote.
+    */
+    'exchange_rates' => [
+        'driver' => env('NAWY_EXCHANGE_RATES_DRIVER', 'manual'),
+        'app_id' => env('NAWY_EXCHANGE_RATES_APP_ID'),
+        'quotes' => ['USD'],
+        'sync_time' => '00:05',
     ],
 
     /*
@@ -129,12 +203,20 @@ return [
         'retry_max_attempts' => 3,
         'storefront_url' => env('NAWY_STOREFRONT_URL', 'http://nawy.test'),
         'http_timeout_seconds' => 20,
+        // Driver "fake" only: HMAC secret of fake webhooks when the country has no webhook_secret credential (no built-in default).
+        'fake_webhook_secret' => env('NAWY_FAKE_WEBHOOK_SECRET'),
+        // In-app payments: the gateway return of a payment started from an app lands on the app's deep link
+        // (`?payment={reference}&status={status}` appended) instead of the web. Only these server-side values are used.
+        'app_return_urls' => [
+            'travel_agency' => env('NAWY_TRAVEL_APP_RETURN_URL', 'nawytravel://promotions/return'),
+        ],
 
         /*
         | Gateway defaults per country (MASTER_PLAN §4a; first = recommended ★).
         | Seeded by PaymentGatewaySeeder in sandbox mode without credentials.
         | PayPal is seeded disabled: PayPal does not settle AED/OMR/SAR, so it
-        | needs a USD conversion that is not built yet.
+        | charges in USD at the admin-maintained exchange rate (below) and can
+        | be enabled per country once a rate {currency}→USD exists.
         */
         'country_gateways' => [
             'uae' => ['stripe', 'paytabs', 'paypal', 'tabby', 'tamara'],
@@ -147,6 +229,17 @@ return [
             'jor' => ['paytabs', 'stripe'],
         ],
         'seeded_disabled' => ['paypal'],
+
+        /*
+        | PayPal USD conversion: a country currency PayPal does not accept is
+        | charged in `charge_currency` at the current exchange rate (Admin →
+        | Countries → Exchange rates); the rate is stored on the payment and
+        | refunds use it. `native_currencies` are charged as they are.
+        */
+        'paypal' => [
+            'charge_currency' => 'USD',
+            'native_currencies' => ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'HKD', 'ILS', 'MXN', 'NOK', 'NZD', 'PHP', 'PLN', 'SEK', 'SGD', 'THB'],
+        ],
 
         /*
         | Proposed BNPL limits per currency (provider defaults to be confirmed
@@ -175,13 +268,61 @@ return [
         'standard_warranty_months' => 12,             // warranty.standard_months (proposed)
         'cod_settlement_time' => '23:30',             // cod.settlement_time
         'payout_generation_time' => '02:00',
-        'membership_grace_days' => 7,                 // subscription.grace_days
+        'membership_grace_days' => 7,                 // subscription.grace_days (Nawy One and vendor plans)
+        'subscription_deduct_unpaid_from_payout' => false, // subscription.deduct_unpaid_from_payout: past_due vendor plan after the grace → payout deduction instead of expiry
+        'subscription_billing_time' => '02:15',       // vendor plan billing job (admin time)
+        'subscription_auto_charge_retries' => 3,      // subscription.auto_charge_retries: retries of a declined auto-renew card charge
+        'subscription_auto_charge_retry_hours' => 24, // subscription.auto_charge_retry_hours: wait between those retries
         'gift_card_expiry_months' => 12,              // gift_card.default_expiry_months
         'gift_card_designs' => ['classic', 'birthday', 'eid', 'ramadan', 'thank_you', 'congrats', 'wedding', 'new_baby'], // G-W30; first = default
         'gift_card_limits' => [                       // gift_card.custom_amount_min / max
             'AED' => ['25.00', '5000.00'], 'SAR' => ['25.00', '5000.00'], 'EGP' => ['100.00', '50000.00'], 'QAR' => ['25.00', '5000.00'],
             'OMR' => ['2.000', '500.000'], 'KWD' => ['2.000', '500.000'], 'BHD' => ['2.000', '500.000'], 'JOD' => ['5.000', '1000.000'],
         ],
+    ],
+
+    /*
+    | Fulfilled by Nawy (MASTER_PLAN §8). Fee placeholders follow the help
+    | centre "FBN fees" article (outbound fee per unit by weight tier and
+    | selling-price band, storage per cubic foot per month, long-term and
+    | unsellable storage, removal fee) in AED; other currencies get the AED
+    | value × `currency_factor`, rounded half-up. Admins override the fee
+    | table per country (setting `fbn.fees`); the operational values are
+    | read through App\Domains\Fulfilment\Support\FbnSettings (setting
+    | `fbn.{key}`, country override wins). Owner decision F11 (confirmed
+    | 2026-11-19): every FBN fee defaults to 0; the tiers keep the help-centre
+    | structure so an admin can switch fees on per country.
+    */
+    'fbn' => [
+        'fees' => [
+            'outbound_price_threshold' => '0',       // ASP band: ≤ threshold uses `low`, above uses `high`
+            'outbound_tiers' => [                     // billable weight ≤ max_grams → fee per unit
+                ['max_grams' => 100, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 250, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 500, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 1000, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 1500, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 2000, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 3000, 'low' => '0', 'high' => '0'],
+                ['max_grams' => 20000, 'low' => '0', 'high' => '0'],
+            ],
+            'outbound_extra_per_kg' => '0',         // above the last tier, per started kg
+            'storage_per_cubic_foot' => '0',        // per cubic foot per month
+            'long_term_per_cubic_foot' => '0',       // per cubic foot per month, units older than long_term_days
+            'unsellable_per_cubic_foot' => '0',      // per cubic foot per month, damaged older than unsellable_days
+            'removal_minimum' => '0',                // per removal order
+            'removal_per_unit' => '0',
+            'removal_per_kg' => '0',                // billable kg (actual or L×W×H/5000, the higher)
+            'disposal_per_unit' => '0',
+        ],
+        'currency_factor' => ['AED' => '1', 'SAR' => '1', 'QAR' => '1', 'EGP' => '13', 'OMR' => '0.1', 'KWD' => '0.08', 'BHD' => '0.1', 'JOD' => '0.2'],
+        'long_term_days' => 365,
+        'unsellable_days' => 30,
+        'handling_days' => 0,                         // warehouse processing days used in the delivery estimate
+        'inbound_reminder_days' => 3,                 // submitted but not shipped after N days → reminder
+        'low_stock_threshold' => 5,
+        'removal_volumetric_divisor' => 5000,
+        'default_unit_cubic_feet' => '0.1',           // when a variant has no dimensions
     ],
 
     /*
@@ -249,6 +390,20 @@ return [
         'guest_holds_per_hour' => 3,                 // guest holds per IP per hour (QA-010)
         'completion_time' => '03:45',                // CompleteTravelBookingsJob
         'room_types' => ['single', 'double', 'triple', 'quad', 'child'],
+        // D14 paid placement (travel promotions)
+        'promotion_slots' => 3,                      // travel.promotion_slots: promoted trips shown first per list (the travel slot's cap when it is first set up)
+        'promotion_rotation_minutes' => 15,          // travel.promotion_rotation_minutes: how often the promoted set rotates when more are live than slots
+        'promotion_payment_minutes' => 60,           // travel.promotion_payment_minutes: an unpaid promotion is cancelled after this
+        'promotion_label_en' => 'Sponsored',         // travel.promotion_label_en
+        'promotion_label_ar' => 'مُموَّل',              // travel.promotion_label_ar
+    ],
+    'coupons' => [
+        'seller_max_live' => 20,                     // coupons.seller_max_live: switched-on, unexpired seller coupons per store (proposed)
+        'seller_max_percent' => 90,                  // coupons.seller_max_percent: highest percent off a seller may give (proposed)
+        'seller_max_days' => 365,                    // coupons.seller_max_days: longest a seller coupon may run (proposed)
+    ],
+    'creators' => [
+        'max_picks' => 48,                           // creators.max_picks: curated products per creator page (proposed)
     ],
     'advertising' => [
         'min_daily_budget' => '10',                  // ad_campaign.min_daily_budget (proposed)
@@ -284,6 +439,9 @@ return [
         'code_length' => 4,                          // delivery.code_length (locked)
         'pay_per_stop' => null,                      // delivery.pay_per_stop (agent earnings per delivered stop; TBD per country, null = not set)
         'pay_per_failed_attempt' => null,            // delivery.pay_per_failed_attempt (TBD; null = 0)
+        'payslip_period' => 'weekly',                // delivery.payslip_period weekly (Mon–Sun) | monthly; payslips issued the day after the period ends
+        'withdrawal_minimum' => '50',                // delivery.withdrawal_minimum (smallest wallet withdrawal, country currency)
+        'withdrawal_four_eyes' => true,              // delivery.withdrawal_four_eyes: the reviewer who approved cannot mark it paid
         'proof_required_for_cod' => true,            // delivery.proof_required_for_cod
         'proof_required_above' => null,              // delivery_proof_required_above (OQ5, TBD per country; null = off)
         'proof_type' => 'either',                    // delivery.proof_type photo|signature|either
@@ -337,9 +495,49 @@ return [
         'resend_after_seconds' => 60,
     ],
 
+    /*
+    | Support tickets (QC-007, SRS §15, lifecycle §9.3). Country overrides
+    | through SettingsService keys `support.first_response_hours`,
+    | `support.resolution_hours` (per priority, wall-clock hours),
+    | `support.auto_close_days` and `support.reopen_days`.
+    */
+    'support' => [
+        'first_response_hours' => ['urgent' => 2, 'high' => 4, 'normal' => 12, 'low' => 24],
+        'resolution_hours' => ['urgent' => 24, 'high' => 48, 'normal' => 72, 'low' => 120],
+        'auto_close_days' => 7,
+        'reopen_days' => 7,
+        'attachment_max_kb' => 5120,
+        'attachment_mimes' => ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+        'max_attachments' => 5,
+    ],
+
     'phone_national_digits' => [
         'uae' => [9], 'omn' => [8], 'ksa' => [9], 'egy' => [10],
         'kwt' => [8], 'qat' => [8], 'bhr' => [8], 'jor' => [9],
+    ],
+
+    /*
+    | SMS (legacy phone-only customers' first sign-in, data-migration-plan
+    | §5.2). `log` writes messages to the log (development), `array` keeps
+    | them in memory (tests). A live provider driver needs the owner's SMS
+    | provider account and credentials before production.
+    */
+    'sms' => [
+        'driver' => env('NAWY_SMS_DRIVER', 'log'),
+    ],
+
+    /*
+    | Push notifications (G-A2): every in-app notification is pushed to the
+    | user's registered devices. `log` (development), `array` (tests) or
+    | `fcm` — Firebase Cloud Messaging HTTP v1, which needs the owner's
+    | Firebase project id and service-account JSON (or its file path).
+    */
+    'push' => [
+        'driver' => env('NAWY_PUSH_DRIVER', 'log'),
+        'fcm' => [
+            'project_id' => env('NAWY_FCM_PROJECT_ID'),
+            'credentials' => env('NAWY_FCM_CREDENTIALS'),
+        ],
     ],
 
     'customer_auth' => [
@@ -347,6 +545,24 @@ return [
         'email_code_ttl_minutes' => 10,
         'email_code_max_attempts' => 5,
         'email_code_lock_minutes' => 15,
+
+        /*
+        | D9: optional password and Google / Apple sign-in. `social_driver`
+        | "fake" accepts the deterministic FakeSocialProvider tokens (tests,
+        | local without keys); "live" talks to Google and Apple. Social
+        | redirects land on the storefront (`payments.storefront_url`) at
+        | `/{market}/auth/social/complete?ticket=…`, and the ticket is
+        | exchanged once, within `social_ticket_ttl_seconds`, for a token.
+        | Password reset links point to `/{market}/reset-password`.
+        */
+        'password_min_length' => 8,
+        'social_providers' => ['google', 'apple'],
+        'social_driver' => env('NAWY_SOCIAL_AUTH_DRIVER', 'live'),
+        'social_state_ttl_minutes' => 10,
+        'social_ticket_ttl_seconds' => 120,
+        // The customer app's web sign-in (redirect with a PKCE
+        // `code_challenge`) returns here instead of the storefront.
+        'app_redirect_uri' => env('NAWY_APP_SOCIAL_REDIRECT_URI', 'nawy://auth/social/complete'),
     ],
 
     'countries' => [
@@ -462,6 +678,26 @@ return [
             'default_locale' => 'ar',
             'sort_order' => 8,
         ],
+    ],
+
+    /*
+    | WP11 legacy migration (docs/project/data-migration-plan.md): the old
+    | platform's storage root (its `public/` and `private/` disks are read,
+    | never written) and where the 301 redirect map is exported for the proxy.
+    */
+    /*
+    | WP11: default limit of every API route per signed-in user or IP
+    | (`throttleApi('api')`); sign-in and other sensitive routes have their own.
+    */
+    'api_rate_per_minute' => (int) env('NAWY_API_RATE_PER_MINUTE', 600),
+
+    'legacy' => [
+        'storage_root' => env('LEGACY_STORAGE_ROOT', '/var/www/marketplace/backend/storage/app'),
+        'redirects_export' => 'migration/legacy-redirects.json',
+        // Where legacy:reconcile writes its report (relative to the repository root), read by Admin → Data migration.
+        'reconcile_report' => env('LEGACY_RECONCILE_REPORT', 'docs/project/migration/reconciliation-report.md'),
+        // Cache of the 301 lookups (API endpoint + panel fallback), invalidated when legacy:redirects rebuilds the map.
+        'redirects_cache_seconds' => 86400,
     ],
 
 ];

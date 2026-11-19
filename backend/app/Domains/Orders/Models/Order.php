@@ -5,6 +5,7 @@ namespace App\Domains\Orders\Models;
 use App\Domains\Orders\Enums\OrderStatus;
 use App\Domains\Orders\Support\OrderStatusRollup;
 use App\Domains\Payments\Models\Payment;
+use App\Domains\Returns\Models\ReturnRequest;
 use App\Shared\Database\UsesCountryDatabase;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -55,6 +56,16 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class)->orderBy('id');
+    }
+
+    /**
+     * QC-026: the customer's returns on this order (orders list "Returns" tab).
+     *
+     * @return HasMany<ReturnRequest, $this>
+     */
+    public function returnRequests(): HasMany
+    {
+        return $this->hasMany(ReturnRequest::class);
     }
 
     /**

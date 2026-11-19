@@ -12,6 +12,7 @@ const ok = z.unknown();
 
 // ClassifiedController@categories (tree). `vertical` / `section` are the inherited values (round 2);
 // the category's own values are `own_vertical` / `own_section`; `request_types` are the D8 requests allowed.
+// `max_photos` / `photo_max_kb` (inherited; defaults 20 / 8192) bound the ad photos — absent on older APIs.
 export type ClassifiedCategory = {
   id: number;
   slug: string;
@@ -21,6 +22,8 @@ export type ClassifiedCategory = {
   own_section: string | null;
   own_vertical: string | null;
   request_types: string[];
+  max_photos?: number | null;
+  photo_max_kb?: number | null;
   children: ClassifiedCategory[];
 };
 export const classifiedCategory: z.ZodType<ClassifiedCategory> = z.lazy(() =>
@@ -33,6 +36,8 @@ export const classifiedCategory: z.ZodType<ClassifiedCategory> = z.lazy(() =>
     own_section: z.string().nullable().default(null),
     own_vertical: z.string().nullable().default(null),
     request_types: z.array(z.string()).default([]),
+    max_photos: z.number().nullable().optional().catch(undefined),
+    photo_max_kb: z.number().nullable().optional().catch(undefined),
     children: z.array(classifiedCategory).default([]),
   }),
 );
@@ -58,6 +63,13 @@ export const categoryAttributes = z.object({
   vertical: z.string().nullable().optional(),
   section: z.string().nullable().optional(),
   requires_contract: z.boolean().default(false),
+  /** Photos per ad / KB per photo for this category (inherited; absent on older APIs → 20 / 8192). */
+  max_photos: z.number().nullable().optional().catch(undefined),
+  photo_max_kb: z.number().nullable().optional().catch(undefined),
+  /** One short video per ad when the category allows it (optional until the API sends them; see photo-limits.ts). */
+  allows_video: z.boolean().nullable().optional().catch(undefined),
+  video_max_seconds: z.number().nullable().optional().catch(undefined),
+  video_max_kb: z.number().nullable().optional().catch(undefined),
   attributes: z.array(attribute),
 });
 export type CategoryAttributes = z.infer<typeof categoryAttributes>;
@@ -111,6 +123,8 @@ export const adDetail = adCard.extend({
   media: z.array(z.object({ id: z.number(), type: z.string(), url: z.string(), duration_seconds: z.number().nullable().optional() })).default([]),
   property: z.record(z.string(), z.unknown()).nullable().optional(),
   vertical: z.string().nullable().optional(),
+  /** QC-061: how many customers saved the ad ("Save (n)"). */
+  saves: z.number().optional(),
   /** D8 requests the buyer may send (`viewing`, `reserve`); empty when the ad is not live. */
   request_types: z.array(z.string()).default([]),
   seller: z.object({
@@ -244,15 +258,17 @@ export const revealPhone = (market: string, number: string) =>
 /** D8 viewing / reserve request on any vertical the ad allows (`request_types`); guests too. */
 export type VisitRequestInput = ContactInput & { type: "viewing" | "reserve"; preferred_at: string; message?: string };
 export const requestAdVisit = (market: string, number: string, body: VisitRequestInput) =>
-  request(market, `classifieds/ads/${encodeURIComponent(number)}/viewings`, z.object({ id: z.number(), type: z.string().optional(), status: z.string() }), { method: "POST", body });
+  request(market, `classifieds/ads/${encodeURIComponent(number)}/viewings`, z.object({ id: z.number(), type: z.string().optional() }), { method: "POST", body });
 
-// RealEstateController@myViewings
+/**
+ * RealEstateController@myViewings / MyClassifiedController@requests. Owner
+ * decision D12: a request is a record only — no status, no seller actions.
+ * `contact` is present only on requests received on the user's own ads.
+ */
 export const viewingRequest = z.object({
   id: z.number(),
   type: z.string(),
-  status: z.string(),
   preferred_at: z.string().nullable(),
-  scheduled_at: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   created_at: z.string().nullable(),
   ad: z
@@ -267,10 +283,14 @@ export const viewingRequest = z.object({
       category: z.string().nullable().optional(),
     })
     .nullable(),
+  contact: z.object({ name: z.string(), email: z.string(), phone: z.string() }).optional(),
 });
 export type ViewingRequest = z.infer<typeof viewingRequest>;
 export const getMyViewingRequests = (market: string, query: { type?: string; page?: number; per_page?: number } = {}) =>
   get(market, "me/viewing-requests", z.array(viewingRequest), query);
+/** Requests received on the signed-in user's own ads, with the customer's contact details (D12). */
+export const getReceivedViewingRequests = (market: string, query: { type?: string; page?: number; per_page?: number } = {}) =>
+  get(market, "classifieds/mine/requests", z.array(viewingRequest), query);
 
 export const getThreads = (market: string, page = 1) => get(market, "classifieds/threads", z.array(thread), { page });
 export const getThread = (market: string, id: number) => get(market, `classifieds/threads/${id}`, threadDetail);
@@ -317,6 +337,13 @@ export const uploadAdPhoto = (market: string, number: string, file: File) => {
   const form = new FormData();
   form.append("photo", file);
   return request(market, `classifieds/ads/${encodeURIComponent(number)}/photos`, ok, { method: "POST", body: form });
+};
+/** One short video per ad (`POST classifieds/ads/{number}/video`; MP4 / WebM / MOV with its length in seconds). */
+export const uploadAdVideo = (market: string, number: string, file: File, durationSeconds: number) => {
+  const form = new FormData();
+  form.append("video", file);
+  form.append("duration_seconds", String(durationSeconds));
+  return request(market, `classifieds/ads/${encodeURIComponent(number)}/video`, ok, { method: "POST", body: form });
 };
 export const removeAdMedia = (market: string, number: string, mediaId: number) =>
   request(market, `classifieds/ads/${encodeURIComponent(number)}/media/${mediaId}`, ok, { method: "DELETE" });

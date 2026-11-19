@@ -1,6 +1,8 @@
 <x-layouts.panel :title="__('Products')" :subtitle="__('Your listings in this country — price, stock and status')" :breadcrumbs="[__('Seller Center'), __('Products')]">
     <x-slot:actions>
-        <x-ui.button :href="route('partner.products.create')">{{ __('Add a product') }}</x-ui.button>
+        @if (app(\App\Domains\Panels\Support\TenantPermissions::class)->allows(request(), 'partner', 'listings', true))
+            <x-ui.button :href="route('partner.products.create')">{{ __('Add a product') }}</x-ui.button>
+        @endif
     </x-slot:actions>
 
     <form method="GET" action="{{ route('partner.products') }}" class="grid gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-4" role="search">

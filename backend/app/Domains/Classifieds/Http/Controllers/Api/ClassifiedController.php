@@ -46,6 +46,7 @@ class ClassifiedController extends Controller
                     'vertical' => $vertical,
                     'own_vertical' => $category->vertical,
                     'request_types' => app(ClassifiedRequests::class)->typesForVertical($vertical),
+                    ...$category->photoLimits(),
                     'children' => $tree($category->id, $vertical, $section),
                 ];
             })->all();
@@ -63,6 +64,10 @@ class ClassifiedController extends Controller
             'vertical' => $category->inherited('vertical'),
             'section' => $category->inherited('section'),
             'requires_contract' => $category->needsContract(),
+            ...$category->photoLimits(),
+            'allows_video' => (bool) $category->allows_video,
+            'video_max_seconds' => app(VerticalSettings::class)->int('classified.video_max_seconds'),
+            'video_max_kb' => app(VerticalSettings::class)->int('classified.video_max_kb'),
             'attributes' => $this->specs->describe($category)->all(),
         ]);
     }
@@ -85,14 +90,16 @@ class ClassifiedController extends Controller
     public function map(Request $request): JsonResponse
     {
         $filters = $this->filters($request);
-        $ads = $this->search->query($filters)->whereNotNull('latitude')->limit(500)->get();
+        $ads = $this->search->query($filters)->whereNotNull('latitude')->with(['media', 'property'])->limit(500)->get();
 
         return response()->json([
             'type' => 'FeatureCollection',
             'features' => $ads->map(fn (ClassifiedAd $ad): array => [
                 'type' => 'Feature',
                 'geometry' => ['type' => 'Point', 'coordinates' => [(float) $ad->longitude, (float) $ad->latitude]],
-                'properties' => ['number' => $ad->number, 'title' => $ad->title, 'price' => MoneyResource::of($ad->price === null ? null : (string) $ad->price, $ad->currency)['amount'] ?? null, 'currency' => $ad->currency, 'featured' => $ad->featured_until?->isFuture() ?? false],
+                'properties' => ['number' => $ad->number, 'title' => $ad->title, 'price' => MoneyResource::of($ad->price === null ? null : (string) $ad->price, $ad->currency)['amount'] ?? null, 'currency' => $ad->currency, 'featured' => $ad->featured_until?->isFuture() ?? false]
+                    // Map popups: the same photo, place and property facts as the card.
+                    + array_intersect_key(ClassifiedPresenter::card($ad), array_flip(['image', 'city', 'area', 'property'])),
             ])->all(),
         ]);
     }

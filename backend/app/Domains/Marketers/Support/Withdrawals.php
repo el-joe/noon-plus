@@ -2,6 +2,7 @@
 
 namespace App\Domains\Marketers\Support;
 
+use App\Domains\Campaigns\Support\Conversions;
 use App\Domains\Finance\Enums\LedgerAccountCode;
 use App\Domains\Finance\Enums\WalletBucket;
 use App\Domains\Finance\Support\AccountRef;
@@ -111,6 +112,7 @@ class Withdrawals
             $this->ledger->post("withdrawal:{$withdrawal->id}:process", 'marketer_withdrawal_paid', (new Posting)
                 ->debit(AccountRef::marketer($withdrawal->marketer_profile_id, WalletBucket::Reserved), $amount)
                 ->credit(AccountRef::platform(LedgerAccountCode::BankClearing), $amount), reference: $withdrawal);
+            app(Conversions::class)->markPaid($withdrawal->marketer_profile_id, $withdrawal->currency);
 
             return $withdrawal;
         });

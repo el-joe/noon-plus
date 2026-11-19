@@ -2,6 +2,7 @@
 
 namespace App\Domains\Identity\Models;
 
+use App\Domains\Identity\Enums\LoginMethod;
 use App\Domains\Identity\Enums\LoginOutcome;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * One sign-in attempt (login history shown in Security & devices).
  */
-#[Fillable(['user_id', 'email', 'channel', 'outcome', 'ip_address', 'user_agent'])]
+#[Fillable(['user_id', 'email', 'channel', 'method', 'outcome', 'ip_address', 'user_agent'])]
 class LoginEvent extends Model
 {
     public const UPDATED_AT = null;
@@ -25,6 +26,7 @@ class LoginEvent extends Model
     {
         return [
             'outcome' => LoginOutcome::class,
+            'method' => LoginMethod::class,
         ];
     }
 

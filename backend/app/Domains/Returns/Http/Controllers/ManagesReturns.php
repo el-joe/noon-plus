@@ -7,6 +7,7 @@ use App\Domains\Returns\Enums\InspectionOutcome;
 use App\Domains\Returns\Enums\ReturnStatus;
 use App\Domains\Returns\Models\ReturnRequest;
 use App\Domains\Returns\Support\ReturnRequests;
+use App\Shared\Money\MoneyFormatter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -59,6 +60,9 @@ trait ManagesReturns
         ]])->all();
         $result = $returns->inspect($this->findReturn($return), $results, $this->actorType(), $request->user()->id);
 
-        return back()->with('status', __('Inspection saved. Refund :amount.', ['amount' => (string) $result->refund_total]));
+        // Browser test BT-VEN: the amount reads "AED 80.00", not the raw "80.0000" column.
+        $amount = app(MoneyFormatter::class)->format((string) $result->refund_total, (string) $result->order()->value('currency'));
+
+        return back()->with('status', __('Inspection saved. Refund :amount.', ['amount' => $amount]));
     }
 }

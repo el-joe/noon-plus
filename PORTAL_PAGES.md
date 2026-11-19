@@ -130,7 +130,7 @@ A help site for advertisers. Admins manage it under **Content → Knowledge Hub 
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 How to Access Ad Manager | `/{country}/adsupport/articles/how-to-access-ad-manager` | Article |
 | **Quick Guides** | `/{country}/adsupport/collections/quick-guides` | Category |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Create a Product Ads Campaign | `/{country}/adsupport/articles/how-to-create-a-product-ads-campaign` | Article |
-| &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Scale Your Ads with noon ads | `/{country}/adsupport/articles/how-to-scale-your-ads-with-noon-ads` | Article |
+| &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Scale Your Ads with Nawy ads | `/{country}/adsupport/articles/how-to-scale-your-ads-with-nawy-ads` | Article |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Create a Brand Ads Campaign | `/{country}/adsupport/articles/how-to-create-a-brand-ads-campaign` | Article |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Create a Display Ads Campaign | `/{country}/adsupport/articles/how-to-create-a-display-ads-campaign` | Article |
 | **Release Notes** | `/{country}/adsupport/collections/release-notes` | Category |
@@ -163,12 +163,12 @@ A help site for sellers. Admins manage it under **Content → Help Center**. Cat
 | **Getting Started** | `/{country}/helpcenter/category/getting-started` | Category · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Create a Seller Account | `/{country}/helpcenter/article/how-to-create-a-seller-account` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to List Your First Product | `/{country}/helpcenter/article/how-to-list-your-first-product` | Article · All countries |
-| **Fulfilled by noon (FBN)** | `/{country}/helpcenter/category/fulfilled-by-noon-fbn` | Category · All countries |
+| **Fulfilled by Nawy (FBN)** | `/{country}/helpcenter/category/fulfilled-by-nawy-fbn` | Category · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 كيفية حساب رسوم FBN الصادرة ورسوم إزالة المخزون في الإمارات | `/{country}/helpcenter/article/how-to-calculate-the-fbn-outbound-fee-and-the-inventory-removal-fee-in-uae` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 طرق استلام المرتجعات | `/{country}/helpcenter/article/receiving-methods-for-rtv-delivery` | Article · All countries |
-| &nbsp;&nbsp;&nbsp;&nbsp;📄 عملية تسليم المرتجعات الجزئية في مستودعات نون | `/{country}/helpcenter/article/partial-rtv-handover-in-noon-hubs` | Article · All countries |
+| &nbsp;&nbsp;&nbsp;&nbsp;📄 عملية تسليم المرتجعات الجزئية في مستودعات ناوي | `/{country}/helpcenter/article/partial-rtv-handover-in-nawy-hubs` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;↳ **FBN Fees** | `/{country}/helpcenter/category/fbn-fees` | Category · All countries |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 رسوم الاستيفاء بواسطة نون (FBN) في الإمارات العربية المتحدة ⭐ featured | `/{country}/helpcenter/article/fulfilled-by-noon-fbn-fees-in-uae` | Article · All countries |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 رسوم الاستيفاء بواسطة ناوي (FBN) في الإمارات العربية المتحدة ⭐ featured | `/{country}/helpcenter/article/fulfilled-by-nawy-fbn-fees-in-uae` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 دليل فهم مستويات البائعين وأداء الشحنات الواردة | `/{country}/helpcenter/article/understanding-seller-tiers-and-inbound-performance` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 تقرير الإرجاع إلى البائع (RTV) | `/{country}/helpcenter/article/return-to-vendor-rtv-report` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📄 كيف يمكنني تتبع شحنات المرتجعات إلى البائع (RTV) والإشعارات الخاصة بها؟ | `/{country}/helpcenter/article/how-can-i-track-my-rtv-shipments-and-notifications` | Article · All countries |
@@ -176,7 +176,7 @@ A help site for sellers. Admins manage it under **Content → Help Center**. Cat
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Process an Order | `/{country}/helpcenter/article/how-to-process-an-order` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 How to Print a Shipping Label | `/{country}/helpcenter/article/how-to-print-a-shipping-label` | Article · All countries |
 | **Returns** | `/{country}/helpcenter/category/returns` | Category · All countries |
-| &nbsp;&nbsp;&nbsp;&nbsp;📄 How Returns Work on noon | `/{country}/helpcenter/article/how-returns-work-on-noon` | Article · All countries |
+| &nbsp;&nbsp;&nbsp;&nbsp;📄 How Returns Work on Nawy | `/{country}/helpcenter/article/how-returns-work-on-nawy` | Article · All countries |
 | **Finance & Payments** | `/{country}/helpcenter/category/finance-and-payments` | Category · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 New Statement Detail Report | `/{country}/helpcenter/article/new-statement-detail-report` | Article · All countries |
 | &nbsp;&nbsp;&nbsp;&nbsp;📄 Understanding Your Weekly Payout | `/{country}/helpcenter/article/understanding-your-weekly-payout` | Article · All countries |

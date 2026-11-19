@@ -6,14 +6,20 @@ use App\Domains\Countries\Support\CountryClock;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\FlashSales\Enums\FlashSaleEventStatus;
 use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
+use App\Domains\FlashSales\Enums\MarketerBonusType;
 use App\Domains\FlashSales\Exceptions\FlashSaleTransitionRefused;
 use App\Domains\FlashSales\Models\FlashSaleEvent;
+use App\Domains\FlashSales\Models\FlashSaleMarketerInvite;
 use App\Domains\FlashSales\Models\FlashSaleSubmission;
 use App\Domains\FlashSales\Support\CreateFlashSaleEvent;
 use App\Domains\FlashSales\Support\FlashSaleEventMachine;
+use App\Domains\FlashSales\Support\FlashSaleMarketerInvites;
 use App\Domains\FlashSales\Support\FlashSaleSubmissionMachine;
+use App\Domains\Marketers\Enums\MarketerStatus;
+use App\Domains\Marketers\Models\MarketerProfile;
 use App\Domains\Orders\Enums\ActorType;
 use App\Http\Controllers\Controller;
+use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -51,6 +57,10 @@ class FlashSaleEventController extends Controller
 
         return view('panels.admin.flash-sales.show', [
             'event' => $event,
+            'invites' => FlashSaleMarketerInvite::query()->where('flash_sale_event_id', $event->id)->with('marketer')->orderBy('id')->get(),
+            'marketers' => MarketerProfile::query()->where('global_status', MarketerStatus::Active)
+                ->whereNotIn('id', FlashSaleMarketerInvite::query()->where('flash_sale_event_id', $event->id)->select('marketer_profile_id'))
+                ->orderBy('display_name')->limit(500)->pluck('display_name', 'id')->all(),
             'country' => $this->countryContext->current(),
             'clock' => $this->clock,
         ]);
@@ -66,7 +76,13 @@ class FlashSaleEventController extends Controller
             'starts_at' => ['required', 'date_format:'.self::LOCAL_FORMAT],
             'ends_at' => ['required', 'date_format:'.self::LOCAL_FORMAT],
             'max_qty_per_customer' => ['nullable', 'integer', 'between:1,100'],
+            'marketer_bonus_type' => ['nullable', Rule::enum(MarketerBonusType::class)],
+            'marketer_bonus_value' => ['nullable', 'required_with:marketer_bonus_type', 'decimal:0,3', 'gt:0', 'max:100000'],
         ]);
+
+        if (isset($data['marketer_bonus_type'])) {
+            $data['marketer_bonus_type'] = MarketerBonusType::from($data['marketer_bonus_type']);
+        }
 
         try {
             $event = $create->handle(array_filter($data, fn ($value): bool => $value !== null), $request->user()->id);
@@ -92,6 +108,25 @@ class FlashSaleEventController extends Controller
         }
 
         return back()->with('status', __('Flash sale is now :status.', ['status' => str_replace('_', ' ', $data['to'])]));
+    }
+
+    /**
+     * Invite one active marketer, or every active marketer (`marketer_profile_id` = all).
+     */
+    public function inviteMarketers(Request $request, int $event, FlashSaleMarketerInvites $invites): RedirectResponse
+    {
+        $event = FlashSaleEvent::query()->findOrFail($event);
+        $data = $request->validate(['marketer_profile_id' => ['required', 'string', 'regex:/^(all|[0-9]+)$/']]);
+
+        try {
+            $count = $data['marketer_profile_id'] === 'all'
+                ? $invites->inviteAllActive($event, ActorType::Admin, $request->user()->id)
+                : (int) $invites->invite($event, MarketerProfile::query()->findOrFail((int) $data['marketer_profile_id']), ActorType::Admin, $request->user()->id)->wasRecentlyCreated;
+        } catch (TransitionRefused $refused) {
+            return back()->withErrors(['action' => $refused->getMessage()]);
+        }
+
+        return back()->with('status', trans_choice(':count marketer invited.|:count marketers invited.', $count));
     }
 
     public function approveSubmission(Request $request, int $submission): RedirectResponse

@@ -11,6 +11,7 @@ const TONES: Record<string, "success" | "warning" | "danger" | "info" | "neutral
   captured: "success",
   authorized: "success",
   approved: "success",
+  published: "success",
   refunded: "success",
   cancelled: "danger",
   failed: "danger",
@@ -22,6 +23,11 @@ const TONES: Record<string, "success" | "warning" | "danger" | "info" | "neutral
   processing: "warning",
   pending: "warning",
   placed: "warning",
+  // QA-009 / QA-016 / QC-013
+  under_review: "info",
+  voided: "neutral",
+  disputed: "warning",
+  hidden: "neutral",
 };
 
 export function StatusBadge({ status }: { status: string }) {

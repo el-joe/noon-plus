@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nawy_core/nawy_core.dart' show PlatformBridge;
 import 'package:nawy_core/testing.dart';
 import 'package:supervisor_app/app.dart';
 import 'package:supervisor_app/screens/dashboard.dart';
@@ -148,6 +149,19 @@ void main() {
       {'id': 5, 'name': 'Rashid Ali', 'status': 'active', 'phone': '+971501112233', 'vehicle': {'type': 'bike', 'plate': 'D 12345'}, 'open_assignments': 3, 'cod_in_hand': moneyJson('312.00'), 'last_ping_at': null},
       {'id': 6, 'name': 'Omar Saleh', 'status': 'suspended', 'phone': null, 'vehicle': {'type': null, 'plate': null}, 'open_assignments': 0, 'cod_in_hand': moneyJson('0.00'), 'last_ping_at': null},
     ];
+
+    testWidgets("tapping a driver's phone opens the dialler (D16, P12)", (tester) async {
+      final launched = <Uri>[];
+      PlatformBridge.debugLaunch = (uri) async {
+        launched.add(uri);
+        return true;
+      };
+      addTearDown(() => PlatformBridge.debugLaunch = null);
+      await pumpScreen(tester, const DriversScreen(), FakeTransport({'GET ops/supervisor/drivers': drivers}));
+      expect(find.byKey(const Key('call-driver-6')), findsNothing);
+      await tester.tap(find.byKey(const Key('call-driver-5')));
+      expect(launched.single.toString(), 'tel:+971501112233');
+    });
 
     testWidgets('suspend with a reason and reactivate', (tester) async {
       final transport = FakeTransport({

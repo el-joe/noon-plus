@@ -148,7 +148,7 @@ class CartController extends Controller
 
         return $customerId !== null
             ? $this->carts->forCustomer($customerId)
-            : $this->carts->forGuest($request->header('X-Cart-Token'));
+            : $this->carts->forGuest($request->header('X-Cart-Token'), $request->ip());
     }
 
     private function customerId(Request $request): ?int
@@ -161,8 +161,16 @@ class CartController extends Controller
         try {
             $action();
         } catch (CartRejected $rejected) {
-            return ApiResponse::error($rejected->errorCode, $rejected->getMessage(), $rejected->status)
-                ->header('X-Cart-Token', (string) $cart->guest_token);
+            $error = ApiResponse::error($rejected->errorCode, $rejected->getMessage(), $rejected->status);
+
+            // QA-047: a refused first write leaves no empty guest cart and issues no token.
+            if ($cart->wasRecentlyCreated && $cart->customer_user_id === null && ! $cart->items()->exists()) {
+                $cart->delete();
+
+                return $error;
+            }
+
+            return $cart->guest_token !== null ? $error->header('X-Cart-Token', $cart->guest_token) : $error;
         }
 
         return $this->respond($cart, $request);

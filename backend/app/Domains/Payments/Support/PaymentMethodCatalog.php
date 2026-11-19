@@ -97,7 +97,8 @@ class PaymentMethodCatalog
             && ($config->max_amount === null || $amount->isLessThanOrEqualTo($this->money->of((string) $config->max_amount, $currency)))
             && match ($config->gateway) {
                 PaymentMethod::Stripe => StripeGateway::acceptsAmount($amount),
-                PaymentMethod::PayPal => $amount->getCurrency()->getDefaultFractionDigits() <= 2,
+                // PayPal takes few currencies: others are charged in USD at the current exchange rate (none = not offered).
+                PaymentMethod::PayPal => app(PaymentCurrencyConversion::class)->canCharge(PaymentMethod::PayPal, $currency),
                 PaymentMethod::Thawani => $currency === 'OMR',
                 default => true,
             };

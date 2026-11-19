@@ -6,6 +6,7 @@ use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Delivery\Models\DeliveryAssignment;
 use App\Domains\Delivery\Support\AgentAssignments;
 use App\Domains\Delivery\Support\DeliverySettings;
+use App\Domains\Delivery\Support\ParcelBarcode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,6 +35,8 @@ class AgentAssignmentResource extends JsonResource
             'attempt' => $this->attempt_no,
             'delivery_code' => $open ? $this->delivery_code : null,
             'shipment_number' => $subOrder->number,
+            // Parcel label barcode payload (ParcelBarcode): `<AWB>.<mod-43 check>`.
+            'barcode' => $this->shipment === null ? null : ParcelBarcode::payload($this->shipment),
             'order_number' => $order->number,
             'payment_method' => $order->payment_method,
             'cod_amount' => $this->cod_amount === null ? null : MoneyResource::make((string) $this->cod_amount),
@@ -41,7 +44,7 @@ class AgentAssignmentResource extends JsonResource
             'customer' => $open ? [
                 'name' => $order->shipping_address['name'] ?? null,
                 'phone' => $order->shipping_address['phone'] ?? null,
-                'address' => collect($order->shipping_address)->except(['name', 'phone'])->all(),
+                'address' => collect($order->shipping_address)->except(['name', 'phone', 'address_id'])->all(),
             ] : null,
             'items' => $subOrder->items->map(fn ($item): array => ['title' => $item->title, 'quantity' => $item->quantity])->all(),
             'proof' => [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nawy_core/nawy_core.dart' show PlatformBridge;
 import 'package:nawy_core/testing.dart';
 import 'package:travel_agency_app/app.dart';
 import 'package:travel_agency_app/screens/bookings.dart';
@@ -23,7 +24,7 @@ final departure = {'id': 4, 'package': 'Salalah Khareef 4 days', 'starts_on': '2
 
 void main() {
   group('sign in', () {
-    testWidgets('sends role travel_agency and opens the summary', (tester) async {
+    testWidgets('sends role travel_agency and opens the dashboard', (tester) async {
       final transport = FakeTransport({
         'POST ops/auth/login': {'token': 'tok', 'user': {'id': 1, 'name': 'Khalid'}, 'workspace': {'role': 'travel_agency', 'id': 8, 'name': 'Desert Rose Tours'}},
         'GET ops/travel/dashboard': dashboard,
@@ -61,6 +62,19 @@ void main() {
   });
 
   group('booking requests (D8)', () {
+    testWidgets("tapping the traveller's phone opens the dialler (D16, P12)", (tester) async {
+      final launched = <Uri>[];
+      PlatformBridge.debugLaunch = (uri) async {
+        launched.add(uri);
+        return true;
+      };
+      addTearDown(() => PlatformBridge.debugLaunch = null);
+      await pumpScreen(tester, const BookingsScreen(), FakeTransport({'GET ops/travel/bookings': [booking()]}));
+      expect(find.text('Mariam Said'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('call-contact-21')));
+      expect(launched.single.toString(), 'tel:+96891234567');
+    });
+
     testWidgets('lists requested bookings and confirms', (tester) async {
       final transport = FakeTransport({
         'GET ops/travel/bookings': [booking()],

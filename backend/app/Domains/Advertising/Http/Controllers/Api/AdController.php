@@ -51,7 +51,10 @@ class AdController extends Controller
 
         return ApiResponse::success($bookings->map(fn (AdBooking $booking): array => [
             'slot' => $booking->slot->code,
-            'image' => $booking->creative_path === null ? null : Storage::disk('public')->url($booking->creative_path),
+            'image' => $booking->creative_path === null || $booking->creative_type === 'video' ? null : Storage::disk('public')->url($booking->creative_path),
+            // QC-018: admin-uploaded video creative (ADR 11).
+            'video' => $booking->creative_path !== null && $booking->creative_type === 'video' ? Storage::disk('public')->url($booking->creative_path) : null,
+            'creative_type' => $booking->creative_type,
             'headline' => $booking->headline,
             'link_url' => $booking->link_url,
             'sponsored' => true,

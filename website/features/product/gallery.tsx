@@ -37,7 +37,7 @@ export function ProductGallery({ images, title, slug }: { images: ProductImageDa
         </div>
       ) : null}
       <div className="relative aspect-square flex-1 overflow-hidden rounded-lg border border-line bg-surface">
-        <ProductImage src={current?.url} alt={current?.alt || title} label={current ? undefined : t("imageSoon")} />
+        <ProductImage src={current?.url} alt={current?.alt || title} label={current ? undefined : t("noImages")} />
         <WishlistButton slug={slug} className="absolute end-3 top-3 size-9 rounded-full border border-line bg-surface shadow-xs hover:bg-subtle" />
       </div>
     </section>

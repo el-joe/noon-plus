@@ -2,8 +2,12 @@
 
 namespace App\Domains\Payments\Http\Controllers;
 
+use App\Domains\Advertising\Models\TravelPromotion;
 use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Classifieds\Models\ClassifiedPackagePurchase;
+use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Countries\Support\DomainMap;
+use App\Domains\Finance\Models\VendorSubscriptionInvoice;
 use App\Domains\GiftCards\Models\GiftCard;
 use App\Domains\Membership\Models\MembershipInvoice;
 use App\Domains\Orders\Enums\ActorType;
@@ -128,6 +132,10 @@ class PaymentController extends Controller
                 'number' => $purchase->number, 'status' => $purchase->status, 'amount' => MoneyResource::of((string) $purchase->amount, $purchase->currency),
                 'applied_until' => $purchase->applied_until === null ? null : (string) $purchase->applied_until,
             ],
+            TravelPromotion::PAYABLE => ($promotion = TravelPromotion::query()->find($payment->payable_id)) === null ? null : [
+                'number' => $promotion->number, 'status' => $promotion->status->value, 'amount' => MoneyResource::of((string) $promotion->amount, $promotion->currency),
+                'starts_at' => $promotion->starts_at?->toIso8601String(), 'ends_at' => $promotion->ends_at?->toIso8601String(),
+            ],
             default => null,
         };
 
@@ -150,10 +158,27 @@ class PaymentController extends Controller
 
     /**
      * Back to the storefront result page; it reads the order from the API.
+     * A travel promotion goes back to the Travel Partner panel instead.
      */
     private function toStorefront(Request $request, Payment $payment): RedirectResponse
     {
-        $base = rtrim((string) config('nawy.payments.storefront_url'), '/').'/'.$request->attributes->get('market');
+        // QC-044: the country's primary storefront domain when one is mapped, else NAWY_STOREFRONT_URL.
+        $base = app(DomainMap::class)->storefrontBase(app(CountryContext::class)->current(), app()->getLocale()).'/'.$request->attributes->get('market');
+
+        if ($payment->return_url !== null) {
+            // Started in an app (e.g. the travel agency app's promotion purchase): back to its deep link, which verifies with the API.
+            return redirect()->away($payment->return_url.(str_contains($payment->return_url, '?') ? '&' : '?').http_build_query(['payment' => $payment->reference, 'status' => $payment->status->value]));
+        }
+
+        if ($payment->payable_type === TravelPromotion::PAYABLE) {
+            // D14: an agency pays for a promotion from the Travel Partner panel, which shows the result.
+            return redirect()->away(route('travel_agency.promotions.return', ['payment' => $payment->reference, 'status' => $payment->status->value]));
+        }
+
+        if ($payment->payable_type === VendorSubscriptionInvoice::PAYABLE) {
+            // FR-FIN-7: a store pays its plan invoice from Seller Center → Subscription, which verifies and shows the result.
+            return redirect()->away(route('partner.subscription', ['payment' => $payment->reference, 'status' => $payment->status->value]));
+        }
 
         if ($payment->order_id === null) {
             $query = http_build_query(['payment' => $payment->reference, 'kind' => (string) $payment->payable_type, 'status' => $payment->status->value]);

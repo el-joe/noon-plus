@@ -1,0 +1,83 @@
+/* Real-estate map (features/real-estate/property-map-leaflet.tsx): price pins and leaflet overrides. */
+.nawy-map .leaflet-container {
+  font: inherit;
+  background: var(--color-subtle, #f3f4f6);
+}
+
+.nawy-map .leaflet-popup-content {
+  margin: 12px;
+  font: inherit;
+}
+
+.nawy-map .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+
+.nawy-map-pin {
+  background: none;
+  border: 0;
+}
+
+.nawy-map-pin__label {
+  position: absolute;
+  left: 0;
+  bottom: 6px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line-strong);
+  box-shadow: 0 1px 3px rgb(13 21 38 / 0.25);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.nawy-map-pin__label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  background: inherit;
+  border-right: 1px solid var(--color-line-strong);
+  border-bottom: 1px solid var(--color-line-strong);
+}
+
+.nawy-map-pin__label--featured {
+  background: var(--color-brand);
+  border-color: var(--color-brand-hover);
+}
+
+.nawy-map-pin__label--featured::after {
+  border-color: var(--color-brand-hover);
+}
+
+.nawy-map-pin:hover .nawy-map-pin__label,
+.nawy-map-pin:focus-visible .nawy-map-pin__label {
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+
+.nawy-map-pin:focus-visible {
+  outline: none;
+}
+
+.nawy-map-pin:focus-visible .nawy-map-pin__label {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* leaflet.css is unlayered, so it outranks Tailwind's layered utilities inside popups. */
+.nawy-map .leaflet-popup-content p {
+  margin: 0;
+}
+
+.nawy-map .leaflet-popup-content a.nawy-map-link {
+  color: var(--color-link);
+}

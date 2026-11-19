@@ -4,6 +4,8 @@ namespace App\Domains\Content\Models;
 
 use App\Domains\Content\Enums\PageStatus;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Http\FlushesPublicCache;
+use App\Shared\Http\PublicCache;
 use App\Shared\StateMachine\HasStateTransitions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +21,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class BlogPost extends Model
 {
-    use HasStateTransitions, UsesCountryDatabase;
+    use FlushesPublicCache, HasStateTransitions, UsesCountryDatabase;
+
+    /**
+     * Public API answers built from this model (forgotten on every change).
+     *
+     * @return array<int, string>
+     */
+    public function publicCacheGroups(): array
+    {
+        return [PublicCache::BLOG_CATEGORIES];
+    }
+
+    /**
+     * Counters that change on reads; they alone keep the cached answers.
+     *
+     * @return array<int, string>
+     */
+    public function publicCacheIgnoredColumns(): array
+    {
+        return ['views'];
+    }
 
     /**
      * @var array<string, mixed>

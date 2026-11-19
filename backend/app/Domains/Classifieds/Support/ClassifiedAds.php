@@ -135,7 +135,7 @@ class ClassifiedAds
     public function addPhoto(ClassifiedAd $ad, UploadedFile $file): ClassifiedAdMedia
     {
         $this->assertMediaEditable($ad);
-        $max = (int) ($ad->category->max_photos ?: $this->settings->int('classified.max_photos'));
+        $max = $ad->category->photoLimits()['max_photos'];
 
         if ($ad->media()->where('type', 'photo')->count() >= $max) {
             throw new TransitionRefused(__('An ad can have at most :count photos.', ['count' => $max]));

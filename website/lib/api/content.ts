@@ -92,6 +92,8 @@ export const staticPage = z.object({
   title: z.string().nullable(),
   body: z.string().nullable(),
   country_specific: z.boolean().default(false),
+  /** QA-032: neutral placeholder text that legal has not replaced yet. */
+  placeholder: z.boolean().optional().default(false),
   updated_at: z.string().nullable(),
   seo: z.object({ title: z.string().nullable(), description: z.string().nullable() }).nullable().optional(),
 });

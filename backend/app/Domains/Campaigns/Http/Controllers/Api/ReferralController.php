@@ -2,13 +2,12 @@
 
 namespace App\Domains\Campaigns\Http\Controllers\Api;
 
-use App\Domains\Campaigns\Enums\InvitationStatus;
 use App\Domains\Campaigns\Enums\ReferralStatus;
-use App\Domains\Campaigns\Models\CampaignInvitation;
 use App\Domains\Campaigns\Support\Attribution;
 use App\Domains\Campaigns\Support\ReferralCodes;
 use App\Domains\Catalog\Support\ListingCards;
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Marketers\Support\CreatorPicks;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +22,7 @@ use Illuminate\Http\Request;
  */
 class ReferralController extends Controller
 {
-    public function show(Request $request, string $code, Attribution $attribution, ReferralCodes $codes, CountryContext $countryContext): JsonResponse
+    public function show(Request $request, string $code, Attribution $attribution, ReferralCodes $codes, CountryContext $countryContext, CreatorPicks $creatorPicks): JsonResponse
     {
         $visitor = $request->header('X-Visitor-Token') ?? $request->query('visitor_token');
         $customer = auth('sanctum')->user();
@@ -35,11 +34,8 @@ class ReferralController extends Controller
         }
 
         $listing = $invitation->campaign->listing()->with(ListingCards::relations())->first();
-        $picks = CampaignInvitation::query()->where('marketer_profile_id', $invitation->marketer_profile_id)->whereKeyNot($invitation->id)
-            ->where('status', InvitationStatus::Accepted)
-            ->whereHas('campaign', fn ($query) => $query->whereIn('status', ['active', 'auto_approved']))
-            ->with(['campaign', ...ListingCards::relations('campaign.listing.')])->latest('id')->limit(12)->get()
-            ->filter(fn (CampaignInvitation $pick): bool => $pick->campaign->listing !== null && $pick->campaign->listing->status->value === 'active');
+        $picks = $creatorPicks->public($invitation->marketer, 12, $invitation->id)
+            ->reject(fn (array $pick): bool => $pick['listing']->id === $listing->id)->values();
 
         return ApiResponse::success([
             'status' => $result['status']->value,
@@ -47,7 +43,7 @@ class ReferralController extends Controller
             'creator' => ['name' => $invitation->marketer->display_name, 'slug' => $invitation->marketer->slug],
             'campaign' => ['title' => $invitation->campaign->title],
             'destination' => ListingCards::card($listing) + ['product_slug' => $listing->variant->product->slug],
-            'picks' => $picks->values()->map(fn (CampaignInvitation $pick): array => ListingCards::card($pick->campaign->listing) + ['product_slug' => $pick->campaign->listing->variant?->product?->slug, 'referral_code' => $pick->referral_code])->all(),
+            'picks' => $picks->map(fn (array $pick): array => ListingCards::card($pick['listing']) + ['product_slug' => $pick['listing']->variant?->product?->slug, 'referral_code' => $pick['referral_code']])->all(),
             'share' => $codes->share($invitation->referral_code, $countryContext->current()),
         ]);
     }

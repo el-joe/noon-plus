@@ -6,8 +6,9 @@ version: 1.0.0+1
 environment:
   sdk: ^3.13.7
 
-# No pub packages (project rule). `nawy_core` is a local path package in this
-# repository (packages/nawy_core); flutter_localizations ships with the SDK.
+# `nawy_core` is a local path package in this repository (packages/nawy_core);
+# it brings the owner-approved flutter_secure_storage, image_picker,
+# path_provider and url_launcher (owner-review D16).
 dependencies:
   flutter:
     sdk: flutter
@@ -15,6 +16,9 @@ dependencies:
     sdk: flutter
   nawy_core:
     path: ../packages/nawy_core
+  # Already in the tree through nawy_core (owner-approved, D16); used directly
+  # for the in-app browser tab of the promotion payment (LaunchMode.inAppBrowserView).
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

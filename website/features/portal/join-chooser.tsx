@@ -4,12 +4,13 @@ import clsx from "clsx";
 import { Check, Megaphone, Plane, ShoppingBag, Store, Truck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { isApplicationType, type JoinOption } from "@/lib/api/portal";
 import { useMarket } from "@/lib/market-context";
 import { COUNTRIES } from "@/lib/markets";
+import { captureReferral } from "./referral";
 
 const ICONS = { vendor: ShoppingBag, open_souq: Store, travel_agency: Plane, marketer: Megaphone, shipping: Truck } as const;
 const SECTION_KEYS = ["vendor", "open_souq", "travel_agency", "marketer", "shipping"] as const;
@@ -36,6 +37,10 @@ export function JoinChooser({ options }: { options: JoinOption[] }) {
   const firstOpen = sections.find((o) => o.enabled)?.section ?? null;
   const [selected, setSelected] = useState<string | null>(firstOpen);
   const [roleKey, setRoleKey] = useState<string | null>(null);
+  // FR-FIN-6: remember an account manager's `?ref=` for the wizard the visitor picks next.
+  useEffect(() => {
+    captureReferral(window.location.search);
+  }, []);
   const countryName = market.country.name[market.locale];
   const rolesOf = (option: JoinOption | undefined): Role[] =>
     option?.roles.length ? option.roles : option && isSection(option.section) ? [{ role: option.section, label: option.label, type: option.types[0]?.type ?? SECTION_TYPES[option.section], job_types: [] }] : [];

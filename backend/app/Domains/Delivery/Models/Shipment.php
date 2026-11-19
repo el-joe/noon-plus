@@ -67,6 +67,6 @@ class Shipment extends Model
 
     public function openAssignment(): ?DeliveryAssignment
     {
-        return $this->assignments()->whereIn('status', AssignmentStatus::open())->latest('id')->first();
+        return $this->assignments()->whereIn('status', AssignmentStatus::open())->reorder('id', 'desc')->first();
     }
 }

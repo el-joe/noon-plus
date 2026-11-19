@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/json.dart';
+import '../../ui/widgets/inline_video.dart';
 import '../../l10n/l10n.dart';
 import '../../routing/guards.dart';
 import '../../routing/navigation.dart';
 import '../../state/app_state.dart';
+import '../../state/recently_viewed.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/product_card.dart';
@@ -283,7 +285,7 @@ Widget? _promoBanner(BlockSettings s) {
   if (layout == 'single' || banners.length == 1) {
     return _titled(s, Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: _ImageTile(item: banners.first, aspect: 4)));
   }
-  // 2-up promo tiles (Noon home section 9), wrapping in pairs.
+  // 2-up promo tiles (§14c home section 9), wrapping in pairs.
   return _titled(
     s,
     Padding(
@@ -389,7 +391,7 @@ class _TileScroller extends StatelessWidget {
   }
 
   Widget _render(BuildContext context, List<BlockItem> tiles) {
-    // Two rows only when there are enough tiles to fill them (Noon: 2-row circles).
+    // Two rows only when there are enough tiles to fill them (§14c: 2-row circles).
     final rows = s.number('rows', circle ? 2 : 1) >= 2 && tiles.length > 5 ? 2 : 1;
     const size = 72.0;
     final columns = <List<BlockItem>>[for (var i = 0; i < tiles.length; i += rows) tiles.sublist(i, (i + rows).clamp(0, tiles.length))];
@@ -494,7 +496,7 @@ class _RecentlyViewed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => OnceFuture<List<Json>>(
-        load: () => AppScope.read(context).readList('recently_viewed'),
+        load: () => loadRecentlyViewed(AppScope.read(context)),
         builder: (context, snap) {
           final cards = snap.data ?? const <Json>[];
           if (cards.isEmpty) return const SizedBox.shrink();
@@ -682,7 +684,7 @@ class _AdPlacements extends StatelessWidget {
   Widget build(BuildContext context) => OnceFuture<List<Json>>(
         load: () => AppScope.read(context).api.getList('ads/placements/${enc(placement)}').then((r) => r.data),
         builder: (context, snap) {
-          final ads = (snap.data ?? const <Json>[]).where((a) => a.s('image') != null || a.s('headline') != null).toList();
+          final ads = (snap.data ?? const <Json>[]).where((a) => a.s('image') != null || a.s('video') != null || a.s('headline') != null).toList();
           if (ads.isEmpty) return const SizedBox.shrink();
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -693,7 +695,11 @@ class _AdPlacements extends StatelessWidget {
                   child: InkWell(
                     onTap: () => openLink(context, ad.s('link_url')),
                     child: Stack(children: [
-                      if (safeImageUrl(ad.s('image')) != null)
+                      // QC-018 video creative: plays in the app (video_player,
+                      // D16); the system player is the fallback.
+                      if (safeImageUrl(ad.s('video')) != null)
+                        AdVideoTile(url: ad.str('video'), headline: ad.s('headline'), aspectRatio: tile ? 2 : 16 / 9)
+                      else if (safeImageUrl(ad.s('image')) != null)
                         AspectRatio(aspectRatio: tile ? 2 : 5, child: NetImage(ad.s('image'), radius: NawyRadius.card))
                       else
                         Container(
@@ -709,6 +715,31 @@ class _AdPlacements extends StatelessWidget {
             ]),
           );
         },
+      );
+}
+
+/// A video ad creative: plays in the app ([InlineVideo], `video_player`,
+/// owner-review D16 / P4) and falls back to the system player.
+class AdVideoTile extends StatelessWidget {
+  const AdVideoTile({super.key, required this.url, this.headline, this.aspectRatio = 16 / 9});
+
+  final String url;
+  final String? headline;
+  final double aspectRatio;
+
+  @override
+  Widget build(BuildContext context) => AspectRatio(
+        aspectRatio: aspectRatio,
+        child: InlineVideo(
+          key: const ValueKey('ad-video'),
+          url: url,
+          playKey: const ValueKey('ad-video-play'),
+          radius: NawyRadius.card,
+          overlay: [
+            if (headline != null)
+              PositionedDirectional(start: 12, end: 64, top: 10, child: IgnorePointer(child: Text(headline!, maxLines: 2, overflow: TextOverflow.ellipsis, style: NawyText.h4.copyWith(color: NawyColors.textInverse)))),
+          ],
+        ),
       );
 }
 
@@ -795,10 +826,12 @@ String stripHtml(String html) => html
     .replaceAll(RegExp(r'<br\s*/?>|</p>|</h\d>|</li>', caseSensitive: false), '\n')
     .replaceAll(RegExp(r'<[^>]+>'), '')
     .replaceAll('&nbsp;', ' ')
-    .replaceAll('&amp;', '&')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    // `&amp;` last, so an escaped entity ("&amp;lt;") is decoded only once.
+    .replaceAll('&amp;', '&')
     .replaceAll(RegExp(r'\n{3,}'), '\n\n')
     .trim();
 

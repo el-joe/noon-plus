@@ -23,13 +23,19 @@ import { useHref, useMarket } from "@/lib/market-context";
 import { usePortalLabel } from "./use-portal-t";
 import { AgreementStep } from "./agreement-step";
 import { DocumentsStep } from "./documents-step";
+import { EmailStep } from "./email-step";
 import { bannerError, fieldErrors } from "./errors";
 import { buildBody, initialValues, stepFields, type Values } from "./step-fields";
 import { StepForm } from "./step-form";
+import { useFunnelStep } from "./funnel";
+import { captureReferral, clearReferral, storedReferral } from "./referral";
 
 /** The wizard's steps: the API's steps, plus documents (when asked) and the agreement for travel agencies (P1). */
 function wizardSteps(type: ApplicationType, app: Application | null): string[] {
   const steps = app ? app.steps.map((s) => s.key) : [...TYPE_STEPS[type]];
+  // QA-002: "Confirm your email" right after the account step.
+  const account = steps.indexOf("account");
+  steps.splice(account + 1, 0, "email");
   if (!steps.includes("agreement")) {
     if (!steps.includes("documents") && app && app.documents.some((d) => d.requirement !== "not_applicable")) steps.push("documents");
     steps.push("agreement");
@@ -43,6 +49,7 @@ function isDone(app: Application | null, step: string): boolean {
   // The API marks `documents` complete when the step is saved with nothing missing (round 2);
   // types without an API documents step (travel agencies) are checked at submission.
   if (step === "documents") return known ? known.completed : app.documents.every((d) => !d.missing);
+  if (step === "email") return app.email_verified;
   if (step === "agreement") return app.submitted_at !== null && app.status !== "changes_requested";
   return known?.completed ?? false;
 }
@@ -72,6 +79,11 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
+
+  // FR-FIN-6: an account manager's referral link (`?ref=`) is kept until the draft is opened.
+  useEffect(() => {
+    captureReferral(window.location.search);
+  }, []);
 
   // Resume: the application in the URL, else this browser's open draft of this type.
   useEffect(() => {
@@ -116,6 +128,8 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
 
   const steps = useMemo(() => wizardSteps(type, app), [type, app]);
   const index = Math.max(0, steps.indexOf(step));
+  // QC-042 funnel tracking: each step reached and the submit.
+  useFunnelStep(type, loading ? "loading" : step, !!app?.submitted_at);
   const go = (next: string) => {
     setErrors({});
     setBanner(null);
@@ -128,6 +142,12 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
   };
 
   const fail = (error: unknown) => {
+    // Submit before the email is confirmed → 422 `fields.email_code`.
+    if (error instanceof ApiError && error.fields.email_code) {
+      go("email");
+      setBanner(error.fields.email_code[0] ?? t("email.required"));
+      return;
+    }
     setErrors(fieldErrors(error));
     if (error instanceof ApiError && error.code === "documents_missing") setBanner(t("documents.missing"));
     else setBanner(bannerError(error, t("common.error")));
@@ -140,9 +160,11 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
     setBanner(null);
     try {
       const body = buildBody(fields, values);
+      const ref = !app ? storedReferral() : null;
       const updated = !app
-        ? (await startApplication(market.slug, type, body as Record<string, unknown>)).data
+        ? (await startApplication(market.slug, type, { ...(body as Record<string, unknown>), ...(ref ? { ref } : {}) })).data
         : (await saveApplicationStep(market.slug, app.number, step, body)).data;
+      if (!app && ref) clearReferral();
       setApp(updated);
       goNext(updated);
     } catch (error) {
@@ -174,6 +196,11 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
 
   const submit = async (fullName: string) => {
     if (!app) return;
+    if (!app.email_verified) {
+      go("email");
+      setBanner(t("email.required"));
+      return;
+    }
     setPending(true);
     setErrors({});
     setBanner(null);
@@ -245,7 +272,19 @@ export function RegistrationWizard({ type, number, role }: { type: ApplicationTy
         </Alert>
       ) : null}
 
-      {step === "documents" && app ? (
+      {step === "email" && app ? (
+        <>
+          <EmailStep
+            app={app}
+            onVerified={(updated) => {
+              setApp(updated);
+              goNext(updated);
+            }}
+            onBack={() => go(steps[index - 1] ?? "account")}
+          />
+          {banner ? <Alert tone="warning">{banner}</Alert> : null}
+        </>
+      ) : step === "documents" && app ? (
         <DocumentsStep app={app} onChange={setApp} onContinue={continueDocuments} onBack={() => go(steps[index - 1] ?? "account")} pending={pending} error={banner} submitLabel={saveLabel} />
       ) : step === "agreement" && app ? (
         <AgreementStep app={app} onSubmit={submit} onBack={() => go(steps[index - 1] ?? "account")} pending={pending} errors={errors} error={banner} />

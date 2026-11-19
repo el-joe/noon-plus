@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\DB;
  * The only way a flash-sale event changes status (lifecycle catalogue §4.10).
  * Moves the event's submissions along: closing submissions sends them to
  * review, going live publishes approved ones (and rejects unreviewed ones),
- * ending ends them, cancelling withdraws them.
+ * ending ends them, cancelling withdraws them. Opening submissions also
+ * invites the country's active marketers ({@see FlashSaleMarketerInvites}).
  */
 class FlashSaleEventMachine
 {
@@ -46,6 +47,10 @@ class FlashSaleEventMachine
             ]);
 
             $this->moveSubmissions($event, $to, $actorType, $actorUserId);
+
+            if ($to === FlashSaleEventStatus::SubmissionOpen) {
+                app(FlashSaleMarketerInvites::class)->inviteAllActive($event, $actorType, $actorUserId);
+            }
 
             return $event;
         });

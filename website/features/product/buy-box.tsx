@@ -8,8 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, Badge } from "@/components/ui/misc";
-import { recentKey } from "@/features/page-builder/blocks/recently-viewed";
-import type { ProductCardData } from "@/components/product/product-card";
+import { useRecordView } from "@/features/search/recently-viewed";
 import * as api from "@/lib/api/endpoints";
 import type { Offer, ProductDetail } from "@/lib/api/schemas";
 import { discountPercent, formatAmount, formatMoney } from "@/lib/format";
@@ -17,6 +16,10 @@ import { errorMessage, useCartMutation } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { Countdown } from "@/features/page-builder/countdown";
 import { DeliveryPromise } from "./delivery-promise";
+import { FulfilledByNawyBadge, isFulfilledByNawy } from "./fbn-badge";
+import { BnplLine } from "./bnpl-line";
+import { CouponChips } from "./coupon-chips";
+import { useSelectedOffer } from "./offer-context";
 import { MeasurementsForm, measurementPayload, validateMeasurements, type MeasurementValues } from "./measurements";
 import { SizeGuideButton } from "./size-guide";
 
@@ -73,25 +76,33 @@ export function BuyBox({ product }: { product: ProductDetail }) {
     return result;
   });
 
-  // Remember this product for "Recently viewed" (this device only).
+  // Remember this product for "Recently viewed" (device, and the account when signed in).
+  useRecordView({
+    slug: product.slug,
+    title: product.title,
+    brand: product.brand,
+    price: product.buy_box?.price ?? product.from_price,
+    listingId: product.buy_box?.listing_id ?? null,
+    image: product.images[0]?.url ?? null,
+    rating: product.rating ?? null,
+    badges: product.badges ?? [],
+  });
+
+  // Share the chosen offer with the right rail (delivery + seller cards).
+  const rail = useSelectedOffer();
+  const setRailOffer = rail?.setOffer;
+  const setRailOthers = rail?.setOthers;
+  const setRailChoose = rail?.setChoose;
+  const othersKey = others.map((o) => o.listing_id).join(",");
   useEffect(() => {
-    try {
-      const key = recentKey(market.country.code);
-      const list = JSON.parse(window.localStorage.getItem(key) ?? "[]") as ProductCardData[];
-      const entry: ProductCardData = {
-        slug: product.slug,
-        title: product.title,
-        brand: product.brand,
-        price: product.buy_box?.price ?? product.from_price,
-        listingId: product.buy_box?.listing_id ?? null,
-        image: product.images[0]?.url ?? null,
-        rating: product.rating ?? null,
-      };
-      window.localStorage.setItem(key, JSON.stringify([entry, ...list.filter((p) => p.slug !== product.slug)].slice(0, 12)));
-    } catch {
-      // Storage disabled.
-    }
-  }, [market.country.code, product]);
+    setRailOffer?.(offer);
+    setRailOthers?.(others);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offer?.listing_id, othersKey, setRailOffer, setRailOthers]);
+  useEffect(() => {
+    setRailChoose?.((id: number) => setListingId(id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!offer) {
     return <Alert tone="warning">{t("product.unavailable")}</Alert>;
@@ -146,6 +157,9 @@ export function BuyBox({ product }: { product: ProductDetail }) {
         ) : null}
       </div>
 
+      <BnplLine price={offer.price} />
+      <CouponChips slug={product.slug} />
+
       {product.has_size_guide && axes.length === 0 ? <SizeGuideButton slug={product.slug} /> : null}
 
       {axes.map(([axis, values], axisIndex) => (
@@ -182,8 +196,9 @@ export function BuyBox({ product }: { product: ProductDetail }) {
         </fieldset>
       ))}
 
+      {rail ? null : (
       <div className="rounded-lg border border-line bg-surface p-3">
-        <DeliveryPromise delivery={offer.delivery} express={offer.fulfilment === "fbn" || offer.fulfilment === "express"} />
+        <DeliveryPromise delivery={offer.delivery} express={isFulfilledByNawy(offer) || offer.fulfilment === "express"} />
         {product.made_to_order && product.lead_days ? <p className="mt-1 text-body-sm text-secondary">{t("product.madeToOrder", { days: product.lead_days })}</p> : null}
         <p className="mt-2 text-body-sm text-secondary">
           {t("product.soldBy")} <span className="font-medium text-link">{offer.seller.name}</span>
@@ -196,7 +211,9 @@ export function BuyBox({ product }: { product: ProductDetail }) {
           ) : null}
           {offer.condition && offer.condition !== "new" ? <Badge className="ms-2">{offer.condition}</Badge> : null}
         </p>
+        <div className="mt-2"><FulfilledByNawyBadge offer={offer} withHint /></div>
       </div>
+      )}
 
       {product.warranty_plans.length > 0 ? (
         <fieldset className="flex flex-col gap-2">
@@ -268,7 +285,7 @@ export function BuyBox({ product }: { product: ProductDetail }) {
       ) : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
 
-      {others.length > 0 ? (
+      {!rail && others.length > 0 ? (
         <section className="rounded-lg border border-line bg-surface p-3">
           <h2 className="mb-2 text-body font-semibold">
             {t("product.sellerOffers")} · {t("product.otherOffers", { count: others.length })}

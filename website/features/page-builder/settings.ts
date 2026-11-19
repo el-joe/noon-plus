@@ -98,5 +98,6 @@ export function blockTitle(s: Settings, locale: Locale): string | null {
 export function background(s: Settings): string | undefined {
   const bg = s.background;
   const value = typeof bg === "string" ? bg : bg && typeof bg === "object" ? ((bg as Settings).color as string | undefined) : undefined;
-  return value && /^#[0-9a-f]{3,8}$/i.test(value) ? value : undefined;
+  // Editor hex colours, or a design token (QC-077: no hex fallbacks in code).
+  return value && (/^#[0-9a-f]{3,8}$/i.test(value) || /^var\(--color-[a-z0-9-]+\)$/.test(value)) ? value : undefined;
 }

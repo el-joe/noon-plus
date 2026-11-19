@@ -12,6 +12,7 @@ import { getCategory, getCategoryTree, getPage } from "@/lib/api/endpoints";
 import type { Category, CategoryNode } from "@/lib/api/schemas";
 import { getT } from "@/lib/i18n";
 import { parseMarket } from "@/lib/markets";
+import { withoutBrandSuffix } from "@/lib/format";
 
 const SEGMENT = /^[a-z0-9-]+$/;
 
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/[market]/[...slug
     orNull(getPage(market.slug, last).then((r) => r.data)).catch(() => null),
     orNull(getCategory(market.slug, last).then((r) => r.data)).catch(() => null),
   ]);
-  const title = page?.seo?.title || page?.title || category?.name;
+  const title = withoutBrandSuffix(page?.seo?.title || page?.title || category?.name);
   const description = page?.seo?.description || (category ? getT(market.locale)("listing.products", { count: category.product_count }) : undefined);
   return title ? { title, description: description ?? undefined, openGraph: { title, description: description ?? undefined } } : {};
 }

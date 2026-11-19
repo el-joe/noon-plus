@@ -10,6 +10,7 @@ use App\Domains\Contracts\Models\ContractTemplate;
 use App\Domains\Contracts\Models\ContractVersion;
 use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Settings\SettingsService;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonInterface;
@@ -52,7 +53,7 @@ class ContractPublisher
 
             foreach (['ar' => $fileAr, 'en' => $fileEn] as $locale => $file) {
                 if ($file !== null) {
-                    $attributes["file_path_{$locale}"] = $file->storeAs("contracts/templates/{$template->id}", Str::uuid().'.'.$file->getClientOriginalExtension(), ContractRenderer::DISK);
+                    $attributes["file_path_{$locale}"] = $file->storeAs("contracts/templates/{$template->id}", Str::uuid().'.'.($file->extension() ?: 'bin'), ContractRenderer::DISK);
                     $attributes['file_mime'] = $file->getMimeType();
                 }
             }
@@ -117,13 +118,20 @@ class ContractPublisher
         $template = $version->template;
 
         DB::transaction(function () use ($version, $template, $adminUserId): void {
-            $template->versions()->where('status', ContractVersionStatus::Published)->where('id', '!=', $version->id)
-                ->update(['status' => ContractVersionStatus::Retired, 'retired_at' => now()]);
+            /*
+            | QC-053: versions are central rows audited by the activity log;
+            | each retirement is a checked move saved on its own.
+            */
+            foreach ($template->versions()->where('status', ContractVersionStatus::Published)->where('id', '!=', $version->id)->get() as $previous) {
+                if (in_array(ContractVersionStatus::Retired, $previous->status->allowedNext(), true)) {
+                    $previous->forceFill(['status' => ContractVersionStatus::Retired, 'retired_at' => now()])->save();
+                }
+            }
             $version->forceFill(['status' => ContractVersionStatus::Published, 'published_at' => now(), 'published_by' => $adminUserId])->save();
         });
 
         foreach ($this->countriesOf($template) as $country) {
-            $this->countryContext->runAs($country, function () use ($version, $template, $continuedUse): void {
+            $this->countryContext->runAs($country, function () use ($version, $template, $continuedUse, $adminUserId): void {
                 $stale = ContractSignature::query()
                     ->where('contract_template_id', $template->id)
                     ->where('contract_version_id', '!=', $version->id)
@@ -134,7 +142,7 @@ class ContractPublisher
                     if ($continuedUse) {
                         $this->signer->sign($version->refresh(), $signature->signer_type, $signature->signer_id, $signature->signer_user_id, $signature->full_name, SignatureMethod::ContinuedUse, subjectType: $signature->subject_type, subjectId: $signature->subject_id, locale: $signature->locale);
                     } else {
-                        $signature->forceFill(['status' => ContractSignature::STATUS_SUPERSEDED, 'superseded_at' => now()])->save();
+                        $this->signer->supersede($signature, ActorType::Admin, $adminUserId, 'Version '.$version->version.' published');
                     }
                 }
             });

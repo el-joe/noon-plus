@@ -2,6 +2,8 @@
 
 namespace App\Domains\Reviews\Http\Resources;
 
+use App\Domains\Reviews\Enums\ReplyStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Models\ProductReview;
 use App\Domains\Reviews\Models\ProductReviewPhoto;
 use Illuminate\Http\Request;
@@ -37,12 +39,21 @@ class ReviewResource extends JsonResource
             'author' => $this->customer_name,
             'verified_purchase' => true,
             'photos' => $this->photos->map(fn (ProductReviewPhoto $photo): array => ['id' => $photo->id, 'url' => $photo->url()])->all(),
-            'helpful_count' => $this->helpful_count,
+            'helpful_count' => (int) $this->helpful_count,
             'voted_helpful' => in_array($this->id, $this->votedIds, true),
             'seller' => $this->vendor?->store_name,
+            // QC-012: the store's reply, once Nawy published it.
+            'seller_reply' => $this->relationLoaded('reply') && $this->reply?->status === ReplyStatus::Published
+                ? ['body' => $this->reply->body, 'created_at' => $this->reply->created_at->toIso8601String()]
+                : null,
             'created_at' => $this->created_at->toIso8601String(),
             $this->mergeWhen($this->forAuthor, fn (): array => [
-                'status' => $this->status->value,
+                // QC-012: the author sees `pending`, `published` or `rejected`/`hidden`; flags stay internal.
+                'status' => match ($this->status) {
+                    ReviewStatus::AutoFlagged => ReviewStatus::Pending->value,
+                    ReviewStatus::Flagged => ReviewStatus::Published->value,
+                    default => $this->status->value,
+                },
                 'rejection_reason' => $this->rejection_reason,
                 'product' => ['slug' => $this->product?->slug, 'title' => $this->product?->title()],
                 'order_item_id' => $this->order_item_id,

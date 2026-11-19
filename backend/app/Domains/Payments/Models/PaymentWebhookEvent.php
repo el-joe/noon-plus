@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * A verified gateway notification, unique per (gateway, event id): the
  * provider's redeliveries are recognised and ignored (risk T9).
  */
-#[Fillable(['gateway', 'event_id', 'type', 'payment_id', 'status', 'payload', 'error', 'processed_at'])]
+#[Fillable(['gateway', 'event_id', 'type', 'payment_id', 'status', 'payload', 'error', 'processed_at', 'deliveries'])]
 class PaymentWebhookEvent extends Model
 {
     use UsesCountryDatabase;

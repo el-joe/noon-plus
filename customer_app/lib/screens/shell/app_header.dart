@@ -134,7 +134,7 @@ class _AddressLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final countryName = app.country?.s('name') ?? (app.countrySlug ?? '').toUpperCase();
+    final countryName = app.country?.m('names')?.s(app.locale) ?? app.country?.s('name') ?? (app.countrySlug ?? '').toUpperCase();
     if (!app.signedIn) {
       return Text(context.t('header.deliverTo', {'place': countryName}), style: NawyText.label.copyWith(color: fg), maxLines: 1, overflow: TextOverflow.ellipsis);
     }

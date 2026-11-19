@@ -1,4 +1,4 @@
-<x-layouts.panel :title="__('Payment gateways · :country', ['country' => $country->name_en])"
+<x-layouts.panel :error-summary="false" :title="__('Payment gateways · :country', ['country' => $country->name_en])"
                  :subtitle="__('Choose which gateways customers in :country see at checkout, their order and the recommended one.', ['country' => $country->name_en])"
                  :breadcrumbs="[__('Countries'), $country->name_en, __('Payment gateways')]">
     @php($canUpdate = auth()->user()->can('payment_gateways.update'))

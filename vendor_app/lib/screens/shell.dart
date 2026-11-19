@@ -5,8 +5,10 @@ import '../data/vendor_api.dart';
 import 'dashboard.dart';
 import 'orders.dart';
 import 'stock.dart';
+import 'support.dart';
 
-/// Figma "Vendor" (ops minimal): Dashboard · Orders · Stock · Settings.
+/// Figma "Vendor" (ops minimal): Dashboard · Orders · Stock · Settings
+/// (with Documents and Help & support).
 class VendorShell extends StatefulWidget {
   const VendorShell({super.key});
 
@@ -38,7 +40,17 @@ class _VendorShellState extends State<VendorShell> {
       DashboardScreen(onOrders: _openOrders, onLowStock: () => _openStock(low: true)),
       OrdersScreen(key: ValueKey('orders-$_generation'), initialStatus: _orderStatus),
       StockScreen(key: ValueKey('stock-$_generation'), initialLowOnly: _lowOnly),
-      const SettingsScreen(logoutPath: VendorApi.logoutPath),
+      SettingsScreen(logoutPath: VendorApi.logoutPath, extra: [
+        const DocumentsMenuTile(base: 'ops/vendor/documents'),
+        ListTile(
+          key: const Key('open-support'),
+          leading: const Icon(Icons.support_agent_outlined),
+          title: Text(context.t('support.menu')),
+          subtitle: Text(context.t('support.menuHint')),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportListScreen())),
+        ),
+      ]),
     ];
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),

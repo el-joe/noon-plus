@@ -17,6 +17,7 @@ use App\Domains\Panels\Http\Controllers\Api\Concerns\RefusesTransitions;
 use App\Domains\Vendors\Models\Vendor;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
+use App\Shared\Http\LikeSearch;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -80,7 +81,7 @@ class VendorOpsController extends Controller
         $page = SubOrder::query()->where('vendor_id', $this->vendor($request)->id)
             ->with('order:id,placed_at,currency')->withCount('items')
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', "%{$search}%"))
+            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', LikeSearch::contains($search)))
             ->latest('id')->paginate(20);
 
         return ApiResponse::success($page->getCollection()->map(fn (SubOrder $subOrder): array => $this->orderRow($subOrder))->all(), [
@@ -116,9 +117,9 @@ class VendorOpsController extends Controller
             ->where('status', '!=', ListingStatus::Archived)
             ->with('variant.product')->withAvailableQuantity()
             ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where(fn ($scoped) => $scoped
-                ->where('vendor_sku', 'like', "%{$search}%")
-                ->orWhereHas('variant', fn ($variant) => $variant->where('sku', 'like', "%{$search}%")
-                    ->orWhereHas('product', fn ($product) => $product->where('title_en', 'like', "%{$search}%")->orWhere('title_ar', 'like', "%{$search}%")))))
+                ->where('vendor_sku', 'like', LikeSearch::contains($search))
+                ->orWhereHas('variant', fn ($variant) => $variant->where('sku', 'like', LikeSearch::contains($search))
+                    ->orWhereHas('product', fn ($product) => $product->where('title_en', 'like', LikeSearch::contains($search))->orWhere('title_ar', 'like', LikeSearch::contains($search))))))
             ->when($filters['low'] ?? false, fn ($query) => $query->havingRaw('coalesce(available_quantity, 0) between 1 and ?', [self::LOW_STOCK_THRESHOLD]))
             ->latest('id')->paginate(30);
 
@@ -138,6 +139,10 @@ class VendorOpsController extends Controller
 
         if ($listing->status === ListingStatus::Archived) {
             return ApiResponse::error('transition_refused', __('An archived listing cannot be changed.'), 422);
+        }
+
+        if ($listing->fulfilment === 'fbn') {
+            return ApiResponse::error('fbn_stock', __('Fulfilled by Nawy stock is counted by the warehouse. Send units with an inbound plan or request a removal.'), 422);
         }
 
         try {
@@ -180,7 +185,7 @@ class VendorOpsController extends Controller
      */
     private function orderRow(SubOrder $subOrder): array
     {
-        $next = $this->fulfilment->nextStep($subOrder->status);
+        $next = $this->fulfilment->nextStepFor($subOrder);
 
         return [
             'id' => $subOrder->id,
@@ -207,6 +212,7 @@ class VendorOpsController extends Controller
             'stock' => (int) ($listing->available_quantity ?? 0),
             'low_stock_threshold' => self::LOW_STOCK_THRESHOLD,
             'status' => $listing->status->value,
+            'fulfilment' => (string) $listing->fulfilment,
         ];
     }
 }

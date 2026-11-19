@@ -1,0 +1,747 @@
+{
+  "title": "Customer profile & account — browser test report",
+  "area": "Customer account (storefront)",
+  "date": "2026-11-19",
+  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. All 18 flows passed. One website bug was found and fixed in code (gift card expiry without the year, QA-C03); the saved-cards screen is missing on the website (QA-C05, known gap). The Google / Apple OAuth round trip itself was not run (real provider apps needed).",
+  "environment": [
+    "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
+    "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
+    "Panels on {admin|partner|carrier|delivery}.nawy.test:8000 via Chromium --host-resolver-rules (playwright.config.ts).",
+    "Chromium (Playwright Desktop Chrome), viewport 1280×800, project `areas`, run with E2E_SKIP_SEED=1 --no-deps (E2eSeeder already run).",
+    "Market uae-en (UAE, AED, VAT 5%) unless the step says otherwise; Arabic steps on uae-ar.",
+    "Email codes read from backend/storage/logs/laravel.log (e2e/support/mail.ts); SMS codes from the SMS log driver lines in the same log.",
+    "Fake card gateway: https://pay.fake.test is intercepted; the outcome is scripted with FakeGateway::willReport (and willTokenise) through artisan tinker, then the browser follows Laravel's return URL.",
+    "Shared servers with two other QA agents: every test creates its own shoppers (unique emails with a run suffix) and orders."
+  ],
+  "accounts": [
+    {
+      "role": "New shoppers (per test)",
+      "login": "qa-<tag>-<run>@nawy.test — created through the email-code sign-up (CUS-01) or, to stay under the 5-requests-a-minute email-code limit shared by all agents, with User::createPasswordless + SignInCustomer via artisan tinker"
+    },
+    {
+      "role": "Seeded shopper",
+      "login": "e2e-customer@nawy.test (E2eSeeder) — e2e/.auth/customer.json"
+    },
+    {
+      "role": "Seller",
+      "login": "e2e-seller@nawy.test — Seller Center (partner panel), store 'E2E Store' (e2e-store)"
+    },
+    {
+      "role": "Nawy admin",
+      "login": "e2e-admin@nawy.test — admin panel (Dispatch, Pick & pack, Refunds)"
+    },
+    {
+      "role": "Shipping company supervisor",
+      "login": "e2e-carrier@nawy.test — carrier panel, company 'E2E Couriers'"
+    },
+    {
+      "role": "Driver",
+      "login": "e2e-driver@nawy.test — delivery panel, agent 'E2E Driver'"
+    }
+  ],
+  "specs": [
+    "website/e2e/specs/areas/customer/account.spec.ts (CUS-01…CUS-18)",
+    "helpers: e2e/specs/areas/customer/kit.ts, data.ts"
+  ],
+  "issues": [
+    {
+      "id": "QA-C03",
+      "severity": "minor",
+      "area": "Website — account gift cards",
+      "description": "Gift card expiry is shown as 'Expires 19 Nov' for a card bought on 19 Nov 2026 that expires in 2027: formatDay never shows the year.",
+      "status": "fixed in code — verify after rebuild",
+      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts."
+    },
+    {
+      "id": "QA-C05",
+      "severity": "minor",
+      "area": "Website — account",
+      "description": "No saved-cards screen on the website: cards saved by the gateway (tokens only, verified through GET me/cards) can only be managed in the customer app. Listed as 'Left' in STATUS.md (M13).",
+      "status": "open",
+      "fix": "Feature gap, not changed."
+    },
+    {
+      "id": "QA-C07",
+      "severity": "minor",
+      "area": "E2E test harness",
+      "description": "Global setup signs the shared e2e customer in with its password on every run; with several QA runs the per-account limit (30 an hour) is hit and every run aborts with 429 before any test.",
+      "status": "fixed",
+      "fix": "e2e/support/global-setup.ts keeps the stored customer session when the API answers 429 and the stored token still works."
+    }
+  ],
+  "notes": [
+    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
+    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "Social sign-in: Google / Apple buttons render; the OAuth round trip needs real provider apps and is not driven (production provider pages may not be automated).",
+    "Saved cards are checked through the API (GET me/cards) here and after a real tokenised card payment in CHK-04.",
+    "An unknown referral code (/r/NOPE0000) answers a real HTTP 404 page by design (QA-012 proxy check), not the in-page 'This referral link does not exist' message."
+  ],
+  "totals": {
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "CUS-01",
+      "name": "Sign up with an email code",
+      "goal": "A new shopper creates an account with the 6-digit code emailed to them and lands signed in.",
+      "preconditions": "Guest browser (optional cookies rejected).",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Open /uae-en/login",
+          "expected": "Welcome screen with the email field, password option, phone option and social buttons",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-01-1.png"
+        },
+        {
+          "action": "Type a new email (qa-signup-9pktvry1@nawy.test) and ask for a code",
+          "expected": "The code step opens and says where the code was sent",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-01-2.png"
+        },
+        {
+          "action": "Read the code from the mail log and enter it",
+          "expected": "Signed in, sent away from /login; session cookie set",
+          "result": "pass",
+          "note": "code 249811 accepted",
+          "screenshot": "../shots/customer-profile-and-account/cus-01-3.png"
+        },
+        {
+          "action": "Open My account",
+          "expected": "Account overview greets the new shopper; no orders yet",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-01-4.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-02",
+      "name": "Password sign-in, wrong password and forgot password",
+      "goal": "A shopper with a password signs in; a wrong password is refused; the forgot-password link is emailed.",
+      "preconditions": "A shopper with the e2e password created for this run (the shared e2e customer is rate-limited at 5 password tries a minute per email, which other agents also use).",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Open login, choose 'Sign in with password', enter a wrong password",
+          "expected": "An error alert; still signed out",
+          "result": "pass",
+          "note": "That email and password do not match. Sign in with an email code if you have not set a password.",
+          "screenshot": "../shots/customer-profile-and-account/cus-02-1.png"
+        },
+        {
+          "action": "Enter the right password",
+          "expected": "Signed in and redirected away from /login",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-02-2.png"
+        },
+        {
+          "action": "In a guest window: 'Forgot password?' for the same shopper",
+          "expected": "Confirmation that a reset link was sent; the mail with a reset link is in the log",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-02-3.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-03",
+      "name": "Phone code sign-in (legacy phone-only account)",
+      "goal": "A legacy account that has only a phone number signs in once with an SMS code (SMS log driver) and is asked to add an email.",
+      "preconditions": "A legacy user (phone only, requires_email) created for this run with artisan tinker.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Create a legacy phone-only account (test data)",
+          "expected": "User row with requires_email=true",
+          "result": "pass",
+          "note": "id=225"
+        },
+        {
+          "action": "Login → 'Had an old Nawy account with only a phone number?' → enter the number → send code",
+          "expected": "The SMS code step opens",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-03-2.png"
+        },
+        {
+          "action": "Read the SMS code from the log driver and enter it",
+          "expected": "Signed in; sent to the 'add your email' page",
+          "result": "pass",
+          "note": "landed on /uae-en/auth/add-email",
+          "screenshot": "../shots/customer-profile-and-account/cus-03-3.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-04",
+      "name": "Social sign-in buttons",
+      "goal": "Google and Apple buttons are shown on the login page (the OAuth round trip needs real provider apps and is not run).",
+      "preconditions": "Guest browser (optional cookies rejected).",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Open /uae-en/login",
+          "expected": "'Continue with Google' and 'Continue with Apple' are visible and enabled",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-04-1.png"
+        },
+        {
+          "action": "Ask the API where 'Continue with Google' would go",
+          "expected": "The API answers with a provider redirect, or a clear 'not configured' error in dev",
+          "result": "pass",
+          "note": "GET auth/social/google/redirect → 200 {\"data\":{\"url\":\"http:\\/\\/localhost:8000\\/api\\/v1\\/auth\\/social\\/google\\/callback?state=myyLFBBGk81WdcVFNiGPDoEMj1wm2r2Bh523esBJ&fake=1\"},\"meta\":{}}"
+        },
+        {
+          "action": "Complete the Google / Apple OAuth round trip",
+          "expected": "Account signed in through the provider",
+          "result": "skip",
+          "note": "Needs real Google / Apple OAuth apps and accounts; a provider's production sign-in page may not be driven by the test."
+        }
+      ]
+    },
+    {
+      "id": "CUS-05",
+      "name": "Edit profile",
+      "goal": "Change name, preferred email language and marketing channels; changes persist after a reload.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Open Profile, change the full name, email language → العربية, tick SMS and WhatsApp, Save changes",
+          "expected": "'Your profile is saved.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-05-2.png"
+        },
+        {
+          "action": "Reload the profile page",
+          "expected": "Name, language and channels are kept",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-05-3.png"
+        },
+        {
+          "action": "Upload a profile photo",
+          "expected": "The photo is shown and a Remove button appears",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-05-4.png"
+        },
+        {
+          "action": "Change email → qa-changed-9pktvry3@nawy.test, enter the code mailed to the new address",
+          "expected": "'Your email is now …'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-05-5.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-06",
+      "name": "Address book",
+      "goal": "Add two addresses, edit one, make the second the default and delete one.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Addresses → Add address (city, area, street) → Save",
+          "expected": "The address is listed and is the default (first address)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-06-2.png"
+        },
+        {
+          "action": "Add a second address",
+          "expected": "Both addresses listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-06-3.png"
+        },
+        {
+          "action": "Edit the second address: change the street",
+          "expected": "The new street is shown",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-06-4.png"
+        },
+        {
+          "action": "Set the second address as default",
+          "expected": "The 'Default' badge moves to it",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-06-5.png"
+        },
+        {
+          "action": "Delete the first address (confirm dialog)",
+          "expected": "Only the edited default address is left",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-06-6.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-07",
+      "name": "Wishlist and recently viewed",
+      "goal": "Save a product to the wishlist from its page, find it in Wishlist, remove it; the visited product appears in Recently viewed.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Open the product page /products/nova-x12-smartphone and tap 'Add to wishlist'",
+          "expected": "The heart switches to 'Remove from wishlist'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-07-2.png"
+        },
+        {
+          "action": "Open Account → Wishlist",
+          "expected": "The product is listed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-07-3.png"
+        },
+        {
+          "action": "Remove it from the wishlist",
+          "expected": "The wishlist is empty",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-07-4.png"
+        },
+        {
+          "action": "Recently viewed: the API list for this shopper and the home page block",
+          "expected": "The visited product is in the recently-viewed list",
+          "result": "pass",
+          "note": "API lists the product; the home page layout has no Recently viewed block in dev",
+          "screenshot": "../shots/customer-profile-and-account/cus-07-5.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-08",
+      "name": "Saved cards",
+      "goal": "Saved cards are listed as gateway tokens with brand / last 4 only (no card numbers).",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "GET /me/cards as the shopper",
+          "expected": "200 with a list; no field holds a full card number or CVV",
+          "result": "pass",
+          "note": "200: {\"data\":[],\"meta\":{}}"
+        },
+        {
+          "action": "Look for a saved-cards screen in My account",
+          "expected": "No 'cards' link in the account menu (known website gap, cards are managed in the customer app)",
+          "result": "pass",
+          "note": "no saved-cards screen on the website (STATUS.md M13 'Left: saved cards'); API GET me/cards only",
+          "screenshot": "../shots/customer-profile-and-account/cus-08-3.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-09",
+      "name": "Nawy One membership",
+      "goal": "Join Nawy One paying by card through the fake gateway; the membership page shows it active; cancel it.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Account → Nawy One: choose the plan and 'Credit / debit card'",
+          "expected": "Plan and payment method selected",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-09-2.png"
+        },
+        {
+          "action": "Join Nawy One (fake gateway reports captured)",
+          "expected": "Payment received page: 'Your Nawy One membership is active.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-09-3.png"
+        },
+        {
+          "action": "Open Account → Nawy One again",
+          "expected": "The membership is shown as active with a cancel option",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-09-4.png"
+        },
+        {
+          "action": "Cancel the membership",
+          "expected": "The page says it ends at the period end / is cancelled",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-09-5.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-10",
+      "name": "Gift card buy and redeem (wallet / credits)",
+      "goal": "Buy a gift card for yourself with the fake card gateway, read the code from the gift-card email, redeem it to Nawy Credits and see the balance and transaction.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Gift cards page: design Birthday, AED 50, recipient = me, send now, card",
+          "expected": "Buy button shows 'Buy · AED 50'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-10-2.png"
+        },
+        {
+          "action": "Buy (fake gateway reports captured)",
+          "expected": "'Payment received' with the gift card number",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-10-3.png"
+        },
+        {
+          "action": "Read the gift card email",
+          "expected": "A mail to the recipient with the redeem code",
+          "result": "pass",
+          "note": "code 7L2J…"
+        },
+        {
+          "action": "Account → Gift cards: the bought card is listed; redeem the code to Nawy Credits",
+          "expected": "Success message; the card shows as redeemed",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-10-5.png"
+        },
+        {
+          "action": "Account → Nawy Credits",
+          "expected": "Balance AED 50.00 and a gift-card transaction",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-10-6.png"
+        },
+        {
+          "action": "Redeem the same code again",
+          "expected": "Refused with a clear message",
+          "result": "pass",
+          "note": "This gift card was already redeemed.",
+          "screenshot": "../shots/customer-profile-and-account/cus-10-7.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-11",
+      "name": "Vouchers",
+      "goal": "The vouchers page lists vouchers and refuses an unknown code.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Account → Vouchers: redeem 'NOPE-CODE-1'",
+          "expected": "An error message; nothing added",
+          "result": "pass",
+          "note": "This voucher code is not valid.",
+          "screenshot": "../shots/customer-profile-and-account/cus-11-2.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-12",
+      "name": "Support tickets",
+      "goal": "Open a support ticket, see it in the list and reply in its thread.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Account → Support tickets → new: topic Account, subject, message → Send ticket",
+          "expected": "Redirected to the ticket with its number",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-12-2.png"
+        },
+        {
+          "action": "Reply in the ticket thread",
+          "expected": "The reply shows in the thread",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-12-3.png"
+        },
+        {
+          "action": "Back to the tickets list",
+          "expected": "The ticket is listed with status Open",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-12-4.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-13",
+      "name": "Referral link",
+      "goal": "A marketer's referral link /r/{code} opens the invitation page; an unknown code says it does not exist.",
+      "preconditions": "Guest browser (optional cookies rejected).",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Open /uae-en/r/LWFBYPQWZP",
+          "expected": "Invitation page (who invited, the picked product, disclosure)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-13-1.png"
+        },
+        {
+          "action": "Open /uae-en/r/NOPE0000 (unknown code)",
+          "expected": "A real HTTP 404 page (QA-012: the proxy asks the API and answers 404 before rendering)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-13-2.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-14",
+      "name": "Ask a product question",
+      "goal": "A signed-in shopper asks a question on a product page; it waits for approval.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Product page → Questions & answers → Ask a question → Post question",
+          "expected": "'Thanks! Your question will appear once it's approved.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-14-2.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-15",
+      "name": "Security, password and sign out",
+      "goal": "A code-only shopper sets a password on Security & devices, signs out, then signs in with the new password; devices and login history are listed.",
+      "preconditions": "A new shopper signed in by email code.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Sign up a new shopper",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": ""
+        },
+        {
+          "action": "Security & devices: devices and login history listed",
+          "expected": "Headings Signed-in devices and Login history with this session",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-15-2.png"
+        },
+        {
+          "action": "Set a password: the code-only shopper sees 'Set password' without a current-password field",
+          "expected": "'Password saved. Other devices were signed out.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-15-3.png"
+        },
+        {
+          "action": "Change it again: now the current password is asked; a wrong current password is refused",
+          "expected": "'The current password is not correct.'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-15-4.png"
+        },
+        {
+          "action": "Sign out",
+          "expected": "Signed out and the header shows Sign in",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-15-5.png"
+        },
+        {
+          "action": "Sign in with the new password",
+          "expected": "Signed in",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-15-6.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-16",
+      "name": "Notifications centre",
+      "goal": "List notifications, filter Unread, mark all as read.",
+      "preconditions": "The seeded e2e customer (e2e/.auth/customer.json).",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Account → Notifications",
+          "expected": "List with All / Unread filters",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-16-1.png"
+        },
+        {
+          "action": "Filter Unread",
+          "expected": "Only unread notifications (or the empty state)",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-16-2.png"
+        },
+        {
+          "action": "Mark all as read",
+          "expected": "The unread list is empty and the header badge clears",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-16-3.png"
+        }
+      ]
+    },
+    {
+      "id": "CUS-17",
+      "name": "Orders and invoices",
+      "goal": "Orders list with status tabs and search; order detail; the invoice opens as HTML and downloads as a PDF.",
+      "preconditions": "The seeded e2e customer and its seeded delivered order.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Account → Orders; tab Delivered; search the delivered order number",
+          "expected": "The order is found",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-17-1.png"
+        },
+        {
+          "action": "Open order NW-AE-E2E3NZXP4",
+          "expected": "Order detail with the shipment, its status timeline and an invoice link",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-17-2.png"
+        },
+        {
+          "action": "Open the invoice (HTML)",
+          "expected": "Tax invoice page with the order number and VAT",
+          "result": "pass",
+          "note": "opened http://localhost:3000/api/invoice/uae-en/NW-AE-E2E3NZXP4",
+          "screenshot": "../shots/customer-profile-and-account/cus-17-3.png"
+        },
+        {
+          "action": "Download the invoice PDF",
+          "expected": "A PDF file (application/pdf, %PDF header)",
+          "result": "pass",
+          "note": "API pdf 948913 bytes; PDF control on page: true"
+        }
+      ]
+    },
+    {
+      "id": "CUS-18",
+      "name": "Language and market switch",
+      "goal": "Switch the account pages to Arabic (RTL) and back; switch the country to Saudi Arabia from the header.",
+      "preconditions": "The seeded e2e customer.",
+      "spec": "e2e/specs/areas/customer/account.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Account overview in English → header link العربية",
+          "expected": "/uae-ar/account, dir=rtl, lang=ar, Arabic menu",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-18-1.png"
+        },
+        {
+          "action": "Open Orders in Arabic",
+          "expected": "Arabic labels, RTL layout, no raw keys",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-18-2.png"
+        },
+        {
+          "action": "Switch back with 'English'",
+          "expected": "/uae-en/account/orders, dir=ltr",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-18-3.png"
+        },
+        {
+          "action": "Header 'Country & language' → Saudi Arabia, English → Go",
+          "expected": "Lands on /ksa-en with SAR prices",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-18-4.png"
+        }
+      ]
+    }
+  ]
+}

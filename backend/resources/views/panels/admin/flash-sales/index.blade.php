@@ -26,6 +26,9 @@
                 <x-ui.datetime-input :label="__('Sale starts')" name="starts_at" :country="$country" required />
                 <x-ui.datetime-input :label="__('Sale ends')" name="ends_at" :country="$country" required />
                 <x-ui.input :label="__('Max units per customer')" name="max_qty_per_customer" type="number" min="1" :helper="__('Leave empty for the country default')" />
+                <x-ui.select :label="__('Marketer bonus')" name="marketer_bonus_type" :placeholder="__('Country default (percent of every flash sale)')"
+                             :options="['percent' => __('Percent of the sale (invited marketers who accept)'), 'fixed' => __('Fixed per unit (invited marketers who accept)')]" />
+                <x-ui.input :label="__('Bonus value')" name="marketer_bonus_value" inputmode="decimal" />
                 <div class="flex items-end"><x-ui.button type="submit">{{ __('Create draft') }}</x-ui.button></div>
             </form>
         </x-ui.card>

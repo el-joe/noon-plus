@@ -2,6 +2,7 @@
 
 namespace App\Domains\LiveMedia\Support;
 
+use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
@@ -9,6 +10,7 @@ use App\Domains\LiveMedia\Enums\StreamSource;
 use App\Domains\LiveMedia\Enums\StreamStatus;
 use App\Domains\LiveMedia\Models\LiveStream;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Settings\SettingsService;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
@@ -193,9 +195,12 @@ class LiveStreams
     {
         $moved = 0;
 
-        LiveStream::query()->where('source', StreamSource::Recorded)->each(function (LiveStream $stream) use (&$moved): void {
-            $moved += $this->syncOne($stream);
-        });
+        // WP11: only streams that can still move (ended ones only when re-timed to the future); public GETs call this too.
+        LiveStream::query()->where('source', StreamSource::Recorded)
+            ->where(fn ($query) => $query->where('status', '!=', StreamStatus::Ended)->orWhere('scheduled_end_at', '>', now()))
+            ->each(function (LiveStream $stream) use (&$moved): void {
+                $moved += $this->syncOne($stream);
+            });
 
         return $moved;
     }
@@ -276,14 +281,18 @@ class LiveStreams
         $isLive = $stream->status === StreamStatus::Live && $stream->room_name !== null;
         $template = (string) config('nawy.streams.hls_url_template');
 
+        $token = $stream->status === StreamStatus::Live
+            ? $this->provider->accessToken((string) $stream->room_name, $viewerIdentity, 'viewer', false, (int) config('nawy.streams.viewer_token_minutes'))
+            : null;
+
         return [
             'type' => 'live',
+            // D16: true when a browser can join the room with livekit-client (a real LiveKit server, the stream live).
+            'webrtc' => $isLive && $token !== null && $this->provider instanceof LiveKitProvider && $this->provider->clientUrl() !== null,
             'url' => $this->provider->clientUrl(),
             'hls_url' => $isLive && $template !== '' ? str_replace('{room}', rawurlencode((string) $stream->room_name), $template) : null,
             'room' => $stream->status === StreamStatus::Live ? $stream->room_name : null,
-            'token' => $stream->status === StreamStatus::Live
-                ? $this->provider->accessToken((string) $stream->room_name, $viewerIdentity, 'viewer', false, (int) config('nawy.streams.viewer_token_minutes'))
-                : null,
+            'token' => $token,
         ];
     }
 
@@ -324,5 +333,39 @@ class LiveStreams
     private function folder(): string
     {
         return 'live/'.$this->countryContext->current()->code;
+    }
+
+    /**
+     * QC-063: home floating player modes (country setting `live.floating_mode`).
+     */
+    public const FLOATING_MODES = ['off', 'auto', 'stream'];
+
+    /**
+     * @return array{mode: string, stream: string|null}
+     */
+    public function floatingSetting(Country $country): array
+    {
+        $settings = app(SettingsService::class);
+        $mode = (string) $settings->get('live.floating_mode', 'auto', $country);
+
+        return [
+            'mode' => in_array($mode, self::FLOATING_MODES, true) ? $mode : 'auto',
+            'stream' => ($stream = $settings->get('live.floating_stream', null, $country)) === '' ? null : $stream,
+        ];
+    }
+
+    /**
+     * The stream for the home floating player: the chosen one while it is
+     * live or scheduled, else (auto) the stream that is live now.
+     */
+    public function floating(Country $country): ?LiveStream
+    {
+        $setting = $this->floatingSetting($country);
+
+        return match ($setting['mode']) {
+            'off' => null,
+            'stream' => LiveStream::query()->where('slug', $setting['stream'])->whereIn('status', [StreamStatus::Live, StreamStatus::Scheduled])->first(),
+            default => LiveStream::query()->where('status', StreamStatus::Live)->orderByDesc('started_at')->first(),
+        };
     }
 }

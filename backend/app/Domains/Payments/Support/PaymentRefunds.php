@@ -74,9 +74,13 @@ class PaymentRefunds
                 throw new RefundRefused(__('At most :amount :currency can still be refunded.', ['amount' => (string) $refundable->getAmount(), 'currency' => $locked->currency]));
             }
 
+            // PayPal USD conversion: the charge-currency amount sent to the provider, from the rate stored on the payment.
+            $charge = app(PaymentCurrencyConversion::class)->refundCharge($locked, $amount);
+
             return $locked->refunds()->create([
                 'idempotency_key' => $idempotencyKey,
                 'amount' => $this->money->toStorage($amount),
+                'charge_amount' => $charge === null ? null : $this->money->toStorage($charge),
                 'status' => RefundStatus::Pending,
                 'reason' => $reason === null ? null : mb_substr($reason, 0, 255),
                 'actor_type' => $actorType,

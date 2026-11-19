@@ -140,11 +140,9 @@ it('leaves shipments that are not delivered alone and runs in every country', fu
     expect($uaeShipment->fresh()->status)->toBe(SubOrderStatus::Completed);
 });
 
-it('is scheduled daily at 02:00 Oman time, and flash sales every 5 minutes', function () {
-    $events = collect(app(Schedule::class)->events())->keyBy(fn (Event $event): string => str($event->command)->afterLast(' ')->toString());
+it('is checked every 15 minutes (each country runs at its order.auto_complete_time, QC-038), and flash sales every 5 minutes', function () {
+    $events = collect(app(Schedule::class)->events())->keyBy(fn (Event $event): string => str($event->command)->after("'artisan' ")->toString());
 
-    expect($events['nawy:orders:auto-complete'])
-        ->expression->toBe('0 2 * * *')
-        ->timezone->toBe('Asia/Muscat')
+    expect($events['nawy:orders:auto-complete --scheduled']->expression)->toBe('*/15 * * * *')
         ->and($events['nawy:flash-sales:transition']->expression)->toBe('*/5 * * * *');
 });

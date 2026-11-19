@@ -4,7 +4,9 @@ namespace App\Domains\Identity\Http\Controllers;
 
 use App\Domains\Identity\Actions\RecordLoginEvent;
 use App\Domains\Identity\Actions\RequestEmailLoginCode;
+use App\Domains\Identity\Actions\SignInCustomer;
 use App\Domains\Identity\Actions\VerifyEmailLoginCode;
+use App\Domains\Identity\Enums\LoginMethod;
 use App\Domains\Identity\Enums\LoginOutcome;
 use App\Domains\Identity\Exceptions\EmailLoginCodeRejected;
 use App\Domains\Identity\Http\Requests\RequestEmailCodeRequest;
@@ -43,20 +45,17 @@ class EmailCodeAuthController extends Controller
                 'api',
                 $rejected->reason === EmailLoginCodeRejected::LOCKED ? LoginOutcome::Locked : LoginOutcome::WrongCode,
                 email: $request->validated('email'),
+                method: LoginMethod::EmailCode,
             );
 
             return ApiResponse::error($rejected->reason, $rejected->getMessage(), $rejected->status());
         }
 
-        $recordLoginEvent->handle($request, 'api', LoginOutcome::Succeeded, $result['user']);
+        $recordLoginEvent->handle($request, 'api', LoginOutcome::Succeeded, $result['user'], method: LoginMethod::EmailCode);
 
         return ApiResponse::success([
             'token' => $result['token'],
-            'user' => [
-                'id' => $result['user']->id,
-                'name' => $result['user']->name,
-                'email' => $result['user']->email,
-            ],
+            'user' => SignInCustomer::present($result['user']),
         ]);
     }
 }

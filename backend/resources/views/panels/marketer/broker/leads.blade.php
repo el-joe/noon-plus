@@ -51,7 +51,7 @@
             <x-ui.input :label="__('Name')" name="name" required />
             <x-ui.input :label="__('Phone')" name="phone" />
             <x-ui.input :label="__('Email')" name="email" type="email" />
-            <x-ui.input :label="__('Budget')" name="budget" type="number" />
+            <x-ui.input :label="__('Budget')" name="budget" type="number" step="any" min="0" />
             <div class="flex items-end"><x-ui.button type="submit">{{ __('Add lead') }}</x-ui.button></div>
         </form>
     </x-ui.card>

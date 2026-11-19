@@ -5,7 +5,7 @@
         <x-ui.input :label="__('Search')" name="q" :value="$filters['q'] ?? ''" :placeholder="__('Title, slug or SKU')" />
         <x-ui.select :label="__('Category')" name="category" :selected="$filters['category'] ?? ''" :placeholder="__('All')" :options="$categories" />
         <x-ui.select :label="__('Brand')" name="brand" :selected="$filters['brand'] ?? ''" :placeholder="__('All')" :options="$brands" />
-        <x-ui.select :label="__('Status')" name="status" :selected="$filters['status'] ?? ''" :placeholder="__('All')" :options="['active' => __('Active'), 'inactive' => __('Inactive')]" />
+        <x-ui.select :label="__('Status')" name="status" :selected="$filters['status'] ?? ''" :placeholder="__('All')" :options="['draft' => __('Draft'), 'active' => __('Active'), 'restricted' => __('Restricted'), 'discontinued' => __('Discontinued')]" />
         <div class="flex items-end"><x-ui.button type="submit" variant="outline">{{ __('Filter') }}</x-ui.button></div>
     </form>
 

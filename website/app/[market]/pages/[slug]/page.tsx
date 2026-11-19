@@ -5,6 +5,7 @@ import { StaticPageView } from "@/features/content/static-page";
 import { orNull } from "@/lib/api/client";
 import { getStaticPage } from "@/lib/api/content";
 import { resolveMarket } from "@/lib/server-market";
+import { withoutBrandSuffix } from "@/lib/format";
 
 export async function generateMetadata({ params }: PageProps<"/[market]/pages/[slug]">): Promise<Metadata> {
   const market = await resolveMarket(params);
@@ -12,7 +13,7 @@ export async function generateMetadata({ params }: PageProps<"/[market]/pages/[s
   const page = await orNull(getStaticPage(market.slug, decodeURIComponent(slug)).then((r) => r.data)).catch(() => null);
   if (!page) return {};
   // `seo` is admin-set per language, with the API's fallback (title, first 160 characters of the body).
-  return { title: page.seo?.title || page.title || undefined, description: page.seo?.description || undefined, alternates: { canonical: `/${market.slug}/pages/${encodeURIComponent(page.slug)}` } };
+  return { title: withoutBrandSuffix(page.seo?.title || page.title) || undefined, description: page.seo?.description || undefined, alternates: { canonical: `/${market.slug}/pages/${encodeURIComponent(page.slug)}` } };
 }
 
 /** `/pages/{slug}` — about, contact, terms, privacy, returns … (Admin → Content → Static pages). */

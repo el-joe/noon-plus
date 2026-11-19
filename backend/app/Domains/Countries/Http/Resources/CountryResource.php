@@ -21,6 +21,8 @@ class CountryResource extends JsonResource
             'code' => $this->code,
             'iso2' => $this->iso2,
             'name' => app()->getLocale() === 'ar' ? $this->name_ar : $this->name_en,
+            // G-A8: both names, so a picker can show Arabic whatever the request language.
+            'names' => ['en' => $this->name_en, 'ar' => $this->name_ar],
             'currency' => [
                 'code' => $this->currency,
                 'decimals' => Currency::of($this->currency)->getDefaultFractionDigits(),

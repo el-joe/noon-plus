@@ -19,6 +19,16 @@ import enShop from "@/messages/en/shop.json";
 import arShop from "@/messages/ar/shop.json";
 import enTravel from "@/messages/en/travel.json";
 import arTravel from "@/messages/ar/travel.json";
+import enAccountPlus from "@/messages/en/accountPlus.json";
+import arAccountPlus from "@/messages/ar/accountPlus.json";
+import enStorefront from "@/messages/en/storefront.json";
+import arStorefront from "@/messages/ar/storefront.json";
+import enDiscovery from "@/messages/en/discovery.json";
+import arDiscovery from "@/messages/ar/discovery.json";
+import enCommerce from "@/messages/en/commerce.json";
+import arCommerce from "@/messages/ar/commerce.json";
+import enPortalPlus from "@/messages/en/portalPlus.json";
+import arPortalPlus from "@/messages/ar/portalPlus.json";
 import type { Locale } from "./markets";
 
 /**
@@ -42,6 +52,11 @@ export const enMessages = {
   ...enRealEstate,
   ...enShop,
   ...enTravel,
+  ...enAccountPlus,
+  ...enStorefront,
+  ...enDiscovery,
+  ...enCommerce,
+  ...enPortalPlus,
 };
 
 const arMessages = {
@@ -55,6 +70,11 @@ const arMessages = {
   ...arRealEstate,
   ...arShop,
   ...arTravel,
+  ...arAccountPlus,
+  ...arStorefront,
+  ...arDiscovery,
+  ...arCommerce,
+  ...arPortalPlus,
 };
 
 const catalogues: Record<Locale, Messages> = { en: enMessages, ar: arMessages as Messages };

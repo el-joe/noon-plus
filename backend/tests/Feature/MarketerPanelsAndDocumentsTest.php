@@ -92,6 +92,16 @@ describe('Creator Studio', function () {
         expect(CampaignInvitation::query()->where('campaign_id', $campaign->id)->sole()->status->value)->toBe('accepted');
     });
 
+    it('offers a copy button for each referral link on Links & codes (E2E-002)', function () {
+        [$user, $marketer] = studioMarketer(['affiliate']);
+        $invitation = app(Invitations::class)->joinOpen(liveCampaign(Vendor::factory()->create()), $marketer);
+
+        $this->actingAs($user)->get(onPanel('marketer', 'links'))->assertOk()
+            ->assertSee('data-copy-text=', false)
+            ->assertSee($invitation->referral_code)
+            ->assertSee('Copy link');
+    });
+
     it('lets an agency user switch only to the marketers it manages', function () {
         [$owner] = [User::factory()->create()];
         $agency = app(MarketerProfiles::class)->createAgency($owner, 'Star Agency');
@@ -202,6 +212,18 @@ describe('documents', function () {
 });
 
 describe('admin authorization', function () {
+    it('creates a platform campaign when the influencer picker is left on "None" (browser test BT-ADM-004)', function () {
+        $listing = sellableListing(stock: 20);
+
+        $this->actingAs(adminAccount('uae', 'marketing'))
+            ->from(onPanel('admin', 'marketers/campaigns'))
+            ->post(onPanel('admin', 'marketers/campaigns'), [
+                'title' => 'Platform push', 'listing_id' => $listing->id, 'influencer_ids' => [''], 'open_to_affiliates' => '1',
+                'budget' => '500', 'ends_at' => now()->addMonth()->toDateString(),
+            ])
+            ->assertSessionDoesntHaveErrors(['influencer_ids', 'influencer_ids.0']);
+    });
+
     it('gives marketing the marketer screens and keeps support out', function () {
         $marketing = adminAccount('uae', 'marketing');
         $support = adminAccount('uae', 'support');

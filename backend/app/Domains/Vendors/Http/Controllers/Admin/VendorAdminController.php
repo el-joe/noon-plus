@@ -3,15 +3,20 @@
 namespace App\Domains\Vendors\Http\Controllers\Admin;
 
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Finance\Http\Controllers\Admin\AcquisitionCommissionController;
 use App\Domains\Finance\Models\SubOrderSettlement;
 use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Identity\Support\AdminVendorScope;
 use App\Domains\Listings\Models\Listing;
+use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Vendors\Enums\VendorStatus;
 use App\Domains\Vendors\Models\Vendor;
+use App\Domains\Vendors\Support\VendorAccountStateMachine;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\Http\LikeSearch;
+use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -27,7 +32,10 @@ use Illuminate\View\View;
  */
 class VendorAdminController extends Controller
 {
-    public const STATUSES = ['active', 'suspended'];
+    /**
+     * QC-016: vendor account states (catalogue Appendix A).
+     */
+    public const STATUSES = ['active', 'on_hold', 'suspended', 'blacklisted'];
 
     public function __construct(private CountryContext $countryContext, private AdminVendorScope $scope) {}
 
@@ -67,6 +75,8 @@ class VendorAdminController extends Controller
             'owner' => User::query()->find($vendor->owner_user_id, ['id', 'name', 'email']),
             'manager' => $vendor->account_manager_id === null ? null : User::query()->find($vendor->account_manager_id, ['id', 'name', 'email']),
             'managers' => $request->user()->can('vendors.assign_account_manager') ? $this->accountManagers() : collect(),
+            'acquirer' => $vendor->acquired_by_user_id === null ? null : User::query()->find($vendor->acquired_by_user_id, ['id', 'name', 'email']),
+            'acquirers' => $request->user()->can('vendors.assign_account_manager') ? AcquisitionCommissionController::acquirersFor($this->countryContext->current()->id) : collect(),
             'listingCounts' => Listing::query()->where('vendor_id', $vendor->id)->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             'recentShipments' => SubOrder::query()->where('vendor_id', $vendor->id)->latest('id')->limit(10)->get(),
             'economics' => $financeHidden ? null : [
@@ -78,12 +88,23 @@ class VendorAdminController extends Controller
         ]);
     }
 
-    public function status(Request $request, int $vendor): RedirectResponse
+    public function status(Request $request, int $vendor, VendorAccountStateMachine $machine): RedirectResponse
     {
         $vendor = $this->find($vendor);
         $data = $request->validate(['status' => ['required', Rule::in(self::STATUSES)], 'reason' => ['required', 'string', 'min:3', 'max:255']]);
         $before = $vendor->status;
-        $vendor->forceFill(['status' => $data['status']])->save();
+
+        // Matrix §3.2 "vendors": account managers may not blacklist.
+        if ($data['status'] === VendorStatus::Blacklisted->value && $this->scope->vendorIds() !== null) {
+            abort(403);
+        }
+
+        try {
+            $machine->move($vendor, VendorStatus::from($data['status']), ActorType::Admin, $request->user()->id, $data['reason']);
+        } catch (TransitionRefused $refused) {
+            return back()->withErrors(['status' => $refused->getMessage()]);
+        }
+
         $this->audit($request, $vendor, 'status_changed', ['status' => $before], ['status' => $data['status'], 'reason' => $data['reason']]);
 
         return back()->with('status', __('Seller status updated.'));
@@ -95,9 +116,35 @@ class VendorAdminController extends Controller
         $data = $request->validate(['account_manager_id' => ['nullable', 'integer', Rule::in($this->accountManagers()->pluck('id')->all())]]);
         $before = $vendor->account_manager_id;
         $vendor->forceFill(['account_manager_id' => $data['account_manager_id'] ?? null])->save();
+
+        // FR-FIN-6: the first account manager is credited with the acquisition unless someone already is.
+        if ($vendor->account_manager_id !== null && $vendor->acquired_by_user_id === null) {
+            $vendor->forceFill(['acquired_by_user_id' => $vendor->account_manager_id, 'acquired_at' => $vendor->acquired_at ?? $vendor->created_at ?? now()])->save();
+        }
+
         $this->audit($request, $vendor, 'account_manager_assigned', ['account_manager_id' => $before], ['account_manager_id' => $vendor->account_manager_id]);
 
         return back()->with('status', __('Account manager saved.'));
+    }
+
+    /**
+     * FR-FIN-6: who brought the vendor in (earns the acquisition commission).
+     */
+    public function acquirer(Request $request, int $vendor): RedirectResponse
+    {
+        $vendor = $this->find($vendor);
+        $data = $request->validate([
+            'acquired_by_user_id' => ['nullable', 'integer', Rule::in(AcquisitionCommissionController::acquirersFor($this->countryContext->current()->id)->pluck('id')->all())],
+            'acquired_at' => ['nullable', 'date'],
+        ]);
+        $before = ['acquired_by_user_id' => $vendor->acquired_by_user_id, 'acquired_at' => $vendor->acquired_at];
+        $vendor->forceFill([
+            'acquired_by_user_id' => $data['acquired_by_user_id'] ?? null,
+            'acquired_at' => ($data['acquired_by_user_id'] ?? null) === null ? null : ($data['acquired_at'] ?? $vendor->created_at ?? now()),
+        ])->save();
+        $this->audit($request, $vendor, 'acquirer_assigned', $before, ['acquired_by_user_id' => $vendor->acquired_by_user_id, 'acquired_at' => (string) $vendor->acquired_at]);
+
+        return back()->with('status', __('Acquisition saved.'));
     }
 
     /**

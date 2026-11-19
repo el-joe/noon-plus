@@ -50,6 +50,16 @@ class GatewayConfigManager
             throw ValidationException::withMessages(['is_enabled' => __('Make another gateway recommended before disabling this one.')]);
         }
 
+        $currency = $config->country()->value('currency');
+
+        if ($settings['is_enabled'] && $currency !== null && ! app(PaymentCurrencyConversion::class)->canCharge($config->gateway, $currency)) {
+            throw ValidationException::withMessages(['is_enabled' => __(':method cannot charge :currency. Add an exchange rate :currency → :charge first (Countries → Exchange rates).', [
+                'method' => $config->gateway->label(),
+                'currency' => $currency,
+                'charge' => (string) config('nawy.payments.paypal.charge_currency', 'USD'),
+            ])]);
+        }
+
         $changed = [];
         $saved = $config->credentials ?? [];
 

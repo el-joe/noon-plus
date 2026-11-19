@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Building2, MapPinned } from "lucide-react";
+import { Building2, LayoutGrid, MapIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { buttonClass, ButtonLink } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Container, EmptyState, Skeleton } from "@/components/ui/misc";
+import { listingsFromCards, listingsFromGeoJson, type MapListing } from "@/features/real-estate/map-data";
+import { PropertyMap } from "@/features/real-estate/property-map";
 import { propertyTypeLabel, PropertyCardView } from "@/features/real-estate/shared";
 import type { MarketParams, SearchParams } from "@/features/travel/page-types";
-import { getClassifiedCategories, getProperties, PROPERTY_SORTS, PROPERTY_TYPES, propertyCategories, PURPOSES, type PropertyCategory, type PropertyFilters } from "@/lib/api/real-estate";
+import { getClassifiedCategories, getProperties, getPropertyMap, PROPERTY_SORTS, PROPERTY_TYPES, propertyCategories, PURPOSES, type PropertyCategory, type PropertyFilters } from "@/lib/api/real-estate";
 import { getT } from "@/lib/i18n";
 import type { Market } from "@/lib/markets";
 import { resolveMarket } from "@/lib/server-market";
 
 const PER_PAGE = 24;
+/** The API's cap on `GET classifieds/map` (ClassifiedController@map). */
+const MAP_LIMIT = 500;
 const KEYS = ["category", "q", "city", "purpose", "property_type", "bedrooms_min", "bathrooms_min", "min_area", "max_area", "min_price", "max_price", "sort"] as const;
 
 export async function generateMetadata({ params }: { params: MarketParams }): Promise<Metadata> {
@@ -38,12 +42,15 @@ export default async function PropertyResultsPage({ params, searchParams }: { pa
           if (filters.sort && !(PROPERTY_SORTS as readonly string[]).includes(filters.sort)) delete filters.sort;
           for (const k of ["bedrooms_min", "bathrooms_min", "min_area", "max_area", "min_price", "max_price"] as const) if (filters[k] && !/^\d+(\.\d+)?$/.test(filters[k]!)) delete filters[k];
           const page = Math.max(1, Number(Array.isArray(raw.page) ? raw.page[0] : raw.page) || 1);
-          return <Results market={market} filters={filters} page={page} />;
+          const view: View = (Array.isArray(raw.view) ? raw.view[0] : raw.view) === "map" ? "map" : "list";
+          return <Results market={market} filters={filters} page={page} view={view} />;
         })}
       </Suspense>
     </Container>
   );
 }
+
+type View = "list" | "map";
 
 function qs(filters: PropertyFilters, extra: Record<string, string | number | undefined> = {}): string {
   const p = new URLSearchParams();
@@ -52,7 +59,7 @@ function qs(filters: PropertyFilters, extra: Record<string, string | number | un
   return s ? `?${s}` : "";
 }
 
-async function Results({ market, filters, page }: { market: Market; filters: PropertyFilters; page: number }) {
+async function Results({ market, filters, page, view }: { market: Market; filters: PropertyFilters; page: number; view: View }) {
   const t = getT(market.locale);
   const base = `/${market.slug}/property`;
   const tree = await getClassifiedCategories(market.slug)
@@ -68,12 +75,20 @@ async function Results({ market, filters, page }: { market: Market; filters: Pro
     return <EmptyState icon={<Building2 className="size-10" />} title={t("realEstate.title")} body={t("realEstate.comingSoon")} />;
   }
 
-  const result = await getProperties(market.slug, { ...filters, category: current.slug, page, per_page: PER_PAGE }).catch(() => null);
+  const query = { ...filters, category: current.slug };
+  const isMap = view === "map";
+  // Map view: every filtered ad with a location (GeoJSON, all pages) next to the first page of cards for the popups.
+  const [result, geo] = await Promise.all([
+    getProperties(market.slug, { ...query, page: isMap ? 1 : page, per_page: isMap ? 60 : PER_PAGE }).catch(() => null),
+    isMap ? getPropertyMap(market.slug, query).catch(() => null) : Promise.resolve(null),
+  ]);
   const ads = result?.data ?? [];
   const total = Number(result?.meta.total ?? ads.length);
   const lastPage = Number(result?.meta.last_page ?? Math.max(1, Math.ceil(total / PER_PAGE)));
   const filtered = KEYS.some((k) => k !== "category" && k !== "sort" && filters[k]);
   const chips = roots.length > 1 ? roots : current.children.length > 0 ? [current, ...current.children] : roots;
+  const viewParam = isMap ? { view: "map" } : {};
+  const pins: MapListing[] = isMap ? (geo ? listingsFromGeoJson(geo, ads) : listingsFromCards(ads)) : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,7 +103,7 @@ async function Results({ market, filters, page }: { market: Market; filters: Pro
       {chips.length > 1 ? (
         <div className="scrollbar-none flex gap-2 overflow-x-auto">
           {chips.map((c) => (
-            <Link key={c.slug} href={`${base}${qs({ ...filters, category: c.slug })}`} className={`shrink-0 rounded-full px-3 py-1 text-body-sm ${c.slug === current.slug ? "bg-ink font-medium text-white" : "border border-line bg-surface"}`}>
+            <Link key={c.slug} href={`${base}${qs({ ...filters, category: c.slug }, viewParam)}`} className={`shrink-0 rounded-full px-3 py-1 text-body-sm ${c.slug === current.slug ? "bg-ink font-medium text-white" : "border border-line bg-surface"}`}>
               {c.name}
             </Link>
           ))}
@@ -153,6 +168,7 @@ async function Results({ market, filters, page }: { market: Market; filters: Pro
           <input name="max_price" type="number" min={0} inputMode="numeric" defaultValue={filters.max_price ?? ""} className={inputClass} />
         </Labeled>
         <input type="hidden" name="sort" value={filters.sort ?? ""} />
+        {isMap ? <input type="hidden" name="view" value="map" /> : null}
         <button type="submit" className={buttonClass("primary", "md", "h-11")}>
           {t("realEstate.search")}
         </button>
@@ -162,18 +178,34 @@ async function Results({ market, filters, page }: { market: Market; filters: Pro
         <div className="flex flex-wrap gap-2 text-body-sm">
           <span className="text-secondary">{t("realEstate.sortLabel")}:</span>
           {PROPERTY_SORTS.map((s) => (
-            <Link key={s} href={`${base}${qs({ ...filters, sort: s })}`} className={(filters.sort ?? "recommended") === s ? "font-semibold text-ink" : "text-link hover:underline"}>
+            <Link key={s} href={`${base}${qs({ ...filters, sort: s }, viewParam)}`} className={(filters.sort ?? "recommended") === s ? "font-semibold text-ink" : "text-link hover:underline"}>
               {t(`realEstate.sort.${s}`)}
             </Link>
           ))}
         </div>
-        <span className="inline-flex items-center gap-1 text-caption text-secondary">
-          <MapPinned className="size-4" />
-          {t("realEstate.mapSoon")}
-        </span>
+        <nav aria-label={t("realEstate.map.toggleLabel")} className="inline-flex rounded-md border border-line bg-surface p-0.5 text-body-sm">
+          <Link
+            href={`${base}${qs(filters)}`}
+            aria-current={isMap ? undefined : "page"}
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 ${isMap ? "text-secondary hover:text-ink" : "bg-ink font-medium text-white"}`}
+          >
+            <LayoutGrid className="size-4" aria-hidden />
+            {t("realEstate.map.listView")}
+          </Link>
+          <Link
+            href={`${base}${qs(filters, { view: "map" })}`}
+            aria-current={isMap ? "page" : undefined}
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 ${isMap ? "bg-ink font-medium text-white" : "text-secondary hover:text-ink"}`}
+          >
+            <MapIcon className="size-4" aria-hidden />
+            {t("realEstate.map.mapView")}
+          </Link>
+        </nav>
       </div>
 
-      {ads.length === 0 ? (
+      {isMap && ads.length > 0 ? (
+        <PropertyMap listings={pins} listingBase={base} total={geo ? total : ads.length} capped={!!geo && geo.features.length >= MAP_LIMIT} />
+      ) : ads.length === 0 ? (
         <EmptyState
           icon={<Building2 className="size-10" />}
           title={t("realEstate.empty")}
@@ -197,7 +229,7 @@ async function Results({ market, filters, page }: { market: Market; filters: Pro
         </div>
       )}
 
-      {lastPage > 1 ? (
+      {!isMap && lastPage > 1 ? (
         <div className="flex items-center justify-center gap-3">
           {page > 1 ? <ButtonLink href={`${base}${qs(filters, { page: page - 1 })}`} variant="outline" size="sm">{t("realEstate.previous")}</ButtonLink> : null}
           <span className="text-body-sm text-secondary">

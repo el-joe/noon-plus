@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
-const SORTS = ["recommended", "newest", "rating", "price_asc", "price_desc"] as const;
+const SORTS = ["recommended", "bestselling", "newest", "rating", "price_asc", "price_desc"] as const;
 
 export function SortSelect({ value, basePath, params }: { value: string; basePath: string; params: Record<string, string> }) {
   const t = useTranslations("listing");

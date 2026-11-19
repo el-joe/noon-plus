@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:delivery_app/data/location.dart';
@@ -98,21 +99,85 @@ void main() {
     });
   });
 
-  group('GPS stub (geolocator requested)', () {
-    test('no location source sends nothing', () async {
+  group('GPS pings while on duty (geolocator, D16 / P9)', () {
+    ApiClient client(FakeTransport t) => ApiClient(baseUrl: 'http://x/api/v1', transport: t)..market = 'uae-en';
+
+    test('no location source sends nothing and reports unsupported', () async {
       final transport = FakeTransport();
-      final pinger = LocationPinger(ApiClient(baseUrl: 'http://x/api/v1', transport: transport)..market = 'uae-en', const NoLocationSource());
-      expect(await pinger.pingOnce(), isFalse);
-      pinger.start();
-      expect(pinger.running, isFalse);
+      final scheduler = _FakeScheduler();
+      final tracker = DutyTracker(client(transport), const NoLocationSource(), scheduler: scheduler.call);
+      await tracker.setOnDuty(true);
+      expect(tracker.running, isFalse);
+      expect(tracker.state, DutyGps.unsupported);
+      expect(scheduler.timers, isEmpty);
       expect(transport.requests, isEmpty);
     });
 
-    test('a source with a fix posts lat/lng', () async {
+    test('on duty with permission: pings now and on every tick at the interval; off duty stops', () async {
       final transport = FakeTransport({'POST delivery/me/location': {'saved': true}});
-      final pinger = LocationPinger(ApiClient(baseUrl: 'http://x/api/v1', transport: transport)..market = 'uae-en', _Fixed());
-      expect(await pinger.pingOnce(), isTrue);
+      final scheduler = _FakeScheduler();
+      final source = _FakeSource(LocationAccess.granted);
+      final tracker = DutyTracker(client(transport), source, interval: const Duration(minutes: 2), scheduler: scheduler.call, clock: () => DateTime(2026, 11, 18, 9));
+
+      await tracker.setOnDuty(true);
+      await pumpEventQueue();
+      expect(tracker.state, DutyGps.sharing);
+      expect(scheduler.timers.single.interval, const Duration(minutes: 2));
+      expect(transport.sent('POST delivery/me/location'), hasLength(1));
       expect(FakeTransport.bodyOf(transport.requests.single), {'lat': 25.07, 'lng': 55.13});
+      expect(tracker.lastSentAt, DateTime(2026, 11, 18, 9));
+
+      source.fix = (lat: 25.08, lng: 55.14);
+      await scheduler.timers.single.fire();
+      await scheduler.timers.single.fire();
+      expect(transport.sent('POST delivery/me/location'), hasLength(3));
+      expect(FakeTransport.bodyOf(transport.requests.last), {'lat': 25.08, 'lng': 55.14});
+
+      // Same state again does not start a second timer.
+      await tracker.setOnDuty(true);
+      expect(scheduler.timers, hasLength(1));
+
+      await tracker.setOnDuty(false);
+      expect(tracker.running, isFalse);
+      expect(scheduler.timers.single.cancelled, isTrue);
+      expect(tracker.state, DutyGps.offDuty);
+      expect(await tracker.pingOnce(), isFalse);
+      expect(transport.sent('POST delivery/me/location'), hasLength(3));
+    });
+
+    test('asks for the permission first; refused stays blocked; granted later starts', () async {
+      final transport = FakeTransport({'POST delivery/me/location': {'saved': true}});
+      final scheduler = _FakeScheduler();
+      final source = _FakeSource(LocationAccess.notAsked)..onRequest = LocationAccess.denied;
+      final tracker = DutyTracker(client(transport), source, scheduler: scheduler.call);
+
+      await tracker.setOnDuty(true);
+      expect(tracker.state, DutyGps.needsPermission);
+      await tracker.requestAccess();
+      expect(source.requests, 1);
+      expect(tracker.state, DutyGps.blocked);
+      expect(transport.requests, isEmpty);
+
+      // Allowed in the settings app; the shell re-checks on resume.
+      source.state = LocationAccess.granted;
+      await tracker.recheck();
+      await pumpEventQueue();
+      expect(tracker.state, DutyGps.sharing);
+      expect(transport.sent('POST delivery/me/location'), hasLength(1));
+    });
+
+    test('no fix or an API error is skipped until the next tick; dispose cancels', () async {
+      final transport = FakeTransport({'POST delivery/me/location': FakeTransport.error(422, 'validation_failed', 'No')});
+      final scheduler = _FakeScheduler();
+      final source = _FakeSource(LocationAccess.granted)..fix = null;
+      final tracker = DutyTracker(client(transport), source, scheduler: scheduler.call);
+      await tracker.setOnDuty(true);
+      expect(await tracker.pingOnce(), isFalse);
+      source.fix = (lat: 1.0, lng: 2.0);
+      expect(await tracker.pingOnce(), isFalse);
+      expect(tracker.sent, 0);
+      tracker.dispose();
+      expect(scheduler.timers.single.cancelled, isTrue);
     });
   });
 
@@ -121,10 +186,63 @@ void main() {
   });
 }
 
-class _Fixed implements LocationSource {
+class _FakeSource extends LocationSource {
+  _FakeSource(this.state);
+
+  LocationAccess state;
+  LocationAccess? onRequest;
+  ({double lat, double lng})? fix = (lat: 25.07, lng: 55.13);
+  int requests = 0;
+
   @override
   bool get available => true;
 
   @override
-  Future<({double lat, double lng})?> current() async => (lat: 25.07, lng: 55.13);
+  Future<LocationAccess> access() async => state;
+
+  @override
+  Future<LocationAccess> requestAccess() async {
+    requests++;
+    return state = onRequest ?? LocationAccess.granted;
+  }
+
+  @override
+  Future<({double lat, double lng})?> current() async => fix;
+
+  @override
+  Future<bool> openSettings() async => true;
+}
+
+class _FakeTimer implements Timer {
+  _FakeTimer(this.interval, this.callback);
+
+  final Duration interval;
+  final void Function(Timer) callback;
+  bool cancelled = false;
+  int fired = 0;
+
+  Future<void> fire() async {
+    fired++;
+    callback(this);
+    await pumpEventQueue();
+  }
+
+  @override
+  void cancel() => cancelled = true;
+
+  @override
+  bool get isActive => !cancelled;
+
+  @override
+  int get tick => fired;
+}
+
+class _FakeScheduler {
+  final timers = <_FakeTimer>[];
+
+  Timer call(Duration interval, void Function(Timer) tick) {
+    final t = _FakeTimer(interval, tick);
+    timers.add(t);
+    return t;
+  }
 }

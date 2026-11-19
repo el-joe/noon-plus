@@ -23,8 +23,8 @@
                 <x-ui.input :label="__('Order')" name="sort_order" type="number" value="0" />
                 <x-ui.input :label="__('Title (English)')" name="title_en" required />
                 <x-ui.input :label="__('Title (Arabic)')" name="title_ar" dir="rtl" required />
-                <x-ui.textarea :label="__('Body (English)')" name="body_en" rows="6" />
-                <x-ui.textarea :label="__('Body (Arabic)')" name="body_ar" rows="6" dir="rtl" />
+                <x-ui.textarea :label="__('Body (English)')" name="body_en" rows="6" required />
+                <x-ui.textarea :label="__('Body (Arabic)')" name="body_ar" rows="6" dir="rtl" required />
                 <div class="flex items-end gap-4"><x-ui.checkbox :label="__('Pinned')" name="is_pinned" /><x-ui.checkbox :label="__('Published')" name="is_published" :checked="true" /><x-ui.button type="submit">{{ __('Save article') }}</x-ui.button></div>
             </form>
         </x-ui.card>

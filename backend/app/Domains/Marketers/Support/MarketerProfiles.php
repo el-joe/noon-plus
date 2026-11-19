@@ -96,10 +96,19 @@ class MarketerProfiles
 
         $membershipStatus = $to === MarketerStatus::Rejected ? 'revoked' : 'active';
 
-        User::query()->find($marketer->user_id)?->memberships()
+        /*
+        | QC-053: memberships are central rows audited by the activity log, so
+        | each one is saved on its own (the log records old → new and the admin).
+        */
+        $memberships = User::query()->find($marketer->user_id)?->memberships()
             ->where('country_id', $this->countryContext->current()->id)
             ->whereIn('role', array_map(fn (string $type): string => MarketerJobType::from($type)->membershipRole()->value, $marketer->job_types))
-            ->update(['status' => $membershipStatus]);
+            ->where('status', '!=', $membershipStatus)
+            ->get() ?? collect();
+
+        foreach ($memberships as $membership) {
+            $membership->forceFill(['status' => $membershipStatus])->save();
+        }
 
         if ($to === MarketerStatus::Suspended) {
             foreach ($marketer->invitations()->where('status', 'pending')->get() as $invitation) {

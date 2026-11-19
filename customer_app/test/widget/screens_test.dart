@@ -143,6 +143,46 @@ void main() {
     expect(transport.bodyOf(transport.sent('POST auth/email-code/verify').single)['device_name'], isNotEmpty);
   });
 
+  testWidgets('an old phone-only account signs in by SMS code, then adds and confirms its email', (tester) async {
+    final (state, transport) = await makeState(routes: {
+      'POST auth/phone-code/send': FakeTransport.ok({'sent': true}, status: 202),
+      'POST auth/phone-code/verify': {'token': 'tok-phone', 'user': {'id': 7, 'name': 'Old Customer', 'email': 'phone-971501234567@legacy.nawy.invalid', 'requires_email': true}},
+      'POST me/email': FakeTransport.ok({'sent': true, 'email': 'old@example.com'}, status: 202),
+      'POST me/email/verify': {'id': 7, 'name': 'Old Customer', 'email': 'old@example.com', 'requires_email': false},
+      'POST cart/merge': emptyCart,
+    }, store: {'${StoreKeys.cartToken}:uae': 'guest-cart'});
+    await pumpApp(tester, state, route: Routes.signIn);
+
+    await tester.tap(find.byKey(const ValueKey('sign-in-with-phone')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('sign-in-phone')), '050 123 4567');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sign-in-phone-send')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('sign-in-code')), '123456');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sign-in-phone-verify')));
+    await settle(tester);
+
+    // Signed in, but nothing else is called until the email is confirmed.
+    expect(state.signedIn, isTrue);
+    expect(transport.sent('POST cart/merge'), isEmpty);
+    expect(find.byKey(const ValueKey('add-email')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('add-email')), 'old@example.com');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('add-email-send')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('sign-in-code')), '654321');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('add-email-verify')));
+    await settle(tester);
+
+    expect(state.user?['email'], 'old@example.com');
+    expect(transport.bodyOf(transport.sent('POST me/email/verify').single), {'email': 'old@example.com', 'code': '654321'});
+    expect(transport.sent('POST cart/merge'), hasLength(1));
+  });
+
   testWidgets('sign-in shows the API error for a wrong code', (tester) async {
     final (state, _) = await makeState(routes: {
       'POST auth/email-code/send': FakeTransport.ok({'sent': true}, status: 202),
@@ -481,6 +521,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('place-order')));
     await settle(tester, 8);
     expect(transport.bodyOf(transport.sent('POST orders').single), {'payment_method': 'cod', 'address_id': 3});
+    expect(transport.sent('POST orders').single.headers['Idempotency-Key'], startsWith('order-'));
     expect(find.text('Order placed!'), findsOneWidget);
   });
 
@@ -499,7 +540,7 @@ void main() {
     };
     final (state, transport) = await makeState(routes: {
       'GET classifieds/ads/CL-AE-4': ad,
-      'POST classifieds/ads/CL-AE-4/viewings': FakeTransport.ok({'id': 9, 'type': 'reserve', 'status': 'requested'}, status: 201),
+      'POST classifieds/ads/CL-AE-4/viewings': FakeTransport.ok({'id': 9, 'type': 'reserve', 'created_at': '2026-11-18T08:00:00Z'}, status: 201),
     });
     await pumpApp(tester, state);
     await pushRoute(tester, Routes.souqAd, {'number': 'CL-AE-4'});
@@ -518,7 +559,41 @@ void main() {
     expect(body['type'], 'reserve');
     expect(body['email'], 'sara@example.com');
     expect(body['preferred_at'], isNotEmpty);
+    // D12: a record only — "Request sent", no status.
     expect(find.text('Request sent'), findsOneWidget);
+    expect(find.text('Reference #9'), findsOneWidget);
+    expect(find.text('Requested'), findsNothing);
+    expect(find.text('Status'), findsNothing);
+  });
+
+  testWidgets('my souq requests are plain records, sent and received on my ads (D12)', (tester) async {
+    final ad = {'number': 'CL-AE-4', 'title': 'Furnished 1-bed — Marina Gate', 'price': money('98000.00'), 'image': null, 'status': 'active'};
+    final (state, transport) = await makeState(token: 'tok', routes: {
+      'GET me/viewing-requests': FakeTransport.ok([
+        {'id': 7, 'type': 'viewing', 'preferred_at': '2026-11-20T10:00:00+04:00', 'note': 'After 6 pm please', 'created_at': '2026-11-18T08:00:00Z', 'ad': ad},
+      ], meta: {'total': 1, 'page': 1, 'last_page': 1}),
+      'GET classifieds/mine/requests': FakeTransport.ok([
+        {'id': 9, 'type': 'reserve', 'preferred_at': '2026-11-21T18:00:00+04:00', 'note': null, 'created_at': '2026-11-18T09:00:00Z', 'ad': ad, 'contact': {'name': 'Khalid A.', 'email': 'khalid@example.com', 'phone': '+971501234567'}},
+      ], meta: {'total': 1, 'page': 1, 'last_page': 1}),
+    });
+    await pumpApp(tester, state);
+    await pushRoute(tester, Routes.viewingRequests);
+    await settle(tester);
+    expect(find.text('Furnished 1-bed — Marina Gate'), findsOneWidget);
+    expect(find.text('After 6 pm please'), findsOneWidget);
+    expect(find.textContaining('Preferred time: '), findsOneWidget);
+    for (final status in ['Requested', 'Confirmed', 'Scheduled', 'Completed', 'Cancelled']) {
+      expect(find.text(status), findsNothing);
+    }
+    expect(transport.sent('GET classifieds/mine/requests'), isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('requests-received')));
+    await settle(tester);
+    expect(find.text('Khalid A.'), findsOneWidget);
+    expect(find.text('khalid@example.com'), findsOneWidget);
+    expect(find.text('+971501234567'), findsOneWidget);
+    expect(find.text('Confirm'), findsNothing);
+    expect(transport.sent('GET classifieds/mine/requests'), hasLength(1));
   });
 
   testWidgets('notifications: list, unread filter and mark all read', (tester) async {

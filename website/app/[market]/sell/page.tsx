@@ -3,6 +3,7 @@ import { BarChart3, Megaphone, Plane, ShoppingBag, Store, Truck, Wallet } from "
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/misc";
+import { FunnelView } from "@/features/portal/funnel";
 import { PortalNav } from "@/features/portal/portal-nav";
 import { getT } from "@/lib/i18n";
 import { resolveMarket } from "@/lib/server-market";
@@ -25,14 +26,15 @@ export default async function SellPage({ params }: PageProps<"/[market]/sell">) 
   const ways = [
     { key: "vendor", path: "/join/vendor", icon: ShoppingBag },
     { key: "open_souq", path: "/join/classified", icon: Store },
-    { key: "travel_agency", path: "/join/travel_agency", icon: Plane },
-    { key: "marketer", path: "/join", icon: Megaphone },
+    { key: "travel_agency", path: "/sell/travel-agency", icon: Plane },
+    { key: "marketer", path: "/marketers", icon: Megaphone },
     { key: "shipping", path: "/join/carrier", icon: Truck },
   ] as const;
   const how = ["register", "documents", "review", "sell"] as const;
   return (
     <>
       <PortalNav market={market} active="sell" />
+      <FunnelView page="sell" />
       <section className="bg-ink text-white">
         <Container className="grid items-center gap-8 py-12 md:grid-cols-[1.2fr_1fr]">
           <div>

@@ -19,6 +19,7 @@ use App\Domains\Marketers\Support\WhatsAppMessenger;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Panels\Notifications\TeamInvitationNotification;
 use App\Domains\Panels\Support\PanelCountries;
 use App\Domains\Travel\Enums\BookingStatus;
 use App\Domains\Travel\Models\TravelBooking;
@@ -407,6 +408,19 @@ describe('supervisor app', function () {
         $this->withToken($this->token)->postJson("/api/v1/uae-en/ops/supervisor/failed/{$rivalShipment->id}/return", ['reason' => 'Not mine'])->assertNotFound();
     });
 
+    it('QA-026: shows the latest failed attempt as last_failed_at', function () {
+        $driver = opsDriver($this->carrier);
+        $shipment = opsParcel($this->carrier);
+        $first = app(DeliveryDispatch::class)->assign($shipment->subOrder, $driver, ActorType::Carrier, $this->owner->id, $this->carrier);
+        $first->forceFill(['status' => 'failed', 'failed_at' => now()->subHour()])->saveQuietly();
+        $latest = $first->replicate(['number']);
+        $latest->forceFill(['number' => $first->number.'-2', 'failed_at' => now()->subMinute()])->saveQuietly();
+        $shipment->forceFill(['status' => ShipmentStatus::Failed])->save();
+
+        $this->withToken($this->token)->getJson('/api/v1/uae-en/ops/supervisor/failed')->assertOk()
+            ->assertJsonPath('data.0.last_failed_at', $latest->failed_at->toIso8601String());
+    });
+
     it('lists drivers with COD in hand and suspends or reactivates them with the panel rules', function () {
         $driver = opsDriver($this->carrier);
         $pending = opsDriver($this->carrier, AgentStatus::PendingDocuments->value);
@@ -426,6 +440,21 @@ describe('supervisor app', function () {
             ->assertJsonPath('data.status', 'active');
         $this->withToken($this->token)->postJson("/api/v1/uae-en/ops/supervisor/drivers/{$rivalDriver->id}/status", ['status' => 'suspended'])->assertNotFound();
         expect($rivalDriver->refresh()->status)->toBe(AgentStatus::Active);
+    });
+
+    it('adds a driver only as an emailed invitation (wave 4b)', function () {
+        Notification::fake();
+        $existing = User::factory()->create(['name' => 'Real Stored Name', 'email' => 'taken@example.com']);
+
+        $this->withToken($this->token)->postJson('/api/v1/uae-en/ops/supervisor/drivers', ['name' => 'New Driver', 'email' => 'Taken@Example.com', 'phone' => '0501234567', 'vehicle_type' => 'bike'])
+            ->assertStatus(202)->assertJsonPath('data.invited', true)->assertJsonPath('data.email', 'taken@example.com')
+            ->assertJsonMissing(['Real Stored Name']);
+        $this->withToken($this->token)->postJson('/api/v1/uae-en/ops/supervisor/drivers', ['name' => 'X', 'email' => 'not-an-email'])
+            ->assertUnprocessable()->assertJsonPath('error.code', 'validation_failed');
+
+        expect(DeliveryAgent::query()->count())->toBe(0)
+            ->and($existing->memberships()->count())->toBe(0);
+        Notification::assertSentOnDemand(TeamInvitationNotification::class);
     });
 
     it('refuses a suspended company and other countries', function () {

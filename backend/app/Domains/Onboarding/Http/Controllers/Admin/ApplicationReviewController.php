@@ -9,11 +9,14 @@ use App\Domains\Documents\Enums\DocumentStatus;
 use App\Domains\Documents\Models\Document;
 use App\Domains\Documents\Models\DocumentType;
 use App\Domains\Documents\Support\Documents;
+use App\Domains\Finance\Http\Controllers\Admin\AcquisitionCommissionController;
 use App\Domains\Onboarding\Enums\ApplicationStatus;
 use App\Domains\Onboarding\Enums\ApplicationType;
 use App\Domains\Onboarding\Models\PartnerApplication;
 use App\Domains\Onboarding\Support\ApplicationReview;
 use App\Domains\Onboarding\Support\ApplicationWizard;
+use App\Domains\Panels\Support\PanelCountries;
+use App\Domains\Vendors\Models\Vendor;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\StateMachine\StateTransition;
@@ -76,6 +79,9 @@ class ApplicationReviewController extends Controller
             'agreementPublished' => $wizard->agreement($application) !== null,
             'history' => $history,
             'actors' => User::query()->whereIn('id', $history->pluck('actor_user_id')->push($application->assigned_to_user_id)->filter()->unique())->pluck('name', 'id'),
+            // FR-FIN-6: the account managers who can be credited, and the current acquirer (also after approval, from the store).
+            'acquirers' => AcquisitionCommissionController::acquirersFor($this->countryContext->current()->id),
+            'acquirer' => User::query()->find($this->acquirerOf($application), ['id', 'name', 'email']),
         ]);
     }
 
@@ -96,8 +102,13 @@ class ApplicationReviewController extends Controller
             'steps.*' => ['string', Rule::in($application->type->dataSteps())],
             'document_ids' => ['nullable', 'array'],
             'document_ids.*' => ['integer'],
+            'acquired_by_user_id' => ['nullable', 'integer'],
         ]);
         $adminId = $request->user()->id;
+
+        if ($data['decision'] === 'approve' && $request->has('acquired_by_user_id')) {
+            $this->review->setAcquirer($application, isset($data['acquired_by_user_id']) ? (int) $data['acquired_by_user_id'] : null, $adminId);
+        }
 
         match ($data['decision']) {
             'start' => $this->review->startReview($application, $adminId),
@@ -112,6 +123,18 @@ class ApplicationReviewController extends Controller
             'reject' => __('Rejected — the applicant was told why.'),
             'changes' => __('Sent back to the applicant for changes.'),
         });
+    }
+
+    /**
+     * FR-FIN-6: set or clear who brought the partner in (before the decision).
+     */
+    public function acquirer(Request $request, int $application): RedirectResponse
+    {
+        $application = PartnerApplication::query()->findOrFail($application);
+        $acquirer = $request->validate(['acquired_by_user_id' => ['nullable', 'integer']])['acquired_by_user_id'] ?? null;
+        $this->review->setAcquirer($application, $acquirer === null ? null : (int) $acquirer, $request->user()->id);
+
+        return back()->with('status', $acquirer === null ? __('Acquirer cleared.') : __('Acquirer saved. Approval credits the new store to them.'));
     }
 
     public function reviewDocument(Request $request, int $application, int $document, Documents $documents): RedirectResponse
@@ -150,6 +173,15 @@ class ApplicationReviewController extends Controller
         }
 
         return $application->documents()->orderBy('id')->get();
+    }
+
+    private function acquirerOf(PartnerApplication $application): ?int
+    {
+        if ($application->tenant_type === PanelCountries::VENDOR_TENANT && $application->tenant_id !== null) {
+            return Vendor::query()->whereKey($application->tenant_id)->value('acquired_by_user_id') ?? $application->acquired_by_user_id;
+        }
+
+        return $application->acquired_by_user_id;
     }
 
     private function signatureOf(PartnerApplication $application): ?ContractSignature

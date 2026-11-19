@@ -7,6 +7,7 @@ use App\Domains\Delivery\Support\DeliveryDispatch;
 use App\Domains\Finance\Support\CodSettlements;
 use App\Domains\Finance\Support\Settlements;
 use App\Domains\FlashSales\Models\FlashSaleSubmission;
+use App\Domains\Fulfilment\Support\WarehouseStockService;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Listings\Support\InventoryLedger;
 use App\Domains\Orders\Enums\ActorType;
@@ -18,6 +19,7 @@ use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Refunds\Support\CancellationRefunds;
 use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Domains\Warranty\Models\WarrantyPurchase;
+use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\StateMoved;
 use Illuminate\Support\Facades\DB;
 
@@ -58,6 +60,14 @@ class SubOrderStateMachine
             throw new SubOrderTransitionRefused('Customers can only cancel before the order ships.');
         }
 
+        if ($from === SubOrderStatus::Shipped && $to === SubOrderStatus::Delivered && ! in_array($actorType, [ActorType::Admin, ActorType::System], true)) {
+            throw new SubOrderTransitionRefused('A shipped order is delivered through out for delivery; only an admin can confirm it directly.');
+        }
+
+        if ($from === SubOrderStatus::Delivered && $to === SubOrderStatus::Cancelled && ($actorType !== ActorType::Admin || blank($reason))) {
+            throw new SubOrderTransitionRefused('Only an admin can force-cancel a delivered order, with a reason.');
+        }
+
         if ($to === SubOrderStatus::Cancelled && $actorType === ActorType::Vendor && ! app(SellerFulfilment::class)->canCancel($subOrder)) {
             throw new SubOrderTransitionRefused('Sellers cannot cancel an order that is out for delivery.');
         }
@@ -70,7 +80,19 @@ class SubOrderStateMachine
 
             $subOrder->items()->update(['fulfillment_status' => $to->value]);
 
-            if ($to === SubOrderStatus::Cancelled) {
+            /*
+            | FBN: the parcel left the warehouse — its reserved units are gone
+            | (whoever handed it over; the sellable count is unchanged).
+            */
+            if ($to === SubOrderStatus::Shipped) {
+                app(WarehouseStockService::class)->dispatchSubOrder($subOrder, $actorUserId);
+            }
+
+            /*
+            | A delivered parcel is with the customer: a force-cancel refunds
+            | it but puts no stock back (a return does that when it arrives).
+            */
+            if ($to === SubOrderStatus::Cancelled && $from !== SubOrderStatus::Delivered) {
                 foreach ($subOrder->items()->get() as $item) {
                     $this->inventoryLedger->move(
                         Listing::query()->findOrFail($item->listing_id),
@@ -87,11 +109,12 @@ class SubOrderStateMachine
                             ->decrement('sold_quantity', $item->quantity);
                     }
                 }
+            }
 
-                WarrantyPurchase::query()
-                    ->whereIn('order_item_id', $subOrder->items()->select('id'))
-                    ->where('status', WarrantyPurchaseStatus::Active)
-                    ->update(['status' => WarrantyPurchaseStatus::Cancelled]);
+            if ($to === SubOrderStatus::Cancelled) {
+                foreach (WarrantyPurchase::query()->whereIn('order_item_id', $subOrder->items()->select('id'))->where('status', WarrantyPurchaseStatus::Active)->get() as $purchase) {
+                    app(StateMachine::class)->move($purchase, WarrantyPurchaseStatus::Cancelled, $actorType, $actorUserId, 'Order cancelled');
+                }
             }
             $subOrder->statusHistory()->create([
                 'from_status' => $from,
@@ -101,8 +124,7 @@ class SubOrderStateMachine
                 'reason' => $reason,
             ]);
 
-            $order = $subOrder->order()->with('subOrders')->firstOrFail();
-            $order->forceFill(['status' => $this->rollup->derive($order->subOrders->pluck('status'))])->save();
+            $this->rollup->sync($subOrder->order()->with('subOrders')->firstOrFail());
 
             if ($to === SubOrderStatus::Delivered) {
                 app(CodSettlements::class)->recordDelivery($subOrder, $codAgentUserId);

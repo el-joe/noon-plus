@@ -21,8 +21,10 @@ enum LedgerAccountCode: string
     case CustomerWallet = 'customer_wallet';
     case VendorPayable = 'vendor_payable';
     case MarketerPayable = 'marketer_payable';
+    case AgentPayable = 'agent_payable';
     case GiftCardLiability = 'gift_card_liability';
     case VatPayable = 'vat_payable';
+    case StaffPayable = 'staff_payable';
 
     // Revenue
     case CommissionRevenue = 'commission_revenue';
@@ -33,18 +35,21 @@ enum LedgerAccountCode: string
     case MembershipRevenue = 'membership_revenue';
     case BreakageRevenue = 'breakage_revenue';
     case AdRevenue = 'ad_revenue';
+    case SubscriptionRevenue = 'subscription_revenue';
 
     // Expenses
     case PromoExpense = 'promo_expense';
     case ShippingSubsidyExpense = 'shipping_subsidy_expense';
     case WarrantyClaimsExpense = 'warranty_claims_expense';
     case GoodwillExpense = 'goodwill_expense';
+    case DeliveryPayExpense = 'delivery_pay_expense';
+    case AcquisitionCommissionExpense = 'acquisition_commission_expense';
 
     public function normalSide(): string
     {
         return match ($this) {
             self::GatewayClearing, self::WalletClearing, self::CodReceivable, self::BankClearing, self::CarrierReceivable,
-            self::PromoExpense, self::ShippingSubsidyExpense, self::WarrantyClaimsExpense, self::GoodwillExpense => 'debit',
+            self::PromoExpense, self::ShippingSubsidyExpense, self::WarrantyClaimsExpense, self::GoodwillExpense, self::DeliveryPayExpense, self::AcquisitionCommissionExpense => 'debit',
             default => 'credit',
         };
     }

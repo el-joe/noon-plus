@@ -202,9 +202,10 @@ it('QC-002: an admin handles a warranty claim through review, approval and a ref
     expect($claim->status)->toBe(WarrantyClaimStatus::RefundIssued)
         ->and(Refund::query()->whereKey($claim->refund_id)->exists())->toBeTrue();
 
-    $support = adminAccount('uae', 'support');
-    $this->actingAs($support)->get(onPanel('admin', "warranty-claims/{$claim->id}"))->assertOk();
-    $this->actingAs($support)->post(onPanel('admin', "warranty-claims/{$claim->id}/resolve"))->assertForbidden();
+    // QC-045 (wave 3): Support approves warranty claims (matrix §3.2 = A); Finance only views.
+    $finance = adminAccount('uae', 'finance');
+    $this->actingAs($finance)->get(onPanel('admin', "warranty-claims/{$claim->id}"))->assertOk();
+    $this->actingAs($finance)->post(onPanel('admin', "warranty-claims/{$claim->id}/resolve"))->assertForbidden();
     $this->actingAs(adminAccount('omn', 'operations'))->get(onPanel('admin', "warranty-claims/{$claim->id}"))->assertNotFound();
 });
 
@@ -369,10 +370,10 @@ it('wave 2: an admin-created driver goes through the team invitation and becomes
     $this->get(lastInvitationUrl())->assertOk()->assertSee('Swift');
 });
 
-it('QC-030 / QA-030: the admin sidebar has no # links, shows unbuilt pages as coming soon and hides pages the role cannot open', function () {
+it('QC-030 / QA-030: the admin sidebar has no # links, no "Soon" entries left (FBN built) and hides pages the role cannot open', function () {
     $super = adminAccount();
     $page = $this->actingAs($super)->get(onPanel('admin', '/'))->assertOk();
-    $page->assertDontSee('href="#"', false)->assertSee('data-nav-soon', false)->assertSee(onPanel('admin', 'catalog'), false)->assertSee(onPanel('admin', 'health'), false);
+    $page->assertDontSee('href="#"', false)->assertDontSee('data-nav-soon', false)->assertSee(onPanel('admin', 'inventory'), false)->assertSee(onPanel('admin', 'catalog'), false)->assertSee(onPanel('admin', 'health'), false);
 
     $support = adminAccount('uae', 'support');
     $this->actingAs($support)->get(onPanel('admin', '/'))->assertOk()

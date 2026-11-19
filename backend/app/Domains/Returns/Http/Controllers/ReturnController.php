@@ -31,7 +31,7 @@ class ReturnController extends Controller
         $returns = ReturnRequest::query()->where('customer_user_id', $request->user()->id)
             ->with(['subOrder', 'items.orderItem', 'refund', 'transitions'])->latest('id')->paginate(20);
 
-        return ApiResponse::success(ReturnResource::collection($returns->items()), ['total' => $returns->total(), 'page' => $returns->currentPage()]);
+        return ApiResponse::success(ReturnResource::collection($returns->items()), ['total' => $returns->total(), 'page' => $returns->currentPage(), 'per_page' => $returns->perPage(), 'last_page' => $returns->lastPage()]);
     }
 
     public function store(StoreReturnRequest $request, CountryContext $countryContext): JsonResponse

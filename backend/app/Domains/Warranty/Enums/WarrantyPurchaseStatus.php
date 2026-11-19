@@ -11,4 +11,15 @@ enum WarrantyPurchaseStatus: string
     case Active = 'active';
     case Expired = 'expired';
     case Cancelled = 'cancelled';
+
+    /**
+     * @return array<int, self>
+     */
+    public function allowedNext(): array
+    {
+        return match ($this) {
+            self::Active => [self::Expired, self::Cancelled],
+            self::Expired, self::Cancelled => [],
+        };
+    }
 }

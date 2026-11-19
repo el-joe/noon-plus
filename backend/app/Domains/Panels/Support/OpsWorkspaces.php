@@ -25,6 +25,20 @@ class OpsWorkspaces
 {
     public const ROLES = ['vendor', 'marketer', 'supervisor', 'travel_agency'];
 
+    /**
+     * The workspace name shown in messages, translated (RT-009: never the raw role key).
+     */
+    public static function roleLabel(string $role): string
+    {
+        return match ($role) {
+            'vendor' => __('seller'),
+            'marketer' => __('marketer'),
+            'supervisor' => __('delivery supervisor'),
+            'travel_agency' => __('travel agency'),
+            default => __('partner'),
+        };
+    }
+
     public function __construct(
         private CountryContext $countryContext,
         private VendorWorkspace $vendors,

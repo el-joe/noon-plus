@@ -47,6 +47,9 @@ class CampaignAdminController extends Controller
 
     public function store(Request $request, CampaignWizard $wizard): RedirectResponse
     {
+        // The form's "None" influencer option posts influencer_ids[]="" (browser test BT-ADM-004).
+        $request->merge(['influencer_ids' => array_values(array_filter((array) $request->input('influencer_ids', []), fn ($id): bool => $id !== null && $id !== ''))]);
+
         $data = $request->validate([
             'listing_id' => ['required', 'integer'],
             'title' => ['required', 'string', 'max:160'],

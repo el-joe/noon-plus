@@ -12,19 +12,59 @@ import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/states.dart';
 import '../checkout/checkout_screen.dart';
+import 'trip_gallery.dart';
 
-/// Estimate for a booking request: Σ price_per_person × travellers per room
-/// type of the departure (D8: an estimate, paid to the agency directly).
-Money? travelEstimate(Json departure, Map<String, int> travellers) {
+/// The departure room line that prices children (QC-060); adults pick from
+/// the other room types.
+const childRoomType = 'child';
+
+/// Adult room choices of a departure (every room type but `child`).
+List<Json> adultRooms(Json departure) => departure.l('rooms').where((r) => r.s('type') != childRoomType).toList();
+
+/// Price per child of a departure, or null when children cannot be booked
+/// (`child_price_per_person`, falling back to its `child` room line).
+Money? childPriceOf(Json departure) =>
+    Money.fromJson(departure['child_price_per_person']) ??
+    Money.fromJson(departure.l('rooms').firstWhere((r) => r.s('type') == childRoomType, orElse: () => const {})['price_per_person']);
+
+/// Estimate for a booking request: Σ price_per_person × travellers per adult
+/// room type, plus children × the child price (D8: an estimate, paid to the
+/// agency directly).
+Money? travelEstimate(Json departure, Map<String, int> travellers, {int children = 0}) {
   Money? total;
-  for (final room in departure.l('rooms')) {
+  for (final room in adultRooms(departure)) {
     final count = travellers[room.str('type')] ?? 0;
     final price = Money.fromJson(room['price_per_person']);
     if (count <= 0 || price == null) continue;
     final line = price.times(count);
     total = total == null ? line : total + line;
   }
+  final child = childPriceOf(departure);
+  if (children > 0 && child != null) {
+    final line = child.times(children);
+    total = total == null ? line : (total.currency == line.currency ? total + line : total);
+  }
   return total;
+}
+
+/// A booking room line (QA-037): `{room_type, travellers, unit_price, line_total}`
+/// with money objects; older answers sent only the room type and travellers.
+String bookingRoomLine(BuildContext context, Json room) {
+  final locale = context.l10n.locale;
+  final travellers = room.i('travellers') ?? 0;
+  final unit = Money.fromJson(room['unit_price']) ?? Money.fromJson(room['price_per_person']);
+  final total = Money.fromJson(room['line_total']) ?? unit?.times(travellers);
+  if (unit == null) return '$travellers ×';
+  return '$travellers × ${unit.format(locale: locale)} = ${total!.format(locale: locale)}';
+}
+
+/// "2 adults · 1 child" when the booking carries the split (QC-060).
+String bookingTravellers(BuildContext context, Json booking) {
+  final children = booking.i('children') ?? 0;
+  final seats = booking.i('seats');
+  if (children <= 0) return '${seats ?? booking.i('adults') ?? ''}';
+  final adults = booking.i('adults') ?? ((seats ?? children) - children);
+  return context.t('travel.adultsChildren', {'adults': adults, 'children': children});
 }
 
 /// One readable line for itinerary / policy entries (strings or objects).
@@ -142,14 +182,24 @@ class _TravelPackageScreenState extends State<TravelPackageScreen> {
             return Column(children: [
               Expanded(
                 child: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
-                  AspectRatio(aspectRatio: 16 / 9, child: NetImage(p.m('image')?.s('url') ?? p.s('cover_url'), icon: Icons.flight_takeoff_rounded)),
+                  TripGallery(package: p),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      if (isSponsoredTrip(p))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: AdLabel(key: const ValueKey('trip-sponsored'), text: sponsoredTripLabel(context, p)),
+                        ),
                       Text(p.str('title'), style: NawyText.h3),
                       Text([p.s('agency'), p.s('destination'), if (p.i('nights') != null) context.t('travel.nights', {'n': p.i('nights')})].whereType<String>().join(' · '),
                           style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary)),
                       if (from != null) Text(context.t('travel.fromPerPerson', {'price': from.format(locale: context.l10n.locale)}), style: NawyText.h4.copyWith(color: NawyColors.textSuccess)),
+                      if (tripStatsLine(context, p.m('stats')) case final stats?)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(stats, key: const ValueKey('trip-stats'), style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary)),
+                        ),
                       if (p.s('description') != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(p.str('description'), style: NawyText.body)),
                     ]),
                   ),
@@ -162,7 +212,10 @@ class _TravelPackageScreenState extends State<TravelPackageScreen> {
                           key: ValueKey('departure-${d.i('id')}'),
                           selected: _departure == d.i('id'),
                           title: '${shortDate(context, d.s('departs_on'))} – ${shortDate(context, d.s('returns_on'))}',
-                          subtitle: (d.i('seats_left') ?? 0) > 0 ? context.t('travel.seatsLeft', {'n': d.i('seats_left')}) : context.t('travel.full'),
+                          subtitle: [
+                            (d.i('seats_left') ?? 0) > 0 ? context.t('travel.seatsLeft', {'n': d.i('seats_left')}) : context.t('travel.full'),
+                            if (childPriceOf(d) case final child?) context.t('travel.childPrice', {'price': child.format(locale: context.l10n.locale)}),
+                          ].join(' · '),
                           onTap: (d.i('seats_left') ?? 0) > 0 ? () => setState(() => _departure = d.i('id')) : () {},
                         ),
                     ]),
@@ -175,6 +228,11 @@ class _TravelPackageScreenState extends State<TravelPackageScreen> {
                           for (final e in _entries(p[key])) Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('•  ${describeEntry(context, e)}', style: NawyText.body)),
                         ]),
                       ),
+                  // D14: up to 4 other trips, sponsored first (server order).
+                  if (p.l('related').isNotEmpty) ...[
+                    SectionHeader(key: const ValueKey('trip-related'), title: context.t('travel.related')),
+                    TravelRail(packages: p.l('related')),
+                  ],
                 ]),
               ),
               SafeArea(
@@ -210,6 +268,7 @@ class TravelRequestScreen extends StatefulWidget {
 class _TravelRequestScreenState extends State<TravelRequestScreen> {
   late int _departureId = widget.departureId;
   final Map<String, int> _travellers = {};
+  int _children = 0;
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
@@ -219,7 +278,11 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
   Map<String, String> _errors = {};
 
   Json get _departure => widget.package.l('departures').firstWhere((d) => d.i('id') == _departureId, orElse: () => {});
-  int get _total => _travellers.values.fold(0, (s, v) => s + v);
+  int get _adults => _travellers.values.fold(0, (s, v) => s + v);
+
+  /// Children count only on a departure with a child price (QC-060).
+  int get _childCount => childPriceOf(_departure) == null ? 0 : _children;
+  int get _total => _adults + _childCount;
 
   @override
   void initState() {
@@ -228,7 +291,7 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
     _name.text = app.user?.s('name') ?? '';
     _email.text = app.user?.s('email') ?? '';
     _phone.text = app.user?.s('phone') ?? app.phoneCode;
-    final rooms = _departure.l('rooms');
+    final rooms = adultRooms(_departure);
     if (rooms.isNotEmpty) _travellers[rooms.first.str('type')] = 1;
   }
 
@@ -245,7 +308,7 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
       setState(() => _errors = {'agree': context.t('travel.agreeRequired')});
       return;
     }
-    if (_total == 0) {
+    if (_adults == 0) {
       setState(() => _errors = {'rooms': context.t('travel.pickTravellers')});
       return;
     }
@@ -256,6 +319,7 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
         'email': _email.text.trim(),
         'phone': _phone.text.replaceAll(' ', '').trim(),
         'rooms': [for (final e in _travellers.entries) if (e.value > 0) {'room_type': e.key, 'travellers': e.value}],
+        if (_childCount > 0) 'children': _childCount,
         'traveller_names': [for (final c in _names.take(_total)) c.text.trim()],
         'message': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
         'submit': true,
@@ -266,21 +330,27 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(Routes.travelSent, arguments: {'booking': booking});
     } on ApiException catch (e) {
-      setState(() => _errors = {...e.fieldErrors, if (e.fieldErrors.isEmpty) 'form': e.message});
+      setState(() => _errors = {
+            ...e.fieldErrors,
+            // 422 `children_not_offered`: the departure has no child price.
+            if (e.code == 'children_not_offered') 'children': e.message,
+            if (e.fieldErrors.isEmpty) 'form': e.message,
+          });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final departure = _departure;
-    final estimate = travelEstimate(departure, _travellers);
+    final estimate = travelEstimate(departure, _travellers, children: _childCount);
+    final childPrice = childPriceOf(departure);
     while (_names.length < _total) {
       _names.add(TextEditingController());
     }
     final app = AppScope.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(context.t('travel.requestToBook'))),
-      body: ListView(padding: const EdgeInsets.only(top: 12, bottom: 24), children: [
+      body: ListView(key: const ValueKey('travel-request-list'), padding: const EdgeInsets.only(top: 12, bottom: 24), children: [
         SectionCard(
           child: Row(children: [
             SizedBox(width: 64, height: 64, child: NetImage(widget.package.m('image')?.s('url') ?? widget.package.s('cover_url'), radius: NawyRadius.md, icon: Icons.flight_rounded)),
@@ -322,13 +392,13 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
                   onSelected: (d.i('seats_left') ?? 0) > 0
                       ? (_) => setState(() {
                             _departureId = d.i('id')!;
-                            _travellers.removeWhere((k, _) => !_departure.l('rooms').any((r) => r.s('type') == k));
+                            _travellers.removeWhere((k, _) => !adultRooms(_departure).any((r) => r.s('type') == k));
                           })
                       : null,
                 ),
             ]),
             const SizedBox(height: 12),
-            for (final room in departure.l('rooms'))
+            for (final room in adultRooms(departure))
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(children: [
@@ -341,12 +411,35 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
                   QuantityStepper(
                     key: ValueKey('room-${room.str('type')}'),
                     value: _travellers[room.str('type')] ?? 0,
-                    max: (departure.i('seats_left') ?? 20).clamp(0, 20),
+                    max: ((departure.i('seats_left') ?? 20).clamp(0, 20) - _total + (_travellers[room.str('type')] ?? 0)).clamp(0, 20),
                     onChanged: (v) => setState(() => _travellers[room.str('type')] = v),
                   ),
                 ]),
               ),
             if (_errors['rooms'] != null) Text(_errors['rooms']!, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger)),
+            // QC-060: children on the departure's child price (0–19).
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(context.t('travel.children'), style: NawyText.bodyMedium),
+                    Text(
+                      childPrice == null ? context.t('travel.noChildPrice') : context.t('travel.perPerson', {'price': childPrice.format(locale: context.l10n.locale)}),
+                      style: NawyText.caption.copyWith(color: NawyColors.textSecondary),
+                    ),
+                  ]),
+                ),
+                if (childPrice != null)
+                  QuantityStepper(
+                    key: const ValueKey('travel-children'),
+                    value: _children,
+                    max: ((departure.i('seats_left') ?? 20).clamp(0, 20) - _adults).clamp(0, 19),
+                    onChanged: (v) => setState(() => _children = v),
+                  ),
+              ]),
+            ),
+            if (_errors['children'] != null) Text(_errors['children']!, key: const ValueKey('travel-children-error'), style: NawyText.bodySm.copyWith(color: NawyColors.textDanger)),
           ]),
         ),
         if (_total > 0)
@@ -368,10 +461,12 @@ class _TravelRequestScreenState extends State<TravelRequestScreen> {
         SectionCard(
           title: context.t('travel.estimate'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            for (final room in departure.l('rooms'))
-              if ((_travellers[room.str('type')] ?? 0) > 0)
+            for (final room in adultRooms(departure))
+              if ((_travellers[room.str('type')] ?? 0) > 0 && Money.fromJson(room['price_per_person']) != null)
                 InfoRow('${_travellers[room.str('type')]} × ${context.l10n.status(room.s('type'))}',
                     Money.fromJson(room['price_per_person'])!.times(_travellers[room.str('type')]!).format(locale: context.l10n.locale)),
+            if (_childCount > 0 && childPrice != null)
+              InfoRow(context.t('travel.childLine', {'n': _childCount}), childPrice.times(_childCount).format(locale: context.l10n.locale)),
             InfoRow(context.t('travel.estimatedTotal'), estimate?.format(locale: context.l10n.locale) ?? '—', bold: true),
             const SizedBox(height: 8),
             Container(
@@ -563,8 +658,8 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
                   title: context.t('travel.tripDetails'),
                   child: Column(children: [
                     InfoRow(context.t('travel.dates'), '${shortDate(context, b.s('departs_on'))} – ${shortDate(context, b.s('returns_on'))}'),
-                    for (final r in b.l('rooms')) InfoRow(context.l10n.status(r.s('room_type')), '${r.i('travellers')} ×'),
-                    InfoRow(context.t('travel.seats'), '${b.i('seats') ?? ''}'),
+                    for (final r in b.l('rooms')) InfoRow(context.l10n.status(r.s('room_type')), bookingRoomLine(context, r)),
+                    InfoRow(context.t('travel.seats'), bookingTravellers(context, b)),
                     InfoRow(context.t('travel.estimatedTotal'), formatMoney(b['quoted_total'], locale: context.l10n.locale), bold: true),
                     Text(context.t('travel.payAgency'), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
                   ]),

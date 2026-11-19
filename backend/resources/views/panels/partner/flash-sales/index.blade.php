@@ -7,14 +7,27 @@
                        'close' => $clock->inCountry($country, $event->submissionDeadline())->format('j M H:i'),
                        'max' => $event->max_qty_per_customer,
                    ])">
+            @php($eventOffered = $offered->get($event->id, collect()))
+            @php($withdrawnCount = $eventOffered->filter(fn ($status) => $status === \App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus::Withdrawn)->count())
+            @php($eventListings = $listings->reject(fn ($listing) => $eventOffered->has($listing->id)))
             <form method="POST" action="{{ route('partner.flash-sales.submit', $event->id) }}" class="grid gap-4 sm:grid-cols-4" data-event="{{ $event->id }}">
                 @csrf
                 <x-ui.select :label="__('Listing')" name="listing_id" :placeholder="__('Choose an active listing')"
-                             :options="$listings->mapWithKeys(fn ($listing) => [$listing->id => $listing->variant->product->title().' · '.$country->currency.' '.$listing->effectivePrice().' · '.(int) $listing->available_quantity.' '.__('in stock')])->all()" />
+                             :options="$eventListings->mapWithKeys(fn ($listing) => [$listing->id => $listing->variant->product->title().' · '.$country->currency.' '.$listing->effectivePrice().' · '.(int) $listing->available_quantity.' '.__('in stock')])->all()" />
                 <x-ui.input :label="__('Flash price')" name="flash_price" inputmode="decimal" required />
                 <x-ui.input :label="__('Units at this price')" name="quantity_cap" type="number" min="1" required />
                 <div class="flex items-end"><x-ui.button type="submit">{{ __('Submit offer') }}</x-ui.button></div>
             </form>
+            @if ($eventOffered->isNotEmpty())
+                <ul class="mt-3 flex flex-col gap-1 text-xs text-fg-secondary" data-offer-exclusions>
+                    @if ($withdrawnCount > 0)
+                        <li data-withdrawn-note>{{ trans_choice('{1} 1 listing is not in the list: you withdrew it from this event, and a withdrawal is final.|[2,*] :count listings are not in the list: you withdrew them from this event, and a withdrawal is final.', $withdrawnCount) }}</li>
+                    @endif
+                    @if ($eventOffered->count() > $withdrawnCount)
+                        <li>{{ trans_choice('{1} 1 listing already offered to this event is not in the list (see My offers).|[2,*] :count listings already offered to this event are not in the list (see My offers).', $eventOffered->count() - $withdrawnCount) }}</li>
+                    @endif
+                </ul>
+            @endif
         </x-ui.card>
     @empty
         <x-ui.card><p class="text-sm text-fg-secondary">{{ __('No flash sale is open for submissions right now.') }}</p></x-ui.card>

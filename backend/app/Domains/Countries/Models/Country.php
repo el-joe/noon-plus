@@ -2,6 +2,8 @@
 
 namespace App\Domains\Countries\Models;
 
+use App\Shared\Http\FlushesPublicCache;
+use App\Shared\Http\PublicCache;
 use Database\Factories\CountryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -30,7 +32,17 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Country extends Model
 {
     /** @use HasFactory<CountryFactory> */
-    use HasFactory, LogsActivity;
+    use FlushesPublicCache, HasFactory, LogsActivity;
+
+    /**
+     * Public API answers built from this model (forgotten on every change).
+     *
+     * @return array<int, string>
+     */
+    public function centralPublicCacheGroups(): array
+    {
+        return [PublicCache::COUNTRIES];
+    }
 
     /**
      * Get the attributes that should be cast.

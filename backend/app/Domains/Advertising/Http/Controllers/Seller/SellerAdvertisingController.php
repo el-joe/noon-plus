@@ -27,6 +27,13 @@ use Illuminate\View\View;
  */
 class SellerAdvertisingController extends Controller
 {
+    /**
+     * Statuses the store may move a campaign out of (review decisions are Nawy's).
+     *
+     * @var array<int, AdCampaignStatus>
+     */
+    public const SELLER_MOVABLE = [AdCampaignStatus::Active, AdCampaignStatus::Paused, AdCampaignStatus::BudgetExhausted];
+
     public function __construct(private VendorWorkspace $workspace) {}
 
     public function index(): View
@@ -37,7 +44,7 @@ class SellerAdvertisingController extends Controller
             'campaigns' => AdCampaign::query()->where(['advertiser_type' => 'vendor', 'advertiser_id' => $vendor->id])->with('listing.variant.product')->latest('id')->get(),
             'bookings' => AdBooking::query()->where(['advertiser_type' => 'vendor', 'advertiser_id' => $vendor->id])->with('slot')->latest('id')->get(),
             'listings' => $vendor->listings()->where('status', ListingStatus::Active)->with('variant.product')->get(),
-            'slots' => AdSlot::query()->where('is_active', true)->orderBy('name')->get(),
+            'slots' => AdSlot::query()->bookable()->where('is_active', true)->orderBy('name')->get(),
             'invitations' => CouponParticipationInvitation::query()->where('status', ParticipationInvitationStatus::Open)->with('coupon')->get(),
         ]);
     }
@@ -64,6 +71,12 @@ class SellerAdvertisingController extends Controller
     {
         $to = AdCampaignStatus::from($request->validate(['status' => ['required', 'in:active,paused,ended']])['status']);
         $campaign = AdCampaign::query()->where(['advertiser_type' => 'vendor', 'advertiser_id' => $this->workspace->vendor()->id])->findOrFail($campaign);
+
+        // Browser test BT-VEN-003: only Nawy's ad review takes a campaign live; the store pauses, resumes and ends live ones.
+        if (! in_array($campaign->status, self::SELLER_MOVABLE, true)) {
+            return back()->withErrors(['action' => __('Nawy reviews the campaign first; you can pause or end it once it is live.')]);
+        }
+
         $campaigns->move($campaign, $to, ActorType::Vendor, $request->user()->id);
 
         return back()->with('status', __('Campaign updated.'));
@@ -79,7 +92,7 @@ class SellerAdvertisingController extends Controller
             'headline' => ['nullable', 'string', 'max:120'],
             'creative' => ['required', 'image', 'max:4096'],
         ]);
-        $slot = AdSlot::query()->findOrFail($data['ad_slot_id']);
+        $slot = AdSlot::query()->bookable()->findOrFail($data['ad_slot_id']);
         $booking = $bookings->draft($slot, AdvertiserBilling::VENDOR, $this->workspace->vendor()->id, $data, $request->file('creative'), $request->user()->id);
         $bookings->submit($booking, $request->user()->id);
 

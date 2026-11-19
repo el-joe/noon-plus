@@ -19,6 +19,18 @@ class RequestEmailLoginCode
     public function handle(string $email, string $purpose = 'login'): void
     {
         $email = Str::lower(trim($email));
+        $code = $this->issue($email, $purpose);
+
+        Notification::route('mail', $email)->notify(new EmailLoginCodeNotification($code, (int) config('nawy.customer_auth.email_code_ttl_minutes'), $purpose));
+    }
+
+    /**
+     * Store a fresh code for the address and purpose and return it, without
+     * sending anything (the caller mails it, e.g. inside a reset email).
+     */
+    public function issue(string $email, string $purpose): string
+    {
+        $email = Str::lower(trim($email));
 
         $lockedCode = EmailLoginCode::query()
             ->where('email', $email)
@@ -47,6 +59,6 @@ class RequestEmailLoginCode
             'expires_at' => now()->addMinutes($validMinutes),
         ]);
 
-        Notification::route('mail', $email)->notify(new EmailLoginCodeNotification($code, $validMinutes, $purpose));
+        return $code;
     }
 }

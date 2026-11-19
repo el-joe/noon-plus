@@ -5,9 +5,9 @@ import { BadgeCheck, CalendarCheck, CheckCircle2, Flag, MessageSquare, Phone, St
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Modal } from "@/components/layout/modal";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Alert, Badge } from "@/components/ui/misc";
 import * as api from "@/lib/api/classifieds";
@@ -30,9 +30,10 @@ export function allowedRequestTypes(types: string[] | undefined): RequestType[] 
 }
 
 /** Seller box + contact actions on the ad detail (Figma 55:1477 right column). */
-export function ContactPanel({ ad, sellerName }: { ad: Summary; sellerName: string }) {
+export function ContactPanel({ ad, sellerName, children }: { ad: Summary; sellerName: string; children?: ReactNode }) {
   const t = useTranslations("classifieds");
   const tc = useTranslations("common");
+  const ta = useTranslations("portalPlus.ad");
   const market = useMarket();
   const href = useHref();
   const router = useRouter();
@@ -95,19 +96,24 @@ export function ContactPanel({ ad, sellerName }: { ad: Summary; sellerName: stri
               </Button>
             )}
             {reveal.error && !requiredContracts(reveal.error) ? <Alert tone="danger">{errorMessage(reveal.error, tc("error"))}</Alert> : null}
-            <div className={requestTypes.length ? "grid grid-cols-2 gap-2" : "grid gap-2"}>
+            {/* Figma 55:1477: Chat · WhatsApp (the number comes from the logged phone reveal). */}
+            <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setModal("message")}>
                 <MessageSquare className="size-4" />
                 {t("chat")}
               </Button>
-              {requestTypes.length ? (
-                <Button variant="outline" onClick={() => setModal("request")}>
-                  <CalendarCheck className="size-4" />
-                  {requestTypes.length === 1 ? t(`request.types.${requestTypes[0]}`) : t("requestShort")}
+              {phone && whatsAppNumber(phone) ? (
+                <a href={`https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(ta("whatsAppText", { title: ad.title, number: ad.number }))}`} target="_blank" rel="noopener noreferrer" className={buttonClass("outline")}>
+                  <WhatsAppIcon />
+                  {ta("whatsApp")}
+                </a>
+              ) : (
+                <Button variant="outline" onClick={showPhone} disabled={reveal.isPending} title={ta("whatsAppHint")}>
+                  <WhatsAppIcon />
+                  {ta("whatsApp")}
                 </Button>
-              ) : null}
+              )}
             </div>
-            <FavouriteButton number={ad.number} withLabel className="justify-center border border-line py-2 shadow-none" />
           </>
         ) : (
           <Alert tone="warning">{t("notLive")}</Alert>
@@ -130,6 +136,17 @@ export function ContactPanel({ ad, sellerName }: { ad: Summary; sellerName: stri
           </Link>
         ) : null}
       </section>
+
+      {live && requestTypes.length ? (
+        // Figma 55:1477 → 151:10194: the request modal's trigger under the seller card.
+        <Button variant="dark" size="lg" className="w-full" onClick={() => setModal("request")}>
+          <CalendarCheck className="size-4" />
+          {requestTypes.length === 1 ? t(`request.types.${requestTypes[0]}`) : ta("requestViewingOrReserve")}
+        </Button>
+      ) : null}
+      {live ? <FavouriteButton number={ad.number} withLabel className="justify-center border border-line py-2 shadow-none lg:hidden" /> : null}
+
+      {children}
 
       <section className="rounded-lg bg-warning-subtle p-4">
         <h3 className="mb-2 text-body font-semibold">{t("safety.title")}</h3>
@@ -162,6 +179,20 @@ export function ContactPanel({ ad, sellerName }: { ad: Summary; sellerName: stri
         />
       ) : null}
     </div>
+  );
+}
+
+/** wa.me wants the international number as digits only (the reveal returns E.164, QA-020). */
+function whatsAppNumber(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 8 ? digits : null;
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-current">
+      <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.5-.3Z" />
+    </svg>
   );
 }
 

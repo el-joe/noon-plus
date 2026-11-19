@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * is a central user id; the store lives in the country database.
  */
 #[UseFactory(VendorFactory::class)]
-#[Fillable(['owner_user_id', 'type', 'slug', 'store_name', 'contact_phone', 'logo_path', 'business_details', 'status', 'rating', 'rating_count', 'seller_agreement_accepted_at', 'payout_schedule'])]
+#[Fillable(['owner_user_id', 'type', 'slug', 'store_name', 'contact_phone', 'logo_path', 'business_details', 'status', 'rating', 'rating_count', 'seller_agreement_accepted_at', 'payout_schedule', 'acquired_by_user_id', 'acquired_at'])]
 class Vendor extends Model
 {
     /** @use HasFactory<VendorFactory> */
@@ -36,6 +36,7 @@ class Vendor extends Model
             'rating' => 'decimal:2',
             'rating_count' => 'integer',
             'seller_agreement_accepted_at' => 'immutable_datetime',
+            'acquired_at' => 'immutable_datetime',
             'business_details' => 'array',
         ];
     }
@@ -68,5 +69,14 @@ class Vendor extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * A travel agency (Travel Partner). Owner decision D11: travel pays no
+     * commission and no marketer-campaign fees; paid advertising still applies.
+     */
+    public function isTravelAgency(): bool
+    {
+        return $this->type === 'travel';
     }
 }

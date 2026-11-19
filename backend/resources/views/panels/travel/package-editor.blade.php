@@ -66,7 +66,7 @@
                 <x-ui.input :label="__('Returns on')" name="returns_on" type="date" required />
                 <x-ui.input :label="__('Seats')" name="seat_capacity" type="number" required />
                 @foreach ($roomTypes as $type)
-                    <x-ui.input :label="__(':type price per person', ['type' => ucfirst($type)])" :name="'rooms['.$type.']'" type="number" />
+                    <x-ui.input :label="__(':type price per person', ['type' => ucfirst($type)])" :name="'rooms['.$type.']'" type="number" step="any" min="0" />
                 @endforeach
                 <div class="flex items-end"><x-ui.button type="submit" variant="outline">{{ __('Add departure') }}</x-ui.button></div>
             </form>

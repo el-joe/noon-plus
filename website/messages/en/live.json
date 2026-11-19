@@ -28,7 +28,12 @@
     "startsAt": "Starts {date}",
     "notStarted": "This live hasn't started yet. It starts {date}.",
     "ended": "This live has ended.",
-    "playerSoon": "Live video on the web is coming soon. Watch this show in the Nawy app.",
+    "player": {
+      "unavailable": "This live can't be played in your browser right now. Try again in a minute, or watch it in the Nawy app.",
+      "unsupported": "Your browser can't play this live video. Open it in Safari or in Chrome on your phone, or watch it in the Nawy app.",
+      "failed": "We couldn't connect to the live video. Check your connection and try again.",
+      "retry": "Try again"
+    },
     "watch": "Watch",
     "remindMe": "Remind me",
     "mini": {
@@ -37,8 +42,26 @@
       "collapse": "Collapse",
       "close": "Close player",
       "open": "Back to the show",
+      "openToWatch": "Open the live to watch",
       "play": "Play",
       "pause": "Pause"
+    },
+    "watching": "{count, plural, one {# watching} other {# watching}}",
+    "chat": {
+      "title": "Live chat",
+      "empty": "No comments yet. Say hello!",
+      "emptyEnded": "No comments on this show.",
+      "held": "Waiting for review: only you can see this.",
+      "placeholder": "Say something nice…",
+      "closed": "Chat is open only while the show is live",
+      "send": "Send comment",
+      "rules": "Be kind. Comments are moderated.",
+      "signIn": "Sign in with your email to comment. Comments are moderated."
+    },
+    "viewer": {
+      "connecting": "Joining the live…",
+      "waitingVideo": "Waiting for the host's video…",
+      "unmute": "Tap for sound"
     }
   }
 }

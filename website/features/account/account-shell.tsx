@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { BadgeCheck, Bell, CalendarCheck, Crown, FileSignature, Gift, Heart, LayoutGrid, LogOut, MapPin, Megaphone, MessageSquare, Package, RotateCcw, Scale, Search, Shield, ShieldCheck, Star, Ticket, User, Wallet, Home as HomeIcon } from "lucide-react";
+import { BadgeCheck, Bell, CreditCard, LifeBuoy, Store, CalendarCheck, Crown, FileSignature, Gift, Heart, LayoutGrid, LogOut, MapPin, Megaphone, MessageSquare, Package, RotateCcw, Scale, Search, Shield, ShieldCheck, Star, Ticket, User, Wallet, Home as HomeIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,10 +19,12 @@ const NAV = [
   { key: "disputes", path: "/account/disputes", icon: Scale, group: "myAccount" },
   { key: "warranty", path: "/account/warranty", icon: ShieldCheck, group: "myAccount" },
   { key: "reviews", path: "/account/reviews", icon: Star, group: "myAccount" },
+  { key: "support", path: "/account/support", icon: LifeBuoy, group: "myAccount" },
   { key: "bookings", path: "/account/bookings", icon: CalendarCheck, group: "marketplace" },
   { key: "inquiries", path: "/account/inquiries", icon: MessageSquare, group: "marketplace" },
   { key: "myAds", path: "/account/my-ads", icon: Megaphone, group: "marketplace" },
   { key: "favourites", path: "/account/favourites", icon: BadgeCheck, group: "marketplace" },
+  { key: "followedStores", path: "/account/followed-stores", icon: Store, group: "marketplace" },
   { key: "savedSearches", path: "/account/saved-searches", icon: Search, group: "marketplace" },
   { key: "specialRequests", path: "/account/special-requests", icon: HomeIcon, group: "marketplace" },
   { key: "wishlist", path: "/account/wishlist", icon: Heart, group: "walletOffers" },
@@ -30,6 +32,7 @@ const NAV = [
   { key: "giftCards", path: "/account/gift-cards", icon: Gift, group: "walletOffers" },
   { key: "vouchers", path: "/account/vouchers", icon: Ticket, group: "walletOffers" },
   { key: "membership", path: "/account/membership", icon: Crown, group: "walletOffers" },
+  { key: "cards", path: "/account/cards", icon: CreditCard, group: "walletOffers" },
   { key: "profile", path: "/account/profile", icon: User, group: "profile" },
   { key: "addresses", path: "/account/addresses", icon: MapPin, group: "profile" },
   { key: "contracts", path: "/account/contracts", icon: FileSignature, group: "profile" },
@@ -53,6 +56,16 @@ export function AccountShell({ children }: { children: ReactNode }) {
       <EmptyState
         title={t("signInRequired")}
         action={<ButtonLink href={`${href("/login")}?next=${encodeURIComponent(pathname)}`}>{t("signInRequired")}</ButtonLink>}
+      />
+    );
+  }
+
+  // An old phone-only Nawy account must add its email first (the API answers `email_required` until then).
+  if (user.requires_email) {
+    return (
+      <EmptyState
+        title={t("addEmailRequired")}
+        action={<ButtonLink href={`${href("/auth/add-email")}?next=${encodeURIComponent(pathname)}`}>{t("addEmailAction")}</ButtonLink>}
       />
     );
   }

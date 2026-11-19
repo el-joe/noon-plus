@@ -1,0 +1,67 @@
+{
+  "storefront": {
+    "listing": {
+      "fulfilledBy": "الشحن بواسطة",
+      "fulfilment": {
+        "fbn": "شحن من ناوي",
+        "fbm": "يشحنه البائع"
+      },
+      "itemCondition": "حالة المنتج",
+      "condition": {
+        "new": "جديد",
+        "refurbished": "مجدّد",
+        "used": "مستعمل"
+      },
+      "deals": "العروض",
+      "dealsOnly": "المنتجات المخفّضة فقط",
+      "size": "المقاس",
+      "colour": "اللون",
+      "newArrivals": "وصل حديثًا",
+      "quickFilters": "فلاتر سريعة",
+      "showing": "عرض {shown} من {total}",
+      "loadMore": "عرض المزيد",
+      "backToFirst": "العودة إلى أول النتائج"
+    },
+    "seller": {
+      "metaDescription": "تسوّق من {name} على ناوي: {count, plural, one {منتج واحد} two {منتجان} few {# منتجات} many {# منتجًا} other {# منتج}}، والتقييمات وسياسات المتجر والمراجعات.",
+      "notFound": "المتجر غير موجود",
+      "store": "المتجر",
+      "joined": "على ناوي منذ {date}",
+      "ratingCount": "{count, plural, =0 {لا توجد تقييمات بعد} one {تقييم واحد} two {تقييمان} few {# تقييمات} many {# تقييمًا} other {# تقييم}}",
+      "positive": "{percent}% تقييمات إيجابية",
+      "products": "{count, plural, one {منتج واحد} two {منتجان} few {# منتجات} many {# منتجًا} other {# منتج}}",
+      "followers": "{count, plural, one {متابع واحد} two {متابعان} few {# متابعين} many {# متابعًا} other {# متابع}}",
+      "follow": "متابعة",
+      "following": "تتابعه",
+      "followError": "تعذّر التحديث. يرجى المحاولة مرة أخرى.",
+      "tabs": {
+        "products": "المنتجات",
+        "reviews": "المراجعات ({count})",
+        "about": "نبذة"
+      },
+      "policies": {
+        "title": "سياسات المتجر",
+        "returns": "الإرجاع",
+        "returnsWindow": "{days, plural, =0 {لا يقبل الإرجاع} one {مهلة إرجاع يوم واحد} two {مهلة إرجاع يومين} few {مهلة إرجاع # أيام} many {مهلة إرجاع # يومًا} other {مهلة إرجاع # يوم}}",
+        "shipping": "الشحن",
+        "shippingFee": "رسوم التوصيل {fee}",
+        "freeOver": "توصيل مجاني للطلبات فوق {amount}",
+        "fbn": "شحن من ناوي: يُجهَّز ويُشحن من مستودعات ناوي",
+        "warranty": "الضمان"
+      },
+      "about": "عن المتجر",
+      "reviews": {
+        "title": "مراجعات المتجر",
+        "summary": "{average} من 5",
+        "empty": "لا توجد مراجعات بعد",
+        "emptyHint": "تظهر هنا مراجعات المشتريات الموثّقة من هذا المتجر.",
+        "stars": "{stars} نجوم",
+        "verified": "شراء موثّق",
+        "reply": "ردّ المتجر",
+        "prev": "السابق",
+        "next": "التالي",
+        "page": "صفحة {page} من {last}"
+      }
+    }
+  }
+}

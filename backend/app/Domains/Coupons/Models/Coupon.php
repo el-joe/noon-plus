@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'code', 'description', 'scope', 'vendor_id', 'funded_by', 'target_type', 'target_ids', 'first_order_only', 'customer_segment',
     'type', 'value', 'buy_quantity', 'get_quantity', 'min_order_amount', 'max_discount_amount',
-    'usage_limit', 'per_customer_limit', 'starts_at', 'ends_at', 'is_active', 'created_by_user_id',
+    'usage_limit', 'per_customer_limit', 'starts_at', 'ends_at', 'is_active', 'is_public', 'admin_disabled_at', 'created_by_user_id',
 ])]
 class Coupon extends Model
 {
@@ -50,6 +50,8 @@ class Coupon extends Model
             'starts_at' => 'immutable_datetime',
             'ends_at' => 'immutable_datetime',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
+            'admin_disabled_at' => 'immutable_datetime',
         ];
     }
 
@@ -80,6 +82,14 @@ class Coupon extends Model
     public function targetIds(): array
     {
         return array_values(array_map('intval', $this->target_ids ?? []));
+    }
+
+    /**
+     * Live now: switched on and inside its dates.
+     */
+    public function isLive(): bool
+    {
+        return $this->is_active && ! $this->starts_at?->isFuture() && ! $this->ends_at?->isPast();
     }
 
     /**

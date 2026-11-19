@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/json.dart';
@@ -6,10 +7,14 @@ import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../theme.dart';
 
-/// Network image with a neutral placeholder (no caching package; see
-/// owner-review WP10 → cached_network_image).
+/// Network image with a neutral placeholder and error icon, cached on disk
+/// and faded in (`cached_network_image`, owner-review D16 / P2).
 class NetImage extends StatelessWidget {
   const NetImage(this.url, {super.key, this.fit = BoxFit.cover, this.radius = 0, this.width, this.height, this.icon = Icons.image_outlined, this.background = NawyColors.bgPage});
+
+  /// Widget tests turn the disk cache off (`test/flutter_test_config.dart`):
+  /// the cache manager needs sqflite / path_provider platform channels.
+  static bool useCache = true;
 
   final String? url;
   final BoxFit fit;
@@ -33,19 +38,36 @@ class NetImage extends StatelessWidget {
       alignment: Alignment.center,
       child: Icon(icon, color: NawyColors.textMuted, size: 28),
     );
-    final child = _valid
-        ? Image.network(
-            url!,
-            fit: fit,
-            width: width,
-            height: height,
-            errorBuilder: (_, _, _) => placeholder,
-            loadingBuilder: (context, child, progress) => progress == null ? child : placeholder,
-          )
-        : placeholder;
+    final Widget child;
+    if (!_valid) {
+      child = placeholder;
+    } else if (useCache) {
+      child = CachedNetworkImage(
+        imageUrl: url!,
+        fit: fit,
+        width: width,
+        height: height,
+        fadeInDuration: const Duration(milliseconds: 200),
+        placeholder: (_, _) => placeholder,
+        errorWidget: (_, _, _) => placeholder,
+      );
+    } else {
+      child = Image.network(
+        url!,
+        fit: fit,
+        width: width,
+        height: height,
+        errorBuilder: (_, _, _) => placeholder,
+        loadingBuilder: (context, child, progress) => progress == null ? child : placeholder,
+      );
+    }
     return radius > 0 ? ClipRRect(borderRadius: BorderRadius.circular(radius), child: child) : child;
   }
 }
+
+/// Image provider for avatars: cached like [NetImage] (plain network image
+/// when [NetImage.useCache] is off in tests).
+ImageProvider netImageProvider(String url) => NetImage.useCache ? CachedNetworkImageProvider(url) : NetworkImage(url);
 
 /// "Ad" / "Sponsored" label — required on every sponsored unit (page-builder rule 1).
 class AdLabel extends StatelessWidget {
@@ -173,9 +195,9 @@ class Pill extends StatelessWidget {
   factory Pill.status(BuildContext context, String? status) {
     final s = status ?? '';
     final (bg, fg) = switch (s) {
-      'delivered' || 'completed' || 'confirmed' || 'paid' || 'active' || 'approved' || 'refunded' || 'succeeded' => (NawyColors.bgSuccessSubtle, NawyColors.textSuccess),
-      'cancelled' || 'rejected' || 'failed' || 'hold_expired' || 'expired' || 'returned' => (NawyColors.bgDangerSubtle, NawyColors.textDanger),
-      'requested' || 'held' || 'pending' || 'pending_payment' || 'under_review' || 'scheduled' => (NawyColors.bgWarningSubtle, NawyColors.textBrand),
+      'delivered' || 'completed' || 'confirmed' || 'paid' || 'active' || 'approved' || 'published' || 'refunded' || 'succeeded' => (NawyColors.bgSuccessSubtle, NawyColors.textSuccess),
+      'cancelled' || 'rejected' || 'failed' || 'hold_expired' || 'expired' || 'returned' || 'voided' || 'hidden' => (NawyColors.bgDangerSubtle, NawyColors.textDanger),
+      'requested' || 'held' || 'pending' || 'pending_payment' || 'under_review' || 'scheduled' || 'disputed' => (NawyColors.bgWarningSubtle, NawyColors.textBrand),
       _ => (NawyColors.bgInfoSubtle, NawyColors.textLink),
     };
     return Pill(context.l10n.status(s), background: bg, foreground: fg);
@@ -353,3 +375,16 @@ Future<bool> requireSignIn(BuildContext context) async {
 }
 
 Json? productImage(Json card) => card.m('image');
+
+/// A yes / no dialog; true when [confirm] was tapped.
+Future<bool?> confirmDialog(BuildContext context, {required String title, String? body, required String confirm}) => showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: body == null ? null : Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(ctx.t('common.cancel'))),
+          TextButton(key: const ValueKey('confirm-yes'), onPressed: () => Navigator.of(ctx).pop(true), child: Text(confirm)),
+        ],
+      ),
+    );

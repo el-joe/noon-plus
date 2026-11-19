@@ -37,12 +37,18 @@ class SellerFlashSaleController extends Controller
     public function index(CountryClock $clock): View
     {
         $vendor = $this->workspace->vendor();
+        $openEvents = FlashSaleEvent::query()->where('status', FlashSaleEventStatus::SubmissionOpen)->orderBy('starts_at')->get();
 
         return view('panels.partner.flash-sales.index', [
             'country' => $this->countryContext->current(),
             'clock' => $clock,
-            'openEvents' => FlashSaleEvent::query()->where('status', FlashSaleEventStatus::SubmissionOpen)->orderBy('starts_at')->get(),
+            'openEvents' => $openEvents,
             'listings' => Listing::query()->where('vendor_id', $vendor->id)->where('status', ListingStatus::Active)->with('variant.product')->withAvailableQuantity()->get(),
+            // Listings already offered to each open event (event id → listing id → status). A withdrawn offer is
+            // final and any other offer is already in the event, so the offer form leaves them out.
+            'offered' => FlashSaleSubmission::query()->where('vendor_id', $vendor->id)->whereIn('flash_sale_event_id', $openEvents->modelKeys())
+                ->where('status', '!=', FlashSaleSubmissionStatus::Draft)->get(['flash_sale_event_id', 'listing_id', 'status'])
+                ->groupBy('flash_sale_event_id')->map(fn ($rows) => $rows->mapWithKeys(fn (FlashSaleSubmission $row): array => [$row->listing_id => $row->status])),
             'submissions' => FlashSaleSubmission::query()->where('vendor_id', $vendor->id)->with(['event', 'listing.variant.product'])->latest('id')->limit(50)->get(),
         ]);
     }

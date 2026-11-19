@@ -50,6 +50,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ApplicationWizard
 {
+    private const RESUME_TOKENS_KEPT = 5;
+
     public function __construct(
         private CountryContext $countryContext,
         private StateMachine $machine,
@@ -65,7 +67,7 @@ class ApplicationWizard
      * @param  array<string, mixed>  $account  validated {@see self::rules()} for `account`
      * @return array{0: PartnerApplication, 1: string} the application and its access token
      */
-    public function start(ApplicationType $type, array $account, string $locale): array
+    public function start(ApplicationType $type, array $account, string $locale, ?string $referralCode = null): array
     {
         if (! $this->joinOptions->enabled($type->joinSection(), $this->countryContext->current())) {
             throw new TransitionRefused(__('Applications for this section are closed in this country.'));
@@ -74,6 +76,7 @@ class ApplicationWizard
         $email = Str::lower($account['email']);
         $this->guardEmail($type, $email);
         $token = Str::random(48);
+        $acquirer = app(AcquirerReferrals::class)->resolve($referralCode);
 
         $application = PartnerApplication::query()->create([
             'number' => $this->newNumber(),
@@ -87,6 +90,8 @@ class ApplicationWizard
             'locale' => in_array($locale, ['en', 'ar'], true) ? $locale : 'en',
             'data' => ['account' => $this->accountData($account)],
             'completed_steps' => ['account'],
+            'acquired_by_user_id' => $acquirer,
+            'referral_code' => $acquirer === null ? null : mb_strtoupper(trim((string) $referralCode)),
         ]);
         $this->machine->created($application, ActorType::Applicant);
         $this->sendEmailCode($application);
@@ -430,12 +435,14 @@ class ApplicationWizard
     }
 
     /**
-     * A new access token (the old one stops working), e.g. for a resume link.
+     * An extra access token for a resume link (RT-006): the token the open
+     * wizard holds keeps working. Only the newest few link tokens are kept.
      */
-    public function rotateToken(PartnerApplication $application): string
+    public function issueResumeToken(PartnerApplication $application): string
     {
         $token = Str::random(48);
-        $application->forceFill(['token_hash' => hash('sha256', $token)])->save();
+        $hashes = [...($application->resume_token_hashes ?? []), hash('sha256', $token)];
+        $application->forceFill(['resume_token_hashes' => array_slice($hashes, -self::RESUME_TOKENS_KEPT)])->save();
 
         return $token;
     }

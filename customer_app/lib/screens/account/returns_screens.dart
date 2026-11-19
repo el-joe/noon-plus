@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:nawy_core/device.dart' show AttachmentPicker, PickedMedia, UploadRules;
 
 import '../../core/api/api_client.dart';
 import '../../core/json.dart';
+import '../../core/uploads.dart';
 import '../../core/money.dart';
 import '../../l10n/l10n.dart';
 import '../../routing/guards.dart';
@@ -57,6 +59,7 @@ class _ReturnNewScreenState extends State<ReturnNewScreen> {
   String _method = 'pickup';
   String _refund = 'original';
   final _comment = TextEditingController();
+  List<PickedMedia> _photos = const [];
   Map<String, String> _errors = {};
 
   Json get _shipment => widget.order.l('shipments').firstWhere((s) => s.s('number') == widget.shipment, orElse: () => {});
@@ -74,7 +77,7 @@ class _ReturnNewScreenState extends State<ReturnNewScreen> {
       return;
     }
     try {
-      final res = await AppScope.read(context).api.post('returns', body: {
+      final res = await postWithFiles(AppScope.read(context).api, 'returns', field: 'photos', files: _photos, {
         'shipment': widget.shipment,
         'items': items,
         'reason': _reason,
@@ -121,6 +124,10 @@ class _ReturnNewScreenState extends State<ReturnNewScreen> {
             for (final r in returnReasons) RadioListTileLite(selected: _reason == r, title: context.t('returns.reason.$r'), onTap: () => setState(() => _reason = r)),
             TextField(controller: _comment, maxLines: 3, decoration: InputDecoration(labelText: context.t('returns.comment'), errorText: _errors['comment'])),
           ]),
+        ),
+        SectionCard(
+          title: context.t('returns.photos'),
+          child: AttachmentPicker(files: _photos, rules: UploadRules.returnPhotos, t: context.t, onChanged: (files) => setState(() => _photos = files)),
         ),
         SectionCard(
           title: context.t('returns.how'),

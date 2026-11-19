@@ -1,23 +1,31 @@
 "use client";
 
-import { ProductCard, type ProductCardData } from "@/components/product/product-card";
+import { useTranslations } from "next-intl";
+import { ProductCard } from "@/components/product/product-card";
 import { Rail } from "@/components/ui/carousel";
-import { useLocalStorage } from "@/lib/hooks";
-import { useMarket } from "@/lib/market-context";
+import { useRecentlyViewed } from "@/features/search/recently-viewed";
 
-export const recentKey = (country: string) => `nawy.recent.${country}`;
+export { recentKey } from "@/features/search/recently-viewed";
 
-/** Recently viewed products, kept on this device by the product page. */
+/**
+ * Recently viewed products (QC-043): this device for guests, the account's
+ * synced list (`me/recently-viewed`) once signed in. "Clear" empties both.
+ */
 export function RecentlyViewed({ title }: { title: string }) {
-  const market = useMarket();
-  const [recent] = useLocalStorage<ProductCardData[]>(recentKey(market.country.code), []);
-  if (recent.length === 0) return null;
+  const t = useTranslations("discovery.recent");
+  const { items, clear } = useRecentlyViewed();
+  if (items.length === 0) return null;
   return (
     <section>
-      <h2 className="mb-3 text-h3 font-semibold">{title}</h2>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-h3 font-semibold">{title}</h2>
+        <button type="button" onClick={() => clear()} className="text-body-sm text-link hover:underline">
+          {t("clear")}
+        </button>
+      </div>
       <Rail itemClass="basis-[46%] sm:basis-1/3 md:basis-1/4 lg:basis-1/6">
-        {recent.map((p, i) => (
-          <ProductCard key={i} product={p} />
+        {items.map((p) => (
+          <ProductCard key={p.slug ?? p.title} product={p} />
         ))}
       </Rail>
     </section>

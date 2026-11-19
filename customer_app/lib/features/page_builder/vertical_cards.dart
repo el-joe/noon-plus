@@ -68,6 +68,16 @@ class AdRail extends StatelessWidget {
       );
 }
 
+/// D14 paid placement: a promoted trip carries `sponsored: true` and the
+/// server's localized `label`. Older answers have neither (not sponsored).
+bool isSponsoredTrip(Json package) => package.b('sponsored');
+
+/// The "Sponsored" text of a promoted trip: the server label, else ours.
+String sponsoredTripLabel(BuildContext context, Json package) {
+  final label = package.s('label');
+  return label != null && label.trim().isNotEmpty ? label : context.t('travel.sponsored');
+}
+
 class TravelCard extends StatelessWidget {
   const TravelCard({super.key, required this.package, this.width = 240});
 
@@ -77,6 +87,7 @@ class TravelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final from = Money.fromJson(package['from_price']);
+    final sponsored = isSponsoredTrip(package);
     return InkWell(
       onTap: () => Navigator.of(context).pushNamed(Routes.travelPackage, arguments: {'slug': package.str('slug')}),
       child: SizedBox(
@@ -84,6 +95,11 @@ class TravelCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           AspectRatio(aspectRatio: 4 / 3, child: NetImage(package.m('image')?.s('url') ?? package.s('cover_url'), radius: NawyRadius.card, icon: Icons.flight_takeoff_rounded)),
           const SizedBox(height: 6),
+          if (sponsored)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: AdLabel(key: ValueKey('trip-sponsored-${package.str('slug')}'), text: sponsoredTripLabel(context, package)),
+            ),
           Text(package.str('title'), maxLines: 2, overflow: TextOverflow.ellipsis, style: NawyText.bodyMedium),
           Text([package.s('destination'), if (package.i('nights') != null) context.t('travel.nights', {'n': package.i('nights')})].whereType<String>().join(' · '),
               style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
@@ -95,6 +111,7 @@ class TravelCard extends StatelessWidget {
   }
 }
 
+/// Trips in the server's order (sponsored first, D14): never re-sorted.
 class TravelRail extends StatelessWidget {
   const TravelRail({super.key, required this.packages});
 
@@ -102,7 +119,7 @@ class TravelRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 290,
+        height: 310,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -11,6 +11,7 @@ import '../../state/cart_store.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/states.dart';
+import 'free_delivery_bar.dart';
 
 /// Figma "21 Cart", "22 Cart empty", "23 Coupons": shipments per seller with
 /// delivery estimates, quantity, protection plan, save for later (wishlist),
@@ -123,10 +124,13 @@ class _CartTabState extends State<CartTab> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(padding: const EdgeInsets.only(top: 12, bottom: 24), children: [
-        if (shipments.any((s) => s.b('free_shipping_threshold_applied')))
-          _banner(context.t('cart.freeDeliveryApplied'), Icons.local_shipping_outlined, NawyColors.bgSuccessSubtle, NawyColors.textSuccess)
-        else
-          _banner(context.t('cart.freeDeliveryHint'), Icons.local_shipping_outlined, NawyColors.bgBrandSubtle, NawyColors.textBrand),
+        // G-A5: the API's free-delivery progress (null → no threshold in this market).
+        if (cart['free_delivery'] is Map)
+          FreeDeliveryBar(data: asJson(cart['free_delivery']))
+        else if (shipments.any((s) => s.b('free_shipping_threshold_applied')))
+          _banner(context.t('cart.freeDeliveryApplied'), Icons.local_shipping_outlined, NawyColors.bgSuccessSubtle, NawyColors.textSuccess),
+        // Lines of the guest cart clipped or skipped at sign-in (`cart/merge`).
+        if (AppScope.of(context).mergeWarnings.isNotEmpty) _mergeWarnings(context, AppScope.of(context).mergeWarnings),
         for (final w in warnings)
           _banner(w is Map ? (asJson(w).s('message') ?? asJson(w).str('code')) : '$w', Icons.warning_amber_rounded, NawyColors.bgWarningSubtle, NawyColors.textBrand),
         for (final (i, shipment) in shipments.indexed)
@@ -261,6 +265,37 @@ class _CartTabState extends State<CartTab> {
       );
 }
 
+Widget _mergeWarnings(BuildContext context, List<Json> warnings) => Container(
+      key: const ValueKey('cart-merge-warnings'),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(color: NawyColors.bgWarningSubtle, borderRadius: BorderRadius.circular(NawyRadius.md)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.info_outline_rounded, size: 18, color: NawyColors.textBrand)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(context.t('cart.mergeTitle'), style: NawyText.bodyMedium),
+            for (final w in warnings)
+              Text(
+                [
+                  w.s('message') ?? context.l10n.status(w.s('code')),
+                  if (w.i('requested') != null && w.i('merged') != null) context.t('cart.mergeQty', {'requested': w.i('requested'), 'merged': w.i('merged')}),
+                ].join(' '),
+                style: NawyText.bodySm,
+              ),
+          ]),
+        ),
+        IconButton(
+          key: const ValueKey('cart-merge-dismiss'),
+          tooltip: context.t('common.close'),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => AppScope.read(context).clearMergeWarnings(),
+          icon: const Icon(Icons.close_rounded, size: 18),
+        ),
+      ]),
+    );
+
 /// Coupon sheet: applied coupons + code input (`POST cart/coupons`).
 class CouponSheet extends StatefulWidget {
   const CouponSheet({super.key, required this.cart});
@@ -274,6 +309,7 @@ class CouponSheet extends StatefulWidget {
 class _CouponSheetState extends State<CouponSheet> {
   final _code = TextEditingController();
   String? _error;
+  String? _errorCode;
 
   @override
   void dispose() {
@@ -306,13 +342,48 @@ class _CouponSheetState extends State<CouponSheet> {
                 try {
                   await widget.cart.applyCoupon(code);
                   _code.clear();
-                  setState(() => _error = null);
+                  setState(() {
+                    _error = null;
+                    _errorCode = null;
+                  });
                 } on ApiException catch (e) {
-                  setState(() => _error = e.fieldErrors['code'] ?? e.message);
+                  // Coupon refusals (`coupon_no_eligible_items`,
+                  // `coupon_sign_in_required`, `coupon_first_order_only`,
+                  // `coupon_segment`, …) come translated by the API; 429
+                  // after 10 tries a minute shows the wait.
+                  if (mounted) {
+                    setState(() {
+                      _error = e.isRateLimited ? errorMessage(context, e) : (e.fieldErrors['code'] ?? errorMessage(context, e));
+                      _errorCode = e.code;
+                    });
+                  }
                 }
               },
             ),
           ]),
+          if (_errorCode == 'coupon_sign_in_required')
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                key: const ValueKey('coupon-sign-in'),
+                onPressed: () async {
+                  if (await requireSignIn(context) && mounted) setState(() => _errorCode = _error = null);
+                },
+                child: Text(context.t('auth.signIn')),
+              ),
+            ),
+          // `data.warnings`: an applied coupon the customer is no longer
+          // eligible for, or a BOGO without enough units, stays on the cart
+          // with a 0 discount.
+          for (final w in couponWarnings(widget.cart.cart))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.warning_amber_rounded, size: 16, color: NawyColors.textBrand),
+                const SizedBox(width: 6),
+                Expanded(child: Text(w, key: const ValueKey('coupon-warning'), style: NawyText.bodySm)),
+              ]),
+            ),
           const SizedBox(height: 12),
           for (final c in widget.cart.cart?.l('coupons') ?? const <Json>[])
             Padding(
@@ -330,4 +401,15 @@ class _CouponSheetState extends State<CouponSheet> {
             ),
         ]),
       );
+}
+
+/// Cart warnings that mention an applied coupon code.
+List<String> couponWarnings(Json? cart) {
+  if (cart == null) return const [];
+  final codes = cart.l('coupons').map((c) => c.str('code')).where((c) => c.isNotEmpty).toList();
+  final warnings = cart['warnings'] is List ? (cart['warnings'] as List) : const [];
+  return [
+    for (final w in warnings)
+      if (w is String && codes.any(w.contains)) w,
+  ];
 }

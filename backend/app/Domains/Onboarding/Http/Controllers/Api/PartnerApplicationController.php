@@ -35,7 +35,9 @@ class PartnerApplicationController extends Controller
     {
         $type = ApplicationType::from($request->validate(['type' => ['required', Rule::enum(ApplicationType::class)]])['type']);
         $account = $request->validate($this->wizard->rules($type, 'account'));
-        [$application, $token] = $this->wizard->start($type, $account, app()->getLocale());
+        // FR-FIN-6: an account manager's referral link (`?ref=`); an unknown code is ignored.
+        $referral = $request->validate(['ref' => ['nullable', 'string', 'max:40']])['ref'] ?? null;
+        [$application, $token] = $this->wizard->start($type, $account, app()->getLocale(), $referral);
 
         return ApiResponse::success($this->present($application), ['access_token' => $token, 'token_header' => self::TOKEN_HEADER], 201)
             ->header(self::TOKEN_HEADER, $token);
@@ -157,7 +159,7 @@ class PartnerApplicationController extends Controller
             ->whereIn('status', [ApplicationStatus::Draft, ApplicationStatus::ChangesRequested])->latest('id')->first();
 
         if ($application !== null) {
-            $token = $this->wizard->rotateToken($application);
+            $token = $this->wizard->issueResumeToken($application);
             $link = $this->wizard->resumeLink($application, $token);
             Notification::route('mail', $application->email)->notify(new RequestNotification(
                 'partner_application.resume', __('Continue your Nawy application'), [__('Continue your application: :link', ['link' => $link])], $application->number, $link, __('Continue your application'),

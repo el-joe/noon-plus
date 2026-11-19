@@ -17,6 +17,60 @@ export function propertyTypeLabel(t: ServerT, value: string | null | undefined):
   return (PROPERTY_TYPES as readonly string[]).includes(value) ? t(`realEstate.types.${value as (typeof PROPERTY_TYPES)[number]}`) : humanize(value);
 }
 
+const FURNISHING = ["furnished", "semi", "unfurnished"] as const;
+const RENT_PERIODS = ["yearly", "monthly", "weekly", "daily"] as const;
+
+/** QA-033 / QA-034: localised furnishing (`furnished | semi | unfurnished`). */
+export function furnishingLabel(t: ServerT, value: string | null | undefined): string | null {
+  if (!value) return null;
+  return (FURNISHING as readonly string[]).includes(value) ? t(`realEstate.furnishing.${value as (typeof FURNISHING)[number]}`) : humanize(value);
+}
+
+/** QA-033 / QA-034: localised rent period (`yearly | monthly | weekly | daily`). */
+export function rentPeriodLabel(t: ServerT, value: string | null | undefined): string | null {
+  if (!value) return null;
+  return (RENT_PERIODS as readonly string[]).includes(value) ? t(`realEstate.rentPeriod.${value as (typeof RENT_PERIODS)[number]}`) : humanize(value);
+}
+
+const PROPERTY_FACT_LABELS = {
+  purpose: "purpose",
+  property_type: "type",
+  bedrooms: "beds",
+  bathrooms: "baths",
+  area_sqm: "size",
+  furnishing: "furnishing",
+  rent_period: "rentPeriod",
+  permit_number: "permit",
+  permit_authority: "authority",
+  developer: "developer",
+  completion_on: "completion",
+  payment_plan: "paymentPlan",
+  features: "amenities",
+} as const;
+
+/** Label + localised value of one `property.*` field of a classified ad (QA-033). */
+export function propertyFact(t: ServerT, locale: "en" | "ar", key: string, value: unknown, fallback: (v: unknown) => string): [string, string] {
+  const labelKey = PROPERTY_FACT_LABELS[key as keyof typeof PROPERTY_FACT_LABELS];
+  const label = labelKey ? t(`realEstate.detail.${labelKey}`) : humanize(key);
+  const text = typeof value === "string" ? value : null;
+  switch (key) {
+    case "purpose":
+      return [label, purposeLabel(t, text) ?? fallback(value)];
+    case "property_type":
+      return [label, propertyTypeLabel(t, text) ?? fallback(value)];
+    case "furnishing":
+      return [label, furnishingLabel(t, text) ?? fallback(value)];
+    case "rent_period":
+      return [label, rentPeriodLabel(t, text) ?? fallback(value)];
+    case "bedrooms":
+      return [label, Number(value) === 0 ? t("realEstate.studio") : fallback(value)];
+    case "area_sqm":
+      return [label, t("realEstate.detail.sqm", { value: Number(value).toLocaleString("en") })];
+    default:
+      return [label, fallback(value)];
+  }
+}
+
 /** Photo, or the neutral placeholder when the ad has none. */
 export function PropertyImage({ src, alt, className }: { src: string | null | undefined; alt: string; className?: string }) {
   if (src && /^(https?:)?\//.test(src)) {

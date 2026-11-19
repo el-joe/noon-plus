@@ -5,22 +5,41 @@ import { Maximize2, Minimize2, Radio, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { useHref } from "@/lib/market-context";
-import { useLivePlayer } from "./player-context";
+import { getFloatingStream } from "@/lib/api/live";
+import { useHref, useMarket } from "@/lib/market-context";
+import { useLivePlayer, type NowPlaying } from "./player-context";
 
 /**
  * Floating mini-player: expanded (video + title), collapsed (pill) or
  * dismissed (hidden until the next watch page). Hidden on the stream's own
  * watch page, which shows the full player.
+ *
+ * QC-063: on the home page, when nothing is playing yet, it shows the stream
+ * chosen by the country setting (`GET live-streams/floating`: off, the stream
+ * live now, or one stream); null shows nothing.
  */
 export function MiniPlayer() {
   const t = useTranslations("live.mini");
   const tl = useTranslations("live");
   const href = useHref();
   const pathname = usePathname();
-  const { nowPlaying, mode, setMode, position } = useLivePlayer();
+  const market = useMarket();
+  const { nowPlaying: playing, mode, setMode, position } = useLivePlayer();
   const video = useRef<HTMLVideoElement>(null);
+  const onHome = pathname === href("/");
+  const floating = useQuery({
+    queryKey: ["live-floating", market.slug],
+    enabled: onHome && !playing,
+    staleTime: 60_000,
+    queryFn: async () => (await getFloatingStream(market.slug)).data,
+  });
+  const featured: NowPlaying | null =
+    onHome && !playing && floating.data
+      ? { slug: floating.data.slug, title: floating.data.title ?? "", src: null, poster: floating.data.thumbnail_url, live: floating.data.status === "live" }
+      : null;
+  const nowPlaying = playing ?? featured;
 
   const watchPath = nowPlaying ? href(`/live/${encodeURIComponent(nowPlaying.slug)}`) : null;
   const visible = !!nowPlaying && mode !== "dismissed" && pathname !== watchPath;
@@ -71,9 +90,13 @@ export function MiniPlayer() {
         {nowPlaying.src ? (
           <video ref={video} src={nowPlaying.src} poster={nowPlaying.poster ?? undefined} playsInline controls muted={false} className="size-full object-contain" />
         ) : (
-          <Link href={watchPath} className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-body-sm">
-            <Radio className="size-8" />
-            {tl("playerSoon")}
+          <Link href={watchPath} className="relative flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-body-sm">
+            {nowPlaying.poster ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={nowPlaying.poster} alt="" className="absolute inset-0 size-full object-cover opacity-50" />
+            ) : null}
+            <Radio className="relative size-8" />
+            <span className="relative">{featured ? tl("watch") : t("openToWatch")}</span>
           </Link>
         )}
         {nowPlaying.live ? <span className="absolute start-2 top-2 rounded-xs bg-danger px-1.5 py-0.5 text-caption font-semibold">{tl("status.live")}</span> : null}

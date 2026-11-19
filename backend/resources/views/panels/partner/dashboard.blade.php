@@ -2,13 +2,16 @@
                  :subtitle="__(':country store · today :date (:zone time)', ['country' => $country->name_en, 'date' => $localNow->format('j M Y'), 'zone' => $country->timezone])"
                  :breadcrumbs="[__('Seller Center'), __('Dashboard')]">
     <x-slot:actions>
-        <x-ui.button :href="route('partner.products.create')">{{ __('Add product') }}</x-ui.button>
+        <x-ui.button variant="outline" :href="route('partner.dashboard.report')">{{ __('Download report') }}</x-ui.button>
+        @if (app(\App\Domains\Panels\Support\TenantPermissions::class)->allows(request(), 'partner', 'listings', true))
+            <x-ui.button :href="route('partner.products.create')">{{ __('Add product') }}</x-ui.button>
+        @endif
     </x-slot:actions>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="{{ __('Key figures') }}">
         <x-ui.stat-card :label="__('Sales today')" :value="app(\App\Shared\Money\MoneyFormatter::class)->format($salesToday, $country->currency)" data-kpi="sales-today" />
         <x-ui.stat-card :label="__('Orders to confirm')" :value="$ordersToConfirm" data-kpi="orders-to-confirm" />
-        <x-ui.stat-card :label="__('Active listings')" :value="$activeListings" data-kpi="active-listings" />
+        <x-ui.stat-card :label="__('Returns open')" :value="$returnsOpen" data-kpi="returns-open" />
         <x-ui.stat-card :label="__('Account health')" :value="$score.' / 100'" data-kpi="health" />
     </section>
 

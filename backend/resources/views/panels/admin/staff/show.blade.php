@@ -32,15 +32,15 @@
                     <form method="POST" action="{{ route('admin.staff.roles', $member->id) }}" class="flex flex-col gap-2">
                         @csrf @method('PUT')
                         @foreach ($roles as $role)
-                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="size-4 accent-brand" @checked(in_array($role->name, $rolesHere, true))> {{ str_replace('_', ' ', ucfirst($role->name)) }}</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="size-4 accent-brand" @checked(in_array($role->name, $rolesHere, true))> {{ app(\App\Domains\Identity\Support\AdminRoleLabels::class)->label($role->name) }}</label>
                         @endforeach
                         <div class="mt-2"><x-ui.button type="submit">{{ __('Save roles') }}</x-ui.button></div>
                     </form>
                 @else
-                    <p class="text-sm">{{ implode(', ', $rolesHere) ?: '—' }}</p>
+                    <p class="text-sm">{{ collect($rolesHere)->map(fn ($name) => app(\App\Domains\Identity\Support\AdminRoleLabels::class)->label($name))->implode(', ') ?: '—' }}</p>
                 @endif
             @else
-                <p class="text-sm">{{ implode(', ', $rolesHere) ?: '—' }}</p>
+                <p class="text-sm">{{ collect($rolesHere)->map(fn ($name) => app(\App\Domains\Identity\Support\AdminRoleLabels::class)->label($name))->implode(', ') ?: '—' }}</p>
             @endcan
         </x-ui.card>
     </section>

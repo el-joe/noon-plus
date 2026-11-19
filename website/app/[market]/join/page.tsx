@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Alert, Container, Skeleton } from "@/components/ui/misc";
 import { JoinChooser } from "@/features/portal/join-chooser";
+import { FunnelView } from "@/features/portal/funnel";
 import { PortalNav } from "@/features/portal/portal-nav";
 import { getJoinOptions } from "@/lib/api/portal";
 import { getT } from "@/lib/i18n";
@@ -21,6 +22,7 @@ export default async function JoinPage({ params }: PageProps<"/[market]/join">) 
   return (
     <>
       <PortalNav market={market} active="join" />
+      <FunnelView page="join" />
       <Container className="py-8">
         <div className="mb-6 text-center">
           <p className="text-caption font-semibold uppercase tracking-wide text-brand-text">{t("portal.join.eyebrow")}</p>

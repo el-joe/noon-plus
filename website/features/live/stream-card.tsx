@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CalendarClock, Heart, Play, Radio } from "lucide-react";
+import { CalendarClock, Eye, Heart, Play, Radio } from "lucide-react";
 import Link from "next/link";
 import type { StreamSummary } from "@/lib/api/live";
 import { formatDateTime } from "@/lib/format";
@@ -32,6 +32,12 @@ export function StreamCard({ market, stream, className }: { market: Market; stre
           <span className="flex items-center gap-1">
             <Heart className="size-3.5" />
             {stream.likes}
+            {status === "live" ? (
+              <>
+                <Eye className="ms-2 size-3.5" aria-hidden />
+                <span aria-label={t("live.watching", { count: stream.viewers })}>{stream.viewers}</span>
+              </>
+            ) : null}
           </span>
           <Play className="size-5 rounded-full bg-black/40 p-1" />
         </span>

@@ -42,6 +42,12 @@ class Payouts
     ) {}
 
     /**
+     * Daily 02:00 run (QC-069): each vendor gets a statement only on the
+     * days its own `payout_schedule` is due in the country's time zone
+     * (weekly → Monday, biweekly → 1st and 15th, monthly → 1st), which is
+     * how the SRS schedules share one job. `$ignoreSchedule` is the admin's
+     * out-of-schedule run.
+     *
      * @return int number of statements created
      */
     public function generate(Country $country, bool $ignoreSchedule = false, ?int $adminUserId = null): int

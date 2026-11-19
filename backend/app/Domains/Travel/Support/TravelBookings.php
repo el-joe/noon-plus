@@ -12,6 +12,7 @@ use App\Domains\Travel\Models\TravelBookingModification;
 use App\Domains\Travel\Models\TravelDeparture;
 use App\Models\User;
 use App\Shared\Http\StorefrontLinks;
+use App\Shared\Localization\InLocale;
 use App\Shared\Money\MoneyFactory;
 use App\Shared\Notifications\RequestNotification;
 use App\Shared\Settings\VerticalSettings;
@@ -19,6 +20,7 @@ use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
 use Brick\Money\Money;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -97,6 +99,7 @@ class TravelBookings
                 'hold_expires_at' => $submit ? null : now()->addMinutes($this->settings->int('travel.seat_hold_minutes')),
                 'marketer_profile_id' => $marketer?->id,
                 'referral_code' => $marketer === null ? null : mb_substr((string) $referrer, 0, 16),
+                'locale' => app()->getLocale(),
             ]);
             $booking->forceFill(['status' => $submit ? BookingStatus::Requested : BookingStatus::Held, 'requested_at' => $submit ? now() : null])->save();
             $booking->forceFill(['number' => 'TB-'.$this->countryContext->current()->iso2.'-'.str_pad((string) $booking->id, 7, '0', STR_PAD_LEFT)])->save();
@@ -136,21 +139,21 @@ class TravelBookings
 
     public function confirm(TravelBooking $booking, int $userId): TravelBooking
     {
-        $this->machine->move($booking, BookingStatus::Confirmed, ActorType::Vendor, $userId, null, [
+        $this->machine->move($booking, BookingStatus::Confirmed, ActorType::Agency, $userId, null, [
             'confirmed_at' => now(),
             'confirmation_number' => 'TV-'.$this->countryContext->current()->iso2.'-'.str_pad((string) $booking->id, 7, '0', STR_PAD_LEFT),
         ]);
-        $this->notifyCustomer($booking->refresh(), 'travel_booking.confirmed', __('Your trip booking :number is confirmed', ['number' => $booking->number]), [
-            __(':agency confirmed your booking for :trip on :date.', ['agency' => $booking->vendor->store_name, 'trip' => $booking->package->title_en, 'date' => $booking->departure->departs_on->toDateString()]),
+        $this->notifyCustomer($booking->refresh(), 'travel_booking.confirmed', fn (): array => [__('Your trip booking :number is confirmed', ['number' => $booking->number]), [
+            __(':agency confirmed your booking for :trip on :date.', ['agency' => $booking->vendor->store_name, 'trip' => $booking->package->localizedTitle(), 'date' => $booking->departure->departs_on->toDateString()]),
             __('The agency will contact you to arrange payment directly.'),
-        ]);
+        ]]);
 
         return $booking;
     }
 
     public function reject(TravelBooking $booking, int $userId, string $reason): TravelBooking
     {
-        return $this->release($booking, BookingStatus::Rejected, ActorType::Vendor, $userId, $reason, 'travel_booking.rejected', __('Your trip booking :number could not be confirmed', ['number' => $booking->number]));
+        return $this->release($booking, BookingStatus::Rejected, ActorType::Agency, $userId, $reason, 'travel_booking.rejected', 'Your trip booking :number could not be confirmed');
     }
 
     public function cancel(TravelBooking $booking, ActorType $actor, ?int $userId, string $reason): TravelBooking
@@ -159,7 +162,7 @@ class TravelBookings
             throw new TransitionRefused(__('The trip has already left.'));
         }
 
-        return $this->release($booking, BookingStatus::Cancelled, $actor, $userId, $reason, 'travel_booking.cancelled', __('Your trip booking :number is cancelled', ['number' => $booking->number]));
+        return $this->release($booking, BookingStatus::Cancelled, $actor, $userId, $reason, 'travel_booking.cancelled', 'Your trip booking :number is cancelled');
     }
 
     /**
@@ -277,7 +280,7 @@ class TravelBookings
         return [$lines, $seats, $total];
     }
 
-    private function release(TravelBooking $booking, BookingStatus $to, ActorType $actor, ?int $userId, string $reason, string $kind, string $subject): TravelBooking
+    private function release(TravelBooking $booking, BookingStatus $to, ActorType $actor, ?int $userId, string $reason, string $kind, string $subjectKey): TravelBooking
     {
         if (! in_array($to, $booking->status->allowedNext(), true)) {
             throw new TransitionRefused(__('This booking cannot be :action.', ['action' => $to->value]));
@@ -295,7 +298,7 @@ class TravelBookings
         $this->packages->syncSoldOut($booking->package);
 
         if ($booking->requested_at !== null) {
-            $this->notifyCustomer($booking->refresh(), $kind, $subject, [__('Reason: :reason', ['reason' => $reason])]);
+            $this->notifyCustomer($booking->refresh(), $kind, fn (): array => [__($subjectKey, ['number' => $booking->number]), [__('Reason: :reason', ['reason' => $reason])]]);
         }
 
         return $booking->refresh();
@@ -304,26 +307,37 @@ class TravelBookings
     private function notifySubmitted(TravelBooking $booking): void
     {
         $booking->loadMissing(['package', 'departure', 'vendor']);
-        $summary = __(':trip · departs :date · :seats seat(s) · quoted :total :currency', ['trip' => $booking->package->title_en, 'date' => $booking->departure->departs_on->toDateString(), 'seats' => $booking->seats, 'total' => $this->money->of((string) $booking->total, $booking->currency)->getAmount(), 'currency' => $booking->currency]);
+        $summary = fn (): string => __(':trip · departs :date · :seats seat(s) · quoted :total :currency', ['trip' => $booking->package->localizedTitle(), 'date' => $booking->departure->departs_on->toDateString(), 'seats' => $booking->seats, 'total' => $this->money->of((string) $booking->total, $booking->currency)->getAmount(), 'currency' => $booking->currency]);
+        $owner = User::query()->find($booking->vendor->owner_user_id);
 
-        User::query()->find($booking->vendor->owner_user_id)?->notify(new RequestNotification('travel_booking.requested', __('New booking request :number', ['number' => $booking->number]), [
-            $summary,
+        // QC-028: each email in its recipient's language.
+        $owner?->notify(InLocale::run($owner->preferredLocale(), fn (): RequestNotification => new RequestNotification('travel_booking.requested', __('New booking request :number', ['number' => $booking->number]), [
+            $summary(),
             __('Customer: :name · :email · :phone', ['name' => $booking->contact_name, 'email' => $booking->contact_email, 'phone' => $booking->contact_phone]),
             __('Confirm or reject it in Travel Partner → Bookings, and settle payment with the customer directly.'),
-        ], $booking->number));
+        ], $booking->number)));
 
-        $this->notifyCustomer($booking, 'travel_booking.received', __('We received your booking request :number', ['number' => $booking->number]), [
-            $summary,
+        $this->notifyCustomer($booking, 'travel_booking.received', fn (): array => [__('We received your booking request :number', ['number' => $booking->number]), [
+            $summary(),
             __(':agency will confirm your seats and contact you about payment. No payment is taken on Nawy.', ['agency' => $booking->vendor->store_name]),
-        ]);
+        ]]);
     }
 
     /**
-     * @param  array<int, string>  $lines
+     * D4 customer emails, written in the language the customer booked in
+     * (QC-028) — also when the agency acts from its panel in another one.
+     *
+     * @param  Closure(): array{0: string, 1: array<int, string>}  $content
      */
-    private function notifyCustomer(TravelBooking $booking, string $kind, string $subject, array $lines): void
+    private function notifyCustomer(TravelBooking $booking, string $kind, Closure $content): void
     {
-        Notification::route('mail', $booking->contact_email)->notify(new RequestNotification($kind, $subject, $lines, $booking->number, $this->statusLink($booking), __('View your booking')));
+        $notification = InLocale::run($booking->locale ?? config('app.locale'), function () use ($booking, $kind, $content): RequestNotification {
+            [$subject, $lines] = $content();
+
+            return new RequestNotification($kind, $subject, $lines, $booking->number, $this->statusLink($booking), __('View your booking'));
+        });
+
+        Notification::route('mail', $booking->contact_email)->notify($notification->locale($booking->locale ?? config('app.locale')));
     }
 
     /**

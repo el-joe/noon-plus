@@ -11,14 +11,18 @@ use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
 use App\Domains\Orders\Models\Order;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Orders\Support\InvoicePdf;
 use App\Domains\Orders\Support\SubOrderStateMachine;
 use App\Domains\Orders\Support\SubOrderTimeline;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Shared\Http\LikeSearch;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Admin → Orders (SRS §4.1.4; Figma 97:1164): orders of the selected country
@@ -46,7 +50,7 @@ class AdminOrderController extends Controller
 
         $orders = app(AdminVendorScope::class)->applyThrough(Order::query(), 'subOrders')
             ->withCount('subOrders')
-            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', "%{$search}%"))
+            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', LikeSearch::contains($search)))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when($filters['from'] ?? null, fn ($query, string $from) => $query->where('placed_at', '>=', CarbonImmutable::parse($from, $adminZone)->startOfDay()->utc()))
             ->when($filters['to'] ?? null, fn ($query, string $to) => $query->where('placed_at', '<', CarbonImmutable::parse($to, $adminZone)->addDay()->startOfDay()->utc()))
@@ -78,6 +82,21 @@ class AdminOrderController extends Controller
                 $subOrder->id => array_values(array_filter($subOrder->status->allowedNext(), fn (SubOrderStatus $status): bool => $status !== SubOrderStatus::Cancelled)),
             ]),
         ]);
+    }
+
+    /**
+     * D16: the customer's tax invoice as a PDF. An admin scoped to some
+     * sellers only gets it when every shipment of the order is in scope.
+     */
+    public function invoicePdf(int $order, InvoicePdf $pdf): Response
+    {
+        $scope = app(AdminVendorScope::class);
+        $order = $scope->applyThrough(Order::query(), 'subOrders')->with(['subOrders.items', 'subOrders.vendor'])->findOrFail($order);
+
+        abort_if($scope->apply($order->subOrders()->getQuery())->count() !== $order->subOrders->count(), 403);
+        abort_unless(InvoicePdf::isReady($order), 409, __('The invoice is ready once the order is paid.'));
+
+        return $pdf->download($pdf->forOrder($order, $this->countryContext->current(), User::query()->findOrFail($order->customer_user_id)), $order->number);
     }
 
     public function move(Request $request, int $subOrder): RedirectResponse

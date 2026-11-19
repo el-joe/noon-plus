@@ -69,7 +69,7 @@ class ErrorView extends StatelessWidget {
     return EmptyView(
       icon: offline ? Icons.wifi_off_rounded : (notFound ? Icons.search_off_rounded : Icons.error_outline_rounded),
       title: context.t(offline ? 'state.offline' : (notFound ? 'state.notFound' : 'state.error')),
-      subtitle: e is ApiException && !offline && !notFound ? e.message : context.t(offline ? 'state.offlineHint' : 'state.errorHint'),
+      subtitle: e is ApiException && !offline && !notFound ? errorMessage(context, e) : context.t(offline ? 'state.offlineHint' : 'state.errorHint'),
       actionLabel: onRetry == null ? null : context.t('common.retry'),
       onAction: onRetry,
     );
@@ -101,7 +101,9 @@ class _AsyncBodyState<T> extends State<AsyncBody<T>> {
 
   Future<void> _reload() async {
     final next = widget.load();
-    setState(() => _future = next);
+    setState(() {
+      _future = next;
+    });
     try {
       await next;
     } catch (_) {}
@@ -132,8 +134,18 @@ void showToast(BuildContext context, String message, {bool error = false}) {
   ));
 }
 
-String errorMessage(BuildContext context, Object error) =>
-    error is ApiException ? (error.isNetwork ? context.t('state.offline') : error.message) : context.t('state.error');
+/// The text for an API error: offline, rate limited (with the wait from
+/// `Retry-After`), otherwise the first field error or the API message, which
+/// the API already translated (`Content-Language`).
+String errorMessage(BuildContext context, Object error) {
+  if (error is! ApiException) return context.t('state.error');
+  if (error.isNetwork) return context.t('state.offline');
+  if (error.isRateLimited) {
+    final seconds = error.retryAfter?.inSeconds;
+    return seconds != null && seconds > 0 ? context.t('state.tooMany', {'seconds': seconds}) : context.t('state.tooManyNow');
+  }
+  return error.fieldErrors.values.firstOrNull ?? error.message;
+}
 
 /// Run an async action from a button: shows the API error as a toast.
 Future<T?> guarded<T>(BuildContext context, Future<T> Function() action, {String? success}) async {

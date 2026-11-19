@@ -168,7 +168,7 @@ class TravelPartnerController extends Controller
     public function cancelBooking(Request $request, int $booking): RedirectResponse
     {
         $reason = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:255']])['reason'];
-        $this->bookings->cancel($this->booking($request, $booking), ActorType::Vendor, $request->user()->id, $reason);
+        $this->bookings->cancel($this->booking($request, $booking), ActorType::Agency, $request->user()->id, $reason);
 
         return back()->with('status', __('Booking cancelled; the customer was emailed.'));
     }

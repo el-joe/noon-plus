@@ -1,0 +1,69 @@
+{
+  "title": "Admin panel — system, countries, staff & data migration — browser test report",
+  "area": "Admin panel: roles & permissions, staff, permission boundaries, Arabic RTL, countries, domains, gateways, holidays, activity, health, analytics, reports, data migration",
+  "date": "2026-11-19",
+  "summary": "A narrow custom role (orders.view + categories.view) was created, a staff member invited with it through the UI and the invitation accepted from the e-mail; signed in separately (password + emailed code) the member sees 6 sidebar links, gets 403 on /staff, /finance/payouts, /roles, /migration/quarantine and /coupons/create, sees no admin action forms on an order and a direct POST is refused (403). The member switched to Arabic: pages render dir=rtl with Arabic labels and the Oman-time label ('بتوقيت عُمان'). Countries: switcher (Oman/UAE), gateway checkout preview and validation, a test domain added/edited/deleted, holidays validated/added/renamed/removed. Activity log, system health, notifications, sign-in history, portal analytics, cross-country reports (filter, reload, CSV). Data migration: quarantine filter/detail/reveal/dry-run preview/decision, runs, step re-try preview, legacy records reveal, redirects search/export/rebuild, reconciliation.",
+  "environment": [
+    "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
+    "Storefront http://localhost:3000 (next start) — not used by these flows",
+    "Dev databases (central noon-plus + nawy_uae …), MAIL_MAILER=log (2FA codes and invitation links read from storage/logs/laravel.log), NAWY_PAYMENTS_DRIVER=fake",
+    "Playwright 'areas' project, Desktop Chrome 1280×720, screenshots per step; servers shared with two other QA agents",
+    "Each worker signs the e2e admin in once with its own session (password + emailed code), cached in the OS temp dir; the shared e2e/.auth/admin.json is never used or rewritten (a shared session loses flash messages and validation errors to parallel requests)",
+    "Run: cd website && E2E_SKIP_SEED=1 npx playwright test --project=areas --no-deps e2e/specs/areas/admin --workers=2 (iteration used e2e/specs/areas/admin/.qa.config.ts, the same config without the global setup that signs the shared customer in and was rate-limited by parallel suites). Report JSON: node e2e/docx/admin-report.mjs <report>; .docx: node e2e/docx/build-docx.mjs e2e/docx/reports/<report>.json"
+  ],
+  "accounts": [
+    {
+      "role": "Super admin",
+      "login": "e2e-admin@nawy.test (E2eSeeder), own session per worker, password + emailed 2FA"
+    },
+    {
+      "role": "Narrow staff (custom role)",
+      "login": "qa-narrow-<run>@nawy.test, invited with role qa_narrow_<run> (orders.view, categories.view)"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/admin/system-staff-migration.spec.ts"
+  ],
+  "issues": [
+    {
+      "id": "BT-ADM-010",
+      "severity": "cosmetic",
+      "area": "Roles & permissions",
+      "description": "A custom role name 'QA narrow 9okp9wr' is stored as key 'qa_narrow9okp9wr' and shown as 'Qa narrow9okp9wr' (space and capitals lost).",
+      "status": "open",
+      "fix": "Keep a display name next to the key."
+    },
+    {
+      "id": "BT-ADM-011",
+      "severity": "minor",
+      "area": "Platform settings → Holidays (data)",
+      "description": "The seeded UAE 2026 holiday 'Commemoration Day and National Day' has no Arabic name, so it cannot be re-saved (Arabic name required).",
+      "status": "open",
+      "fix": "Fill the Arabic name in the seeder/data."
+    },
+    {
+      "id": "BT-ADM-009",
+      "severity": "cosmetic",
+      "area": "Staff invitations",
+      "description": "Invitation e-mail subject reads 'You are invited to join Nawy on Nawy'.",
+      "status": "open",
+      "fix": "Word the subject per team ('…join the Nawy admin team')."
+    },
+    {
+      "id": "BT-ADM-001",
+      "severity": "major",
+      "area": "All panels (layout) / customers, classifieds, campaigns, blog, help",
+      "description": "A refused submit of a compact form (list-row status change with reason, classified reject, platform campaign create, blog post, help article) showed no message at all — the page just reloaded, so it looked like nothing happened. On Customers the status filter also picked up the row form's old 'status' input.",
+      "status": "fixed",
+      "fix": "x-layouts.panel now shows an error summary (role=alert) for every field error; pages with their own summary opt out (:error-summary=false); x-ui.select gets :use-old=false for GET filters (customers). Regression: QaWave3JobsAndLifecyclesTest 'suspends and bans customer accounts…' (alert + message + filter value)."
+    }
+  ],
+  "notes": [
+    "Reconciliation and some reloads are queued jobs. Horizon is inactive in dev (System health: 0 supervisors, ~158 queued jobs), so a queued reconciliation stays 'queued' and the run button stays hidden until a worker runs it.",
+    "The narrow role also sees 'Classified categories' (categories.view), 'My acquisition commissions' and 'Platform settings' (no permission gate on the settings hub; its links lead to pages that answer 403 for this role) — noted, not changed.",
+    "Cross-country reports had data (nawy:reporting:etl not needed); 'Reload now' answered 'Reporting data reloaded.'",
+    "Totals and steps are the latest recorded run of each flow (e2e/docx/reports/_log/*.jsonl, generated by e2e/docx/admin-report.mjs). Earlier runs that failed were test-script fixes or the bugs listed in 'Issues found', all fixed before the final run.",
+    "All data created by these flows carries a run suffix (e.g. 'QA Brand 9abc12x'). Records of today's e2e suites (E2E Store parcels, E2E travel agency, listing 19, E2E Open Souq ads) were not decided or changed.",
+    "Backend fixes take effect immediately (PHP/Blade); no website or panel asset rebuild is needed for any fix in this report."
+  ]
+}

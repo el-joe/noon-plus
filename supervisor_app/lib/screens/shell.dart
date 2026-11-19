@@ -25,7 +25,7 @@ class _SupervisorShellState extends State<SupervisorShell> {
       const DispatchScreen(),
       const FailedScreen(),
       const DriversScreen(),
-      const SettingsScreen(logoutPath: SupervisorApi.logoutPath),
+      const SettingsScreen(logoutPath: SupervisorApi.logoutPath, extra: [DocumentsMenuTile(base: 'ops/supervisor/documents')]),
     ];
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),

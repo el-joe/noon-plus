@@ -14,6 +14,8 @@ use App\Domains\Finance\Enums\WalletBucket;
 use App\Domains\Finance\Models\VendorBalanceItem;
 use App\Domains\Finance\Support\AccountRef;
 use App\Domains\Finance\Support\Posting;
+use App\Domains\FlashSales\Models\FlashSaleSubmission;
+use App\Domains\FlashSales\Support\FlashSaleMarketerInvites;
 use App\Domains\Marketers\Enums\MarketerJobType;
 use App\Domains\Marketers\Support\MarketingSettings;
 use App\Domains\Orders\Enums\ActorType;
@@ -46,9 +48,13 @@ use Illuminate\Support\Facades\DB;
  * a negative line on the store's statement.
  * Release (03:30, after clearing days): marketer pending → spendable, then
  * clawback recovery.
+ * Paid (QC-035): when a withdrawal is processed, released conversions are
+ * marked paid oldest first while the marketer's processed withdrawals
+ * still cover them (spendable money is pooled, so FIFO is the attribution).
  * Reverse (cancel / return / refund): pending → amounts dropped (budget
  * freed); approved → mirrored back; released → taken from spendable and
- * the shortfall booked to the clawback bucket (clawback_pending).
+ * the shortfall booked to the clawback bucket (clawback_pending); paid
+ * conversions reverse the same way as released ones.
  */
 class Conversions
 {
@@ -119,6 +125,11 @@ class Conversions
             $fee = self::commissionFee($gross, $rates, $this->money);
             $bonusPercent = (string) $this->settings->get('flash_sale_bonus_percent');
             $bonus = $item->flash_sale_submission_id !== null && bccomp($bonusPercent, '0', 4) > 0 ? $this->money->percentageOf($basis, $bonusPercent) : $this->money->zero($currency);
+            $flashEvent = $item->flash_sale_submission_id === null ? null : FlashSaleSubmission::query()->find($item->flash_sale_submission_id)?->event;
+
+            if ($flashEvent !== null) {
+                $bonus = app(FlashSaleMarketerInvites::class)->bonusFor($flashEvent, $invitation->marketer_profile_id, $basis, (int) $item->quantity) ?? $bonus;
+            }
 
             $conversion = MarketerConversion::query()->create([
                 'campaign_id' => $campaign->id,
@@ -234,6 +245,35 @@ class Conversions
     }
 
     /**
+     * Released → paid (QC-035), oldest first, while the marketer's processed
+     * withdrawals in this currency cover them. Returns how many moved.
+     */
+    public function markPaid(int $marketerProfileId, string $currency): int
+    {
+        $withdrawn = (string) DB::connection((new MarketerConversion)->getConnectionName())->table('marketer_withdrawals')
+            ->where('marketer_profile_id', $marketerProfileId)->where('currency', $currency)->where('status', 'processed')->sum('amount');
+        $alreadyPaid = (string) MarketerConversion::query()->where('marketer_profile_id', $marketerProfileId)->where('currency', $currency)
+            ->whereNotNull('paid_at')->selectRaw('COALESCE(SUM(net + bonus), 0) as total')->value('total');
+        $covered = bcsub($withdrawn, $alreadyPaid, 4);
+        $paid = 0;
+
+        foreach (MarketerConversion::query()->where('marketer_profile_id', $marketerProfileId)->where('currency', $currency)
+            ->where('status', ConversionStatus::Released)->orderBy('released_at')->orderBy('id')->get() as $conversion) {
+            $total = bcadd((string) $conversion->net, (string) $conversion->bonus, 4);
+
+            if (bccomp($total, $covered, 4) > 0) {
+                break;
+            }
+
+            $this->machine->move($conversion, ConversionStatus::Paid, ActorType::System, null, 'Paid out in a withdrawal', ['paid_at' => now()]);
+            $covered = bcsub($covered, $total, 4);
+            $paid++;
+        }
+
+        return $paid;
+    }
+
+    /**
      * Cancel or return of an order item. `$fraction` < 1 (a partial
      * return) only reduces a still-pending conversion; anything already
      * approved is reversed whole.
@@ -242,7 +282,7 @@ class Conversions
     {
         $count = 0;
 
-        foreach (MarketerConversion::query()->where('source_type', 'order_item')->where('source_id', $orderItemId)->whereIn('status', [ConversionStatus::Pending, ConversionStatus::Approved, ConversionStatus::Released])->get() as $conversion) {
+        foreach (MarketerConversion::query()->where('source_type', 'order_item')->where('source_id', $orderItemId)->whereIn('status', [ConversionStatus::Pending, ConversionStatus::Approved, ConversionStatus::Released, ConversionStatus::Paid])->get() as $conversion) {
             $this->reverse($conversion, $fraction, $reason);
             $count++;
         }

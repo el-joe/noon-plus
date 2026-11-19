@@ -4,11 +4,13 @@ import { getT } from "@/lib/i18n";
 import type { Market } from "@/lib/markets";
 
 /** "Nawy for business" strip (Figma Portal header 72:2) shown on the portal pages. */
-export function PortalNav({ market, active }: { market: Market; active?: "sell" | "join" | "advertise" | "status" }) {
+export function PortalNav({ market, active }: { market: Market; active?: "sell" | "join" | "advertise" | "status" | "marketers" | "travel" }) {
   const t = getT(market.locale);
   const links = [
     { key: "sell", path: "/sell", label: t("portal.nav.sell") },
     { key: "join", path: "/join", label: t("portal.nav.join") },
+    { key: "marketers", path: "/marketers", label: t("portalPlus.nav.marketers") },
+    { key: "travel", path: "/sell/travel-agency", label: t("portalPlus.nav.travel") },
     { key: "advertise", path: "/advertise", label: t("portal.nav.advertise") },
     { key: "status", path: "/join/status", label: t("portal.nav.status") },
   ] as const;

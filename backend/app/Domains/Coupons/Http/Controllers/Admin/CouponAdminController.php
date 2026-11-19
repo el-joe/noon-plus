@@ -101,9 +101,32 @@ class CouponAdminController extends Controller
     public function update(Request $request, int $coupon): RedirectResponse
     {
         $coupon = Coupon::query()->findOrFail($coupon);
-        $coupon->update($this->validated($request, $coupon));
+        $data = $this->validated($request, $coupon);
+        $coupon->update($data + ['admin_disabled_at' => $this->adminDisabledAt($coupon, (bool) $data['is_active'])]);
 
         return redirect()->route('admin.coupons.show', $coupon->id)->with('status', __('Coupon saved.'));
+    }
+
+    /**
+     * Switch a coupon off or on again. A seller coupon switched off here
+     * stays off: the seller cannot switch it back on (`admin_disabled_at`).
+     */
+    public function toggle(int $coupon): RedirectResponse
+    {
+        $coupon = $this->scoped(Coupon::query())->findOrFail($coupon);
+        $active = ! $coupon->is_active;
+        $coupon->update(['is_active' => $active, 'admin_disabled_at' => $this->adminDisabledAt($coupon, $active)]);
+
+        return back()->with('status', $active ? __('Coupon switched on.') : __('Coupon switched off.'));
+    }
+
+    private function adminDisabledAt(Coupon $coupon, bool $active): mixed
+    {
+        if ($coupon->scope !== CouponScope::Vendor || $active) {
+            return null;
+        }
+
+        return $coupon->admin_disabled_at ?? now();
     }
 
     private function form(Coupon $coupon): View
@@ -149,6 +172,7 @@ class CouponAdminController extends Controller
             'starts_at' => ['nullable', 'date_format:'.self::LOCAL_FORMAT],
             'ends_at' => ['nullable', 'date_format:'.self::LOCAL_FORMAT],
             'is_active' => ['boolean'],
+            'is_public' => ['boolean'],
         ]);
 
         $validator->after(function (Validator $validator) use ($request): void {
@@ -223,6 +247,7 @@ class CouponAdminController extends Controller
             'starts_at' => filled($data['starts_at'] ?? null) ? $this->clock->localToUtc($country, $data['starts_at']) : null,
             'ends_at' => filled($data['ends_at'] ?? null) ? $this->clock->localToUtc($country, $data['ends_at']) : null,
             'is_active' => (bool) ($data['is_active'] ?? false),
+            'is_public' => (bool) ($data['is_public'] ?? false),
         ];
     }
 

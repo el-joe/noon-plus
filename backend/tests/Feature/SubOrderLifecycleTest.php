@@ -57,7 +57,7 @@ it('lets a customer cancel a shipment before it ships and puts the stock back', 
     [$order, $token, $first] = twoSellerOrder();
     $shipment = $order->subOrders->first();
 
-    $this->withToken($token)->postJson("/api/v1/uae-en/orders/{$order->number}/shipments/{$shipment->number}/cancel", ['reason' => 'Changed my mind'])
+    $this->withToken($token)->postJson("/api/v1/uae-en/orders/{$order->number}/shipments/{$shipment->number}/cancel", ['reason' => 'changed_mind'])
         ->assertOk()
         ->assertJsonPath('data.shipments.0.status', 'cancelled');
 

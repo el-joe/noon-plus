@@ -74,6 +74,16 @@ class MarketerProfile extends Model
         return $this->hasMany(CampaignInvitation::class, 'marketer_profile_id');
     }
 
+    /**
+     * Curated picks (Creator Studio → My products), in display order.
+     *
+     * @return HasMany<MarketerPick, $this>
+     */
+    public function picks(): HasMany
+    {
+        return $this->hasMany(MarketerPick::class, 'marketer_profile_id')->orderBy('position')->orderBy('id');
+    }
+
     public function hasJobType(MarketerJobType $type): bool
     {
         return in_array($type->value, $this->job_types ?? [], true);

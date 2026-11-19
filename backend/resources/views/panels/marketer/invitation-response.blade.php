@@ -11,7 +11,7 @@
 <main class="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-line bg-surface p-6" data-invitation-response>
     <div class="flex items-center gap-2">
         <span class="grid size-9 place-items-center rounded-lg bg-brand font-bold text-fg-on-brand">N</span>
-        <span class="font-bold">Nawy · Creator Studio</span>
+        <span class="font-bold">Nawy · {{ __('Creator Studio') }}</span>
     </div>
     <h1 class="text-xl font-bold">{{ $invitation->campaign->title }}</h1>
     <p class="text-sm text-fg-secondary">{{ $invitation->campaign->listing->variant->product->title_en }}</p>

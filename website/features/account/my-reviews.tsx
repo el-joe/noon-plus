@@ -14,7 +14,8 @@ import { formatDay } from "@/lib/format";
 import { errorMessage } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 
-const TONES = { pending: "warning", approved: "success", rejected: "danger" } as const;
+// QC-012: the author sees `pending`, `published` (was `approved`), `hidden` or `rejected`.
+const TONES = { pending: "warning", published: "success", hidden: "neutral", rejected: "danger" } as const;
 
 /** `/account/reviews` (Figma 105:8879): items waiting for a review + the customer's reviews with moderation status. */
 export function MyReviewsView() {
@@ -59,7 +60,8 @@ export function MyReviewsView() {
         {mine.data && mine.data.length === 0 ? <EmptyState icon={<Star className="size-10" />} title={t("myReviews.empty")} /> : null}
         <div className="flex flex-col gap-3">
           {(mine.data ?? []).map((review) => {
-            const status = (review.status ?? "pending") as keyof typeof TONES;
+            const raw = review.status === "approved" ? "published" : (review.status ?? "pending");
+            const status = (raw in TONES ? raw : "pending") as keyof typeof TONES;
             return (
               <Card key={review.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -78,7 +80,13 @@ export function MyReviewsView() {
                 </div>
                 {review.title ? <p className="text-body font-medium">{review.title}</p> : null}
                 {review.body ? <p className="whitespace-pre-line text-body-sm text-secondary">{review.body}</p> : null}
-                {status === "rejected" && review.rejection_reason ? <p className="text-body-sm text-danger-text">{t("myReviews.rejectedReason", { reason: review.rejection_reason })}</p> : null}
+                {review.seller_reply ? (
+                  <div className="rounded-md border-s-2 border-brand bg-subtle p-3 text-body-sm">
+                    <p className="font-semibold">{review.seller ? t("reviews.sellerReplyFrom", { seller: review.seller }) : t("reviews.sellerReply")}</p>
+                    <p className="whitespace-pre-line">{review.seller_reply.body}</p>
+                  </div>
+                ) : null}
+                {(status === "rejected" || status === "hidden") && review.rejection_reason ? <p className="text-body-sm text-danger-text">{t("myReviews.rejectedReason", { reason: review.rejection_reason })}</p> : null}
               </Card>
             );
           })}

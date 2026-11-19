@@ -1,4 +1,4 @@
-import { ChevronRight, Home, RotateCcw, ShieldCheck } from "lucide-react";
+import { ChevronRight, Home } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,7 +6,12 @@ import { Suspense } from "react";
 import { Container, ProductImage, Skeleton } from "@/components/ui/misc";
 import { AdPlacements } from "@/features/page-builder/blocks/ads";
 import { RatingBadge } from "@/components/ui/rating";
+import { MerchBadge } from "@/components/product/product-card";
+import { CompareToggle, CompareTray } from "@/features/compare/compare-store";
 import { BuyBox } from "@/features/product/buy-box";
+import { FrequentlyBoughtTogether } from "@/features/product/frequently-bought";
+import { SelectedOfferProvider } from "@/features/product/offer-context";
+import { OfferRail } from "@/features/product/offer-rail";
 import { ProductGallery } from "@/features/product/gallery";
 import { ProductQuestions } from "@/features/product/questions";
 import { ProductReviews } from "@/features/product/reviews";
@@ -94,6 +99,7 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
         <span className="line-clamp-1 text-ink">{product.title}</span>
       </nav>
 
+      <SelectedOfferProvider initial={product.buy_box}>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_300px]">
         <ProductGallery images={product.images} title={product.title} slug={product.slug} />
 
@@ -108,38 +114,45 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
             )
           ) : null}
           <h1 className="text-h2 font-semibold">{product.title}</h1>
-          {product.rating && product.rating.count > 0 ? (
-            <a href="#reviews" className="flex items-center gap-2 text-body-sm">
-              <RatingBadge average={product.rating.average} count={product.rating.count} />
-              <span className="text-link">{t("product.ratings", { count: product.rating.count })}</span>
-            </a>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm">
+            {product.rating && product.rating.count > 0 ? (
+              <a href="#reviews" className="flex items-center gap-2">
+                <RatingBadge average={product.rating.average} count={product.rating.count} />
+                <span className="text-link">{t("product.ratings", { count: product.rating.count })}</span>
+              </a>
+            ) : null}
+            {product.model_number ? (
+              <span className="text-secondary">
+                {t("discovery.pdp.model")} <span dir="ltr">{product.model_number}</span>
+              </span>
+            ) : null}
+          </div>
+          {product.badges && product.badges.length > 0 ? (
+            <ul className="flex flex-wrap gap-1.5" aria-label={t("discovery.pdp.badges")}>
+              {product.badges.map((b) => (
+                <li key={b.key}>
+                  <MerchBadge badge={b} />
+                </li>
+              ))}
+            </ul>
           ) : null}
+          <div>
+            <CompareToggle product={{ slug: product.slug, title: product.title, image: product.images[0]?.url ?? null }} />
+          </div>
           <BuyBox product={product} />
         </section>
 
         <aside className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
-            <p className="flex items-start gap-2 text-body-sm">
-              <RotateCcw className="mt-0.5 size-4 shrink-0" />
-              <span>
-                <span className="block font-medium">{t("product.freeReturns")}</span>
-                <span className="text-secondary">{t("product.freeReturnsHint")}</span>
-              </span>
-            </p>
-            <p className="flex items-start gap-2 text-body-sm">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-              <span>
-                <span className="block font-medium">{t("product.securePayments")}</span>
-                <span className="text-secondary">{t("product.securePaymentsHint")}</span>
-              </span>
-            </p>
-          </div>
+          <OfferRail madeToOrderDays={product.made_to_order ? product.lead_days : null} hasWarranty={product.warranty_plans.length > 0} />
           {/* Sponsored alternative (always labelled). */}
           <Suspense fallback={null}>
             <AdPlacements placement="product_page" ctx={{ market, categories: [] }} variant="tile" />
           </Suspense>
         </aside>
       </div>
+      </SelectedOfferProvider>
+
+      <FrequentlyBoughtTogether product={{ slug: product.slug, title: product.title, image: product.images[0]?.url ?? null, price: product.buy_box?.price ?? product.from_price }} />
 
       <nav className="scrollbar-none -mx-4 flex gap-6 overflow-x-auto border-b border-line bg-page px-4 text-body md:sticky md:top-[116px] md:z-10" aria-label={t("product.tabOverview")}>
         <a href="#overview" className="shrink-0 border-b-2 border-brand py-3 font-semibold">
@@ -195,6 +208,7 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
 
       <ProductReviews slug={product.slug} initial={reviews} />
       <ProductQuestions slug={product.slug} />
+      <CompareTray />
     </div>
   );
 }

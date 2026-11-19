@@ -9,6 +9,7 @@ import '../../state/app_state.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/states.dart';
+import 'static_page_screen.dart';
 
 /// Help centre (`help/help_center/collections`, `/search`, `/articles/{slug}`).
 class HelpScreen extends StatefulWidget {
@@ -57,6 +58,27 @@ class _HelpScreenState extends State<HelpScreen> {
                   isEmpty: (l) => l.isEmpty,
                   empty: EmptyView(icon: Icons.help_outline_rounded, title: context.t('help.empty')),
                   builder: (context, collections, _) => ListView(children: [
+                    ListTile(
+                      key: const ValueKey('help-support'),
+                      leading: const Icon(Icons.support_agent_rounded),
+                      title: Text(context.t('support.title')),
+                      subtitle: Text(context.t('support.helpHint')),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.of(context).pushNamed(Routes.support),
+                    ),
+                    ExpansionTile(
+                      key: const ValueKey('help-legal'),
+                      leading: const Icon(Icons.gavel_rounded),
+                      title: Text(context.t('staticPage.legal'), style: NawyText.bodyMedium),
+                      children: [
+                        for (final slug in StaticPageScreen.legalSlugs)
+                          ListTile(
+                            title: Text(context.t('staticPage.$slug')),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => Navigator.of(context).pushNamed(Routes.staticPage, arguments: {'slug': slug, 'title': context.t('staticPage.$slug')}),
+                          ),
+                      ],
+                    ),
                     for (final c in collections)
                       ExpansionTile(
                         title: Text(c.str('title'), style: NawyText.bodyMedium),

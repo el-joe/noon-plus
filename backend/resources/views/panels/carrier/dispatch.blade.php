@@ -2,7 +2,7 @@
     <x-slot:actions>
         <x-ui.button variant="outline" :href="route('carrier.exceptions')">{{ __('Failed deliveries') }}</x-ui.button>
     </x-slot:actions>
-    <p class="text-xs text-fg-secondary">{{ __('The live map needs the real-time client (owner question O1); this board refreshes when you reload.') }}</p>
+    @include('panels.shared.live-dispatch-notice', ['countryCode' => $currentCountry->code])
 
     <div class="grid gap-4 lg:grid-cols-3">
         <x-ui.card :title="__('Drivers & availability')" flush class="lg:col-span-2">
@@ -29,6 +29,20 @@
             </ul>
         </x-ui.card>
     </div>
+
+    <x-ui.card :title="__('Unassigned & exceptions')" flush>
+        <x-ui.table :headers="[__('Shipment'), __('Area'), __('Status'), __('Attempts'), __('Waiting since')]" :rows="$attention->isNotEmpty()" :empty="__('Nothing waiting.')">
+            @foreach ($attention as $shipment)
+                <tr class="border-t border-line" data-attention="{{ $shipment->id }}">
+                    <td class="px-5 py-3 font-medium">{{ $shipment->subOrder?->number }}</td>
+                    <td class="px-5 py-3 text-xs">{{ $shipment->subOrder?->order?->shipping_address['city'] ?? '' }} · {{ $shipment->subOrder?->order?->shipping_address['area'] ?? '' }}</td>
+                    <td class="px-5 py-3"><x-ui.status-badge :status="$shipment->status" /></td>
+                    <td class="px-5 py-3">{{ $shipment->attempts }}</td>
+                    <td class="px-5 py-3 text-xs">{{ $shipment->updated_at?->diffForHumans() }}</td>
+                </tr>
+            @endforeach
+        </x-ui.table>
+    </x-ui.card>
 
     <x-ui.card :title="__('On the road')" flush>
         <x-ui.table :headers="[__('Assignment'), __('Driver'), __('Area'), __('SLA due'), __('Status')]" :rows="$open->isNotEmpty()" :empty="__('Nothing on the road.')">

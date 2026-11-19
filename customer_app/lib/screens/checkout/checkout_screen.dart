@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
@@ -24,6 +26,7 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  String? _attemptKey;
   List<Json>? _addresses;
   Json? _address;
   List<Json> _methods = const [];
@@ -105,14 +108,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       showToast(context, context.t('checkout.needPayment'), error: true);
       return;
     }
+    // QC-044: one Idempotency-Key per order attempt, kept only while the outcome is unknown (network error / 5xx).
+    _attemptKey ??= 'order-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32).toRadixString(36)}';
     try {
-      final res = await _app.api.post('orders', body: {'payment_method': _method, 'address_id': _address!.i('id')});
+      final res = await _app.api.post('orders', body: {'payment_method': _method, 'address_id': _address!.i('id')}, headers: {'Idempotency-Key': _attemptKey!});
+      _attemptKey = null;
       final order = asJson(res.data);
       _app.cart.clear();
       await _app.cart.refresh().catchError((_) => null);
       if (!mounted) return;
       await continuePayment(context, payment: order.m('payment'), orderNumber: order.str('number'));
     } on ApiException catch (e) {
+      if (e.status < 500) _attemptKey = null;
       if (!mounted) return;
       if (e.code == 'customer_contract_required') {
         final contracts = asJsonList(e.details['contracts']);

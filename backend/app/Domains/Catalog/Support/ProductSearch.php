@@ -7,8 +7,10 @@ use App\Domains\Catalog\Models\Brand;
 use App\Domains\Catalog\Models\Category;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductVariant;
+use App\Domains\Listings\Models\Listing;
 use App\Domains\Listings\Support\BuyBox;
 use App\Domains\Vendors\Models\Vendor;
+use App\Shared\Http\LikeSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +23,9 @@ use Illuminate\Support\Facades\DB;
  * Filters: q, category (slug, all descendants), brand (slugs, comma
  * separated), seller (vendor slugs), min_price / max_price (buy-box price),
  * rating (minimum average), attr[key] (variant option values, comma separated).
+ * `store` (a vendor id, set by the seller storefront, never from the
+ * request) scopes products, offers and every facet to that one store
+ * (RT-005); unlike `seller` it is never left out of a facet.
  */
 class ProductSearch
 {
@@ -40,8 +45,10 @@ class ProductSearch
         return Product::query()
             ->where('products.status', 'active')
             ->whereExists($this->buyBox->hasSellableOfferSubquery())
+            ->when($filters['store'] ?? null, fn (Builder $query, int $vendorId) => $query->whereExists($this->offerWhere(fn ($listings) => $listings->where('listings.vendor_id', $vendorId))))
             ->when($use('q'), fn (Builder $query, string $term) => $query->where(
-                fn (Builder $search) => $search->where('products.title_en', 'like', '%'.$term.'%')->orWhere('products.title_ar', 'like', '%'.$term.'%')
+                fn (Builder $search) => $search->where('products.title_en', 'like', LikeSearch::contains($term))->orWhere('products.title_ar', 'like', LikeSearch::contains($term))
+                    ->when(SearchText::normalise($term) !== '', fn (Builder $index) => $index->orWhere('products.search_text', 'like', LikeSearch::contains(SearchText::normalise($term))))
             ))
             ->when($use('category'), fn (Builder $query, string $slug) => $query->whereIn('products.category_id', $this->categoryAndDescendantIds($slug)))
             ->when(self::slugs($use('brand')), fn (Builder $query, array $slugs) => $query->whereIn('products.brand_id', Brand::query()->select('id')->whereIn('slug', $slugs)))
@@ -64,7 +71,41 @@ class ProductSearch
 
                     $query->whereHas('variants', fn (Builder $variant) => $variant->whereIn('option_values->'.$key, $values));
                 }
-            });
+            })
+            // QC-027 rail: fulfilled by (fbm / fbn), condition and deals, on any sellable offer of the product.
+            ->when(self::slugs($use('fulfilment')), fn (Builder $query, array $values) => $query->whereExists($this->offerWhere(fn ($listings) => $listings->whereIn('listings.fulfilment', $values))))
+            ->when(self::slugs($use('condition')), fn (Builder $query, array $values) => $query->whereExists($this->offerWhere(fn ($listings) => $listings->whereIn('listings.condition', $values))))
+            ->when($use('deals'), fn (Builder $query) => $query->whereExists($this->offerWhere(fn ($listings) => $this->onDeal($listings))));
+    }
+
+    /**
+     * Correlated: `products.id` has a sellable offer matching `$constraint`.
+     *
+     * @param  callable(Builder<Listing>): mixed  $constraint
+     */
+    private function offerWhere(callable $constraint): \Illuminate\Database\Query\Builder
+    {
+        $listings = $this->buyBox->sellableListings()
+            ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
+            ->whereColumn('product_variants.product_id', 'products.id');
+        $constraint($listings);
+
+        return $listings->selectRaw('1')->toBase();
+    }
+
+    /**
+     * An offer on deal: a sale price under the regular one, or an approved / live flash deal running now.
+     *
+     * @param  Builder<Listing>  $listings
+     */
+    private function onDeal(Builder $listings): void
+    {
+        $listings->where(fn (Builder $deal) => $deal->where(fn (Builder $sale) => $sale->whereNotNull('listings.sale_price')->whereColumn('listings.sale_price', '<', 'listings.price'))
+            ->orWhereExists(fn ($flash) => $flash->selectRaw('1')->from('flash_sale_submissions')
+                ->join('flash_sale_events', 'flash_sale_events.id', '=', 'flash_sale_submissions.flash_sale_event_id')
+                ->whereColumn('flash_sale_submissions.listing_id', 'listings.id')
+                ->whereIn('flash_sale_submissions.status', ['approved', 'live'])
+                ->where('flash_sale_events.starts_at', '<=', now())->where('flash_sale_events.ends_at', '>', now())));
     }
 
     /**
@@ -79,6 +120,9 @@ class ProductSearch
             'price' => $this->priceFacet($filters),
             'ratings' => $this->ratingFacet($filters),
             'attributes' => $this->attributeFacet($filters),
+            'fulfilment' => $this->offerFacet($filters, 'fulfilment'),
+            'conditions' => $this->offerFacet($filters, 'condition'),
+            'deals' => $this->query($filters, 'deals')->whereExists($this->offerWhere(fn ($listings) => $this->onDeal($listings)))->count(),
         ];
     }
 
@@ -127,7 +171,7 @@ class ProductSearch
      */
     private function sellerFacet(array $filters): array
     {
-        $counts = $this->buyBox->sellableListings()
+        $counts = $this->storeOffers($filters)
             ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
             ->whereIn('product_variants.product_id', $this->query($filters, 'seller')->select('products.id'))
             ->toBase()
@@ -181,6 +225,7 @@ class ProductSearch
     {
         $variants = ProductVariant::query()
             ->whereIn('product_id', $this->query($filters, 'attr')->select('products.id'))
+            ->when($filters['store'] ?? null, fn (Builder $query, int $vendorId) => $query->whereIn('id', $this->storeOffers($filters)->select('listings.product_variant_id')))
             ->whereNotNull('option_values')
             ->get(['product_id', 'option_values']);
         $products = [];
@@ -201,6 +246,39 @@ class ProductSearch
 
             return ['key' => $key, 'values' => $rows];
         }, array_keys($products), $products));
+    }
+
+    /**
+     * Products per offer value (fulfilment fbm / fbn, or condition), with
+     * every other filter applied.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array{value: string, count: int}>
+     */
+    private function offerFacet(array $filters, string $column): array
+    {
+        return $this->storeOffers($filters)
+            ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
+            ->whereIn('product_variants.product_id', $this->query($filters, $column)->select('products.id'))
+            ->toBase()
+            ->select("listings.{$column} as value", DB::raw('count(distinct product_variants.product_id) as total'))
+            ->groupBy("listings.{$column}")
+            ->orderByDesc('total')->orderBy('value')
+            ->get()
+            ->map(fn ($row): array => ['value' => (string) $row->value, 'count' => (int) $row->total])
+            ->all();
+    }
+
+    /**
+     * Sellable offers, only the store's when the search is scoped to one.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Builder<Listing>
+     */
+    private function storeOffers(array $filters): Builder
+    {
+        return $this->buyBox->sellableListings()
+            ->when($filters['store'] ?? null, fn (Builder $listings, int $vendorId) => $listings->where('listings.vendor_id', $vendorId));
     }
 
     /**

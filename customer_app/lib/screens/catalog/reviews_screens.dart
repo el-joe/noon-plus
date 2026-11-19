@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:nawy_core/device.dart' show AttachmentPicker, PickedMedia, UploadRules;
 
 import '../../core/api/api_client.dart';
 import '../../core/json.dart';
+import '../../core/uploads.dart';
 import '../../l10n/l10n.dart';
 import '../../routing/guards.dart';
 import '../../state/app_state.dart';
@@ -63,9 +65,12 @@ class RatingSummary extends StatelessWidget {
 }
 
 class ReviewTile extends StatefulWidget {
-  const ReviewTile({super.key, required this.review});
+  const ReviewTile({super.key, required this.review, this.mine = false});
 
   final Json review;
+
+  /// The author's own list (`GET me/reviews`): status, no vote / report.
+  final bool mine;
 
   @override
   State<ReviewTile> createState() => _ReviewTileState();
@@ -89,9 +94,20 @@ class _ReviewTileState extends State<ReviewTile> {
     }
   }
 
+  /// `POST reviews/{id}/report` (QC-012): the review stays public until a
+  /// moderator decides.
+  Future<void> _report() async {
+    if (!await requireSignIn(context) || !mounted) return;
+    final app = AppScope.read(context);
+    final report = await showNawySheet<Json>(context, title: context.t('reviews.reportTitle'), builder: (_) => const ReportReviewSheet());
+    if (report == null || !mounted) return;
+    await guarded(context, () => app.api.post('reviews/${widget.review.i('id')}/report', body: report), success: context.t('reviews.reported'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = widget.review;
+    final reply = r.m('seller_reply');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -99,7 +115,8 @@ class _ReviewTileState extends State<ReviewTile> {
           Text('★' * (r.i('rating') ?? 0), style: NawyText.label.copyWith(color: NawyColors.bgBrand)),
           Text('☆' * (5 - (r.i('rating') ?? 0)), style: NawyText.label.copyWith(color: NawyColors.borderDefault)),
           const SizedBox(width: 8),
-          if (r.s('title') != null) Expanded(child: Text(r.str('title'), style: NawyText.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          if (r.s('title') != null) Expanded(child: Text(r.str('title'), style: NawyText.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)) else const Spacer(),
+          if (widget.mine) Pill.status(context, r.s('status')),
         ]),
         Text([r.s('author'), shortDate(context, r.s('created_at')), if (r.b('verified_purchase')) context.t('reviews.verified')].whereType<String>().join(' · '),
             style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
@@ -109,14 +126,111 @@ class _ReviewTileState extends State<ReviewTile> {
             padding: const EdgeInsets.only(top: 6),
             child: Wrap(spacing: 6, children: [for (final p in r.l('photos')) SizedBox(width: 56, height: 56, child: NetImage(p.s('url'), radius: NawyRadius.sm))]),
           ),
-        TextButton.icon(
-          onPressed: _vote,
-          icon: Icon(_voted ? Icons.thumb_up_rounded : Icons.thumb_up_outlined, size: 16),
-          label: Text(context.t('reviews.helpful', {'count': _count})),
-        ),
+        if (reply != null && reply.s('body') != null)
+          Container(
+            key: const ValueKey('review-seller-reply'),
+            margin: const EdgeInsetsDirectional.only(top: 8, start: 12),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: NawyColors.bgPage, borderRadius: BorderRadius.circular(NawyRadius.md), border: const BorderDirectional(start: BorderSide(color: NawyColors.bgBrand, width: 3))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text([context.t('reviews.sellerReply'), shortDate(context, reply.s('created_at'))].where((e) => e.isNotEmpty).join(' · '), style: NawyText.label),
+              const SizedBox(height: 2),
+              Text(reply.str('body'), style: NawyText.bodySm),
+            ]),
+          ),
+        if (!widget.mine)
+          Wrap(spacing: 4, children: [
+            TextButton.icon(
+              onPressed: _vote,
+              icon: Icon(_voted ? Icons.thumb_up_rounded : Icons.thumb_up_outlined, size: 16),
+              label: Text(context.t('reviews.helpful', {'count': _count})),
+            ),
+            TextButton.icon(
+              key: ValueKey('review-report-${r.i('id')}'),
+              onPressed: _report,
+              style: TextButton.styleFrom(foregroundColor: NawyColors.textSecondary),
+              icon: const Icon(Icons.flag_outlined, size: 16),
+              label: Text(context.t('reviews.report')),
+            ),
+          ]),
       ]),
     );
   }
+}
+
+/// Reasons accepted by `POST reviews/{id}/report`.
+const reviewReportReasons = ['spam', 'offensive', 'fake', 'irrelevant', 'personal_data', 'other'];
+
+/// Pick a reason and an optional note; pops `{reason, note}`.
+class ReportReviewSheet extends StatefulWidget {
+  const ReportReviewSheet({super.key});
+
+  @override
+  State<ReportReviewSheet> createState() => _ReportReviewSheetState();
+}
+
+class _ReportReviewSheetState extends State<ReportReviewSheet> {
+  String? _reason;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          RadioGroup<String>(
+            groupValue: _reason,
+            onChanged: (v) => setState(() => _reason = v),
+            child: Column(children: [
+              for (final reason in reviewReportReasons)
+                RadioListTile<String>(key: ValueKey('report-$reason'), contentPadding: EdgeInsets.zero, value: reason, title: Text(context.t('reviews.reason.$reason'))),
+            ]),
+          ),
+          TextField(controller: _note, maxLines: 2, maxLength: 500, decoration: InputDecoration(labelText: context.t('reviews.reportNote'))),
+          const SizedBox(height: 8),
+          FilledButton(
+            key: const ValueKey('report-submit'),
+            onPressed: _reason == null ? null : () => Navigator.of(context).pop(<String, dynamic>{'reason': _reason, if (_note.text.trim().isNotEmpty) 'note': _note.text.trim()}),
+            child: Text(context.t('reviews.report')),
+          ),
+        ]),
+      );
+}
+
+/// The customer's own reviews (`GET me/reviews`): `pending`, `published`,
+/// `hidden` or `rejected`, with the store's reply once published.
+class MyReviewsScreen extends StatelessWidget {
+  const MyReviewsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(context.t('reviews.mine')),
+          actions: [IconButton(tooltip: context.t('reviews.write'), onPressed: () => Navigator.of(context).pushNamed(Routes.writeReview), icon: const Icon(Icons.rate_review_outlined))],
+        ),
+        body: AsyncBody<List<Json>>(
+          load: () => AppScope.read(context).api.getList('me/reviews', query: {'per_page': 50}).then((r) => r.data),
+          isEmpty: (l) => l.isEmpty,
+          builder: (context, reviews, _) => ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: reviews.length,
+            separatorBuilder: (_, _) => const Divider(),
+            itemBuilder: (context, i) {
+              final r = reviews[i];
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if ((r.m('product')?.s('title') ?? r.s('product_title')) != null)
+                  Padding(padding: const EdgeInsets.only(top: 10), child: Text(r.m('product')?.s('title') ?? r.str('product_title'), style: NawyText.label)),
+                ReviewTile(key: ValueKey('my-review-${r.i('id')}'), review: r, mine: true),
+              ]);
+            },
+          ),
+        ),
+      );
 }
 
 /// PDP section: summary + top reviews + "See all".
@@ -278,8 +392,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 }
 
 /// Figma "18 Write review": pick a delivered item (`me/reviewable-items`),
-/// stars, title and text (`POST reviews`). Photos need an image picker
-/// package (owner-review WP10).
+/// stars, title, text and up to 5 photos (`POST reviews`, `photos[]` as
+/// multipart when photos are added; image_picker, owner-review D16).
 class WriteReviewScreen extends StatefulWidget {
   const WriteReviewScreen({super.key, this.orderItemId});
 
@@ -294,6 +408,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   int _rating = 0;
   final _title = TextEditingController();
   final _body = TextEditingController();
+  List<PickedMedia> _photos = const [];
   Map<String, String> _errors = {};
 
   @override
@@ -309,12 +424,13 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       return;
     }
     try {
-      await AppScope.read(context).api.post('reviews', body: {'order_item_id': _item, 'rating': _rating, 'title': _title.text.trim(), 'body': _body.text.trim()});
+      final body = {'order_item_id': _item, 'rating': _rating, 'title': _title.text.trim(), 'body': _body.text.trim()};
+      final res = await postWithFiles(AppScope.read(context).api, 'reviews', body, field: 'photos', files: _photos);
       if (!mounted) return;
-      showToast(context, context.t('reviews.submitted'));
+      showToast(context, context.t(asJson(res.data).s('status') == 'published' ? 'reviews.published' : 'reviews.submitted'));
       Navigator.of(context).pop();
     } on ApiException catch (e) {
-      setState(() => _errors = {...e.fieldErrors, if (e.fieldErrors.isEmpty) 'form': e.message});
+      setState(() => _errors = {...e.fieldErrors, if (e.fieldErrors.isEmpty) 'form': errorMessage(context, e)});
     }
   }
 
@@ -349,6 +465,11 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             TextField(controller: _title, decoration: InputDecoration(labelText: context.t('reviews.reviewTitle'), errorText: _errors['title'])),
             const SizedBox(height: 12),
             TextField(controller: _body, maxLines: 5, decoration: InputDecoration(labelText: context.t('reviews.body'), errorText: _errors['body'])),
+            const SizedBox(height: 16),
+            Text(context.t('reviews.photos'), style: NawyText.label),
+            const SizedBox(height: 8),
+            AttachmentPicker(files: _photos, rules: UploadRules.reviewPhotos, t: context.t, onChanged: (files) => setState(() => _photos = files)),
+            if (_errors['photos'] != null) Text(_errors['photos']!, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger)),
             if (_errors['form'] != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_errors['form']!, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
             const SizedBox(height: 16),
             BusyButton(label: context.t('reviews.submit'), onPressed: _submit),

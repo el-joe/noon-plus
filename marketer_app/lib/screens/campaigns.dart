@@ -35,7 +35,7 @@ class CampaignsScreen extends StatelessWidget {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         Expanded(child: Text(c.str('name', '—'), style: NawyText.h4)),
-                        if (c.s('status') != null) StatusChip(c.str('status')),
+                        if (c.s('status') != null) StatusChip(campaignChipStatus(c.str('status')), label: context.l10n.status(c.str('status'))),
                       ]),
                       if (c.s('seller') != null) Text(c.str('seller'), style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary)),
                       const SizedBox(height: 6),

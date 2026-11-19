@@ -5,6 +5,7 @@ import "../globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/layout/header";
 import { Footer, FooterFallback } from "@/components/layout/footer";
+import { MergeWarningsBanner } from "@/features/cart/merge-warnings-banner";
 import { CookieConsent } from "@/features/content/cookie-consent";
 import { MiniPlayer } from "@/features/live/mini-player";
 import { LivePlayerProvider } from "@/features/live/player-context";
@@ -40,11 +41,19 @@ export default async function MarketLayout({ children, params }: LayoutProps<"/[
       <body className="flex min-h-full flex-col bg-page text-ink">
         <Providers market={market} messages={getMessages(market.locale)}>
           <LivePlayerProvider>
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Suspense fallback={<FooterFallback market={market} />}>
-              <Footer market={market} />
-            </Suspense>
+            {/* QC-058: checkout pages render <CheckoutChrome>, which hides the store header and footer (globals.css). */}
+            <div data-store-chrome className="contents">
+              <Header />
+            </div>
+            <main className="flex-1">
+              <MergeWarningsBanner />
+              {children}
+            </main>
+            <div data-store-chrome className="contents">
+              <Suspense fallback={<FooterFallback market={market} />}>
+                <Footer market={market} />
+              </Suspense>
+            </div>
             {/* Floating Nawy TV player (keeps playing across pages) and cookie consent (non-essential off by default). */}
             <Suspense fallback={null}>
               <MiniPlayer />

@@ -16,6 +16,9 @@ use Illuminate\View\View;
 
 /**
  * Second sign-in step for panel accounts with two-step sign-in turned on.
+ * The pending challenge (set after a correct password) lives for
+ * `nawy.panel_auth.two_factor_challenge_minutes`; after that the session entry
+ * is dropped and the person starts again from the password.
  */
 class TwoFactorChallengeController extends Controller
 {
@@ -25,7 +28,7 @@ class TwoFactorChallengeController extends Controller
         $pending = $this->pendingUser($request, $panel);
 
         if ($pending === null) {
-            return redirect()->route($panel->route('login'));
+            return $this->backToLogin($request, $panel);
         }
 
         return view('panels.auth.two-factor', [
@@ -45,7 +48,7 @@ class TwoFactorChallengeController extends Controller
         $user = $this->pendingUser($request, $panel);
 
         if ($user === null) {
-            return redirect()->route($panel->route('login'));
+            return $this->backToLogin($request, $panel);
         }
 
         $code = $request->validate([
@@ -79,6 +82,22 @@ class TwoFactorChallengeController extends Controller
             return null;
         }
 
+        if (! isset($pending['expires_at']) || now()->getTimestamp() >= (int) $pending['expires_at']) {
+            $request->session()->forget('two_factor');
+            $request->session()->flash('two_factor_expired', true);
+
+            return null;
+        }
+
         return User::query()->find($pending['user_id']);
+    }
+
+    private function backToLogin(Request $request, Panel $panel): RedirectResponse
+    {
+        $redirect = redirect()->route($panel->route('login'));
+
+        return $request->session()->pull('two_factor_expired')
+            ? $redirect->withErrors(['email' => __('Your sign-in code request expired. Enter your password again.')])
+            : $redirect;
     }
 }

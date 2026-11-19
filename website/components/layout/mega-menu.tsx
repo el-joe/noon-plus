@@ -61,7 +61,8 @@ export function CategoryNav() {
       <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
       <nav className="scrollbar-none flex min-w-0 items-center gap-5 overflow-x-auto whitespace-nowrap">
         {categories.map((category) => (
-          <Link key={category.slug} href={href(categoryPath(category))} className="text-body text-ink hover:text-brand-text">
+          // The nav bar sits inside the menu's outside-click boundary: close the open menu on navigation.
+          <Link key={category.slug} href={href(categoryPath(category))} onClick={() => setOpen(false)} className="text-body text-ink hover:text-brand-text">
             {category.name}
           </Link>
         ))}

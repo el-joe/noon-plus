@@ -4,14 +4,16 @@ namespace App\Domains\Reviews\Http\Controllers;
 
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductMedia;
-use App\Domains\Reviews\Enums\ModerationStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Http\Requests\ReviewIndexRequest;
 use App\Domains\Reviews\Http\Requests\StoreReviewRequest;
 use App\Domains\Reviews\Http\Resources\ReviewResource;
 use App\Domains\Reviews\Models\ProductReview;
+use App\Domains\Reviews\Models\ProductReviewReport;
 use App\Domains\Reviews\Models\ProductReviewVote;
 use App\Domains\Reviews\Support\ProductReviews;
 use App\Domains\Reviews\Support\RatingAggregates;
+use App\Domains\Reviews\Support\ReviewFeedback;
 use App\Domains\Vendors\Models\Vendor;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
@@ -19,6 +21,7 @@ use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Reviews & ratings API (G-W3): product and seller rating summaries with
@@ -60,7 +63,7 @@ class ReviewController extends Controller
     {
         $page = ProductReview::query()
             ->where('customer_user_id', $request->user()->id)
-            ->with(['photos', 'vendor', 'product'])
+            ->with(['photos', 'vendor', 'product', 'reply'])
             ->latest('id')
             ->paginate(20);
 
@@ -107,9 +110,30 @@ class ReviewController extends Controller
         return $this->vote($request, $review, false);
     }
 
+    /**
+     * QC-012: report a published review (once per customer, not one's own);
+     * the first report sends it to the moderation queue.
+     */
+    public function report(Request $request, int $review, ReviewFeedback $feedback): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(ProductReviewReport::REASONS)],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $subject = ProductReview::query()->whereIn('status', ReviewStatus::public())->findOrFail($review);
+
+        try {
+            $feedback->report($subject, $request->user()->id, 'customer', $data['reason'], $data['note'] ?? null);
+        } catch (TransitionRefused $refused) {
+            return ApiResponse::error('report_not_allowed', $refused->getMessage(), 422);
+        }
+
+        return ApiResponse::success(['reported' => true], status: 201);
+    }
+
     private function vote(Request $request, int $reviewId, bool $helpful): JsonResponse
     {
-        $review = ProductReview::query()->where('status', ModerationStatus::Approved)->findOrFail($reviewId);
+        $review = ProductReview::query()->whereIn('status', ReviewStatus::public())->findOrFail($reviewId);
 
         try {
             $review = $this->reviews->vote($review, $request->user()->id, $helpful);
@@ -127,8 +151,8 @@ class ReviewController extends Controller
     private function published(ReviewIndexRequest $request, Builder $scope, array $extra = []): JsonResponse
     {
         $filters = $request->validated();
-        $query = (clone $scope)->where('status', ModerationStatus::Approved)
-            ->with(['photos', 'vendor'])
+        $query = (clone $scope)->whereIn('status', ReviewStatus::public())
+            ->with(['photos', 'vendor', 'reply'])
             ->when($filters['rating'] ?? null, fn (Builder $query, int|string $rating) => $query->where('rating', (int) $rating))
             ->when($request->boolean('with_photos'), fn (Builder $query) => $query->has('photos'));
 

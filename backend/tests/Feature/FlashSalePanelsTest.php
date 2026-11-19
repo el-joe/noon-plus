@@ -145,3 +145,24 @@ it('lets operations view flash sales but only marketing manage them', function (
 
     expect($event->fresh()->status)->toBe(FlashSaleEventStatus::Draft);
 });
+
+it('leaves a withdrawn listing out of the offer form for that event, says why, and still refuses it on the server', function () {
+    $event = openFlashSale();
+    $other = FlashSaleEvent::factory()->inStatus(FlashSaleEventStatus::SubmissionOpen)->create(['name' => 'Blue Week']);
+    $listing = sellableListing('100.00', stock: 10, vendor: $this->vendor);
+    $submission = app(FlashSaleSubmissionMachine::class)->submit($event, $listing, '79.00', 5, $this->seller->id);
+    app(FlashSaleSubmissionMachine::class)->transition($submission, FlashSaleSubmissionStatus::Withdrawn, ActorType::Vendor, $this->seller->id);
+
+    $page = $this->actingAs($this->seller)->get(onPanel('partner', 'flash-sales'))->assertOk();
+    $html = $page->getContent();
+    $formFor = fn (int $eventId): string => (string) preg_replace('/^.*?(<form[^>]*data-event="'.$eventId.'".*?<\/form>).*$/s', '$1', $html);
+
+    expect($formFor($event->id))->not->toContain('value="'.$listing->id.'"')
+        // Another open event still offers it.
+        ->and($formFor($other->id))->toContain('value="'.$listing->id.'"');
+    $page->assertSee('data-withdrawn-note', false)->assertSee('a withdrawal is final');
+
+    $this->post(onPanel('partner', "flash-sales/{$event->id}/submissions"), ['listing_id' => $listing->id, 'flash_price' => '75.00', 'quantity_cap' => 2])
+        ->assertSessionHasErrors(['action' => __('You withdrew this listing from this flash sale; a withdrawal is final, so it cannot be offered to the same event again.')]);
+    expect($submission->fresh()->status)->toBe(FlashSaleSubmissionStatus::Withdrawn);
+});

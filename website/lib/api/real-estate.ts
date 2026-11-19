@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { get, request, type Query } from "./client";
+import { ApiError, buildUrl, get, request, type Query } from "./client";
 import { money } from "./schemas";
 
 /*
@@ -146,11 +146,48 @@ export type PropertyFilters = {
 
 export const getClassifiedCategories = (market: string) => get(market, "classifieds/categories", z.array(classifiedCategory));
 export const getProperties = (market: string, filters: PropertyFilters) => get(market, "classifieds/ads", z.array(propertyCard), filters as Query);
+/**
+ * FR-CLS-5 map view: `GET classifieds/map` (ClassifiedController@map) — every
+ * live ad matching the filters that has a location, as a bare GeoJSON
+ * FeatureCollection (no `{data}` envelope; the API caps it at 500 points).
+ */
+const mapFeatureCollection = z.object({
+  type: z.literal("FeatureCollection"),
+  features: z.array(
+    z.object({
+      type: z.literal("Feature"),
+      geometry: z.object({ type: z.string(), coordinates: z.unknown() }),
+      properties: z.object({
+        number: z.string(),
+        title: z.string(),
+        price: z.union([z.string(), z.number()]).nullable().transform((v) => (v === null ? null : String(v))),
+        currency: z.string().nullable(),
+        featured: z.boolean().optional(),
+      }),
+    }),
+  ),
+});
+export type PropertyMapCollection = z.infer<typeof mapFeatureCollection>;
+
+export async function getPropertyMap(market: string, filters: PropertyFilters): Promise<PropertyMapCollection> {
+  const query: Query = {};
+  for (const [k, v] of Object.entries(filters)) if (k !== "page" && k !== "per_page" && k !== "sort") query[k] = v;
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(market, "classifieds/map", query), { headers: { Accept: "application/json" }, cache: "no-store" });
+  } catch (cause) {
+    throw new ApiError(0, "network_error", cause instanceof Error ? cause.message : "Network error");
+  }
+  if (!response.ok) throw new ApiError(response.status, "http_error", response.statusText || "http_error");
+  const parsed = mapFeatureCollection.safeParse(await response.json().catch(() => null));
+  if (!parsed.success) throw new ApiError(response.status, "invalid_response", "The server returned an unexpected response.");
+  return parsed.data;
+}
 export const getProperty = (market: string, number: string) => get(market, `classifieds/ads/${encodeURIComponent(number)}`, propertyDetail);
 export const getBroker = (market: string, slug: string) => get(market, `brokers/${encodeURIComponent(slug)}`, brokerProfile);
 
 export const requestViewing = (market: string, number: string, body: { name: string; email: string; phone: string; preferred_at: string; message?: string; type?: "viewing" | "reserve" }) =>
-  request(market, `classifieds/ads/${encodeURIComponent(number)}/viewings`, z.object({ id: z.number(), status: z.string() }), { method: "POST", body });
+  request(market, `classifieds/ads/${encodeURIComponent(number)}/viewings`, z.object({ id: z.number(), type: z.string().optional() }), { method: "POST", body });
 
 export const getSpecialRequests = (market: string) => get(market, "special-requests", z.array(specialRequest));
 export type SpecialRequestInput = {

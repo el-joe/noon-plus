@@ -39,7 +39,7 @@ export function SectionBand({ s, ctx, renderChild }: { s: Settings; ctx: BlockCo
   return (
     <div
       className="rounded-lg bg-cover bg-center p-4"
-      style={{ backgroundColor: background(s) ?? "#fff8e6", backgroundImage: image && /^https?:\/\//.test(image) ? `url("${image}")` : undefined }}
+      style={{ backgroundColor: background(s) ?? "var(--color-brand-subtle)", backgroundImage: image && /^https?:\/\//.test(image) ? `url("${image}")` : undefined }}
     >
       <BlockSection s={{ ...s, background: undefined }} ctx={ctx}>
         <div className="flex flex-col gap-4">{children.map((child, i) => renderChild(child, { ...ctx, depth: (ctx.depth ?? 0) + 1 }, i))}</div>

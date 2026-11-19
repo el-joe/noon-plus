@@ -31,6 +31,7 @@
     "nights": "{count, plural, one {# night} other {# nights}}",
     "byAgency": "By {agency}",
     "soldOut": "Sold out",
+    "related": "You may also like",
     "empty": "No trips match your search yet.",
     "emptyBody": "Try another destination, trip type or month.",
     "comingSoon": "Travel agencies are adding their packages. Check back soon.",
@@ -45,7 +46,7 @@
       "notIncluded": "Not included",
       "itinerary": "Itinerary",
       "day": "Day {day}",
-      "policy": "Cancellation & payment",
+      "policy": "Cancellation policy",
       "refundTier": "{percent}% refund when cancelled {days}+ days before departure",
       "noPaymentPolicy": "No payment on Nawy: you send a booking request, the agency confirms your seats and you pay them directly.",
       "chooseDeparture": "Choose departure",
@@ -57,7 +58,11 @@
       "requestToBook": "Request to book",
       "askAgency": "Ask the agency",
       "noDepartures": "No upcoming departures — ask the agency for dates.",
-      "departsReturns": "{from} → {to}"
+      "departsReturns": "{from} → {to}",
+      "adults": "Adults",
+      "children": "Children",
+      "childPrice": "{price} per child",
+      "noChildPrice": "No child price on this departure"
     },
     "roomType": {
       "single": "Single",
@@ -65,7 +70,8 @@
       "twin": "Twin",
       "triple": "Triple",
       "quad": "Quad",
-      "family": "Family"
+      "family": "Family",
+      "child": "Child"
     },
     "contact": {
       "name": "Full name",
@@ -121,7 +127,11 @@
       "checkFields": "{count, plural, one {Check # field} other {Check # fields}}",
       "checkFieldsHint": "Fix the highlighted fields and send again.",
       "noSeats": "Not enough seats left on this departure.",
-      "unavailable": "This trip is not open for booking right now."
+      "unavailable": "This trip is not open for booking right now.",
+      "fewerChildren": "Fewer children",
+      "moreChildren": "More children",
+      "adultsChildren": "{adults, plural, one {# adult} other {# adults}}, {children, plural, one {# child} other {# children}}",
+      "childLine": "{count} × Child · {price}"
     },
     "sent": {
       "title": "Booking request sent",
@@ -222,6 +232,11 @@
       "email": "Email",
       "send": "Resend my booking link",
       "sent": "If we have bookings for {email}, the links are on their way. Check your inbox."
+    },
+    "stats": {
+      "rating": "{rating}",
+      "agencyTrips": "{count, plural, one {# trip by this agency} other {# trips by this agency}}",
+      "travellers": "{count, plural, one {# traveller} other {# travellers}}"
     }
   }
 }

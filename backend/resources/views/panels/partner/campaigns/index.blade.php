@@ -1,6 +1,8 @@
 <x-layouts.panel :title="__('Marketer campaigns')" :subtitle="__('Influencers, affiliates and brokers promoting your listings')" :breadcrumbs="[__('Seller Center'), __('Growth'), __('Marketer campaigns')]">
     <x-slot:actions>
-        <x-ui.button :href="route('partner.campaigns.create')">{{ __('New marketer campaign') }}</x-ui.button>
+        @if (app(\App\Domains\Panels\Support\TenantPermissions::class)->allows(request(), 'partner', 'campaigns', true))
+            <x-ui.button :href="route('partner.campaigns.create')">{{ __('New marketer campaign') }}</x-ui.button>
+        @endif
     </x-slot:actions>
 
     <form method="GET" class="flex gap-2">

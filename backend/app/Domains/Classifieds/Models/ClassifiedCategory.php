@@ -3,6 +3,7 @@
 namespace App\Domains\Classifieds\Models;
 
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Settings\VerticalSettings;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Support\Collection;
 /**
  * A dynamic classified category (FR-CLS-3): optional website section and vertical inherit from the parent; attributes inherit down the tree; the contract flag decides whether the seller signs before submission.
  */
-#[Fillable(['parent_id', 'slug', 'name_en', 'name_ar', 'section', 'vertical', 'requires_contract', 'listing_duration_days', 'renewal_price', 'max_photos', 'allows_video', 'is_active', 'sort_order'])]
+#[Fillable(['parent_id', 'slug', 'name_en', 'name_ar', 'section', 'vertical', 'requires_contract', 'listing_duration_days', 'renewal_price', 'max_photos', 'photo_max_kb', 'allows_video', 'is_active', 'sort_order'])]
 class ClassifiedCategory extends Model
 {
     use UsesCountryDatabase;
@@ -157,6 +158,24 @@ class ClassifiedCategory extends Model
         };
 
         return $all->keys()->filter(fn (int $id): bool => $resolve($id) === $vertical)->values()->all();
+    }
+
+    /**
+     * Upload limits for ads in this category: `max_photos` (the category's
+     * own value, else `classified.max_photos`) and `photo_max_kb` (nearest
+     * value up the tree, else `classified.photo_max_kb`), never above the
+     * platform ceiling of 20 MB per photo.
+     *
+     * @return array{max_photos: int, photo_max_kb: int}
+     */
+    public function photoLimits(): array
+    {
+        $settings = app(VerticalSettings::class);
+
+        return [
+            'max_photos' => max(1, (int) ($this->max_photos ?: $settings->int('classified.max_photos'))),
+            'photo_max_kb' => max(100, min(20480, (int) ($this->inherited('photo_max_kb') ?: $settings->int('classified.photo_max_kb')))),
+        ];
     }
 
     public function name(): string

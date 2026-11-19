@@ -56,8 +56,13 @@
         <x-ui.state-timeline :title="__('Return :number', ['number' => $return->number])" :subtitle="__('Every step is logged with the actor')"
                              :steps="$return->transitions->values()->map(fn ($step, $index) => ['state' => $index === $return->transitions->count() - 1 ? 'current' : 'done', 'label' => str_replace('_', ' ', ucfirst($step->to_status)), 'meta' => $step->created_at->setTimezone($country->timezone)->format('j M, H:i').' · '.$step->actor_type])->all()" />
 
-        @if ($canManage)
-            <x-ui.card :title="__('Actions')">
+        {{-- BT-VEN-010: the Actions card only when there is something to do (none once completed, rejected or closed). --}}
+        @php($advanceTo = collect($return->status->allowedNext())
+            ->filter(fn ($next) => in_array($next, [\App\Domains\Returns\Enums\ReturnStatus::AwaitingPickup, \App\Domains\Returns\Enums\ReturnStatus::InTransit, \App\Domains\Returns\Enums\ReturnStatus::Received], true))
+            ->reject(fn ($next) => $next === \App\Domains\Returns\Enums\ReturnStatus::AwaitingPickup && $return->method !== \App\Domains\Returns\Enums\ReturnMethod::Pickup)
+            ->values())
+        @if ($canManage && ($return->status === \App\Domains\Returns\Enums\ReturnStatus::Requested || $advanceTo->isNotEmpty()))
+            <x-ui.card :title="__('Actions')" data-return-actions>
                 <div class="flex flex-col gap-3">
                     @if ($return->status === \App\Domains\Returns\Enums\ReturnStatus::Requested)
                         <form method="POST" action="{{ route($routePrefix.'.approve', $return->id) }}">@csrf<x-ui.button type="submit">{{ __('Approve return') }}</x-ui.button></form>
@@ -67,8 +72,7 @@
                             <div><x-ui.button type="submit" variant="danger">{{ __('Reject') }}</x-ui.button></div>
                         </form>
                     @endif
-                    @foreach (array_filter($return->status->allowedNext(), fn ($next) => in_array($next, [\App\Domains\Returns\Enums\ReturnStatus::AwaitingPickup, \App\Domains\Returns\Enums\ReturnStatus::InTransit, \App\Domains\Returns\Enums\ReturnStatus::Received], true)) as $next)
-                        @continue($next === \App\Domains\Returns\Enums\ReturnStatus::AwaitingPickup && $return->method !== \App\Domains\Returns\Enums\ReturnMethod::Pickup)
+                    @foreach ($advanceTo as $next)
                         <form method="POST" action="{{ route($routePrefix.'.advance', $return->id) }}">
                             @csrf
                             <input type="hidden" name="to" value="{{ $next->value }}">

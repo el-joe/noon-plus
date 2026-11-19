@@ -209,3 +209,36 @@ Future<void> settle(WidgetTester tester, [int frames = 5]) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
+
+/// A decoded `multipart/form-data` request (D16 uploads).
+class MultipartBody {
+  MultipartBody(this.fields, this.files);
+
+  final Map<String, String> fields;
+
+  /// `(field, filename, contentType, size)` per file part, in order.
+  final List<(String, String, String, int)> files;
+
+  static MultipartBody of(HttpRequestData r) {
+    final type = r.headers['Content-Type'] ?? '';
+    expect(type, startsWith('multipart/form-data; boundary='));
+    final boundary = type.split('boundary=').last;
+    final text = latin1.decode(r.body!);
+    final fields = <String, String>{};
+    final files = <(String, String, String, int)>[];
+    for (final part in text.split('--$boundary')) {
+      if (!part.contains('Content-Disposition')) continue;
+      final split = part.indexOf('\r\n\r\n');
+      final head = part.substring(0, split);
+      final value = part.substring(split + 4, part.length - 2);
+      final name = RegExp(r'name="([^"]*)"').firstMatch(head)!.group(1)!;
+      final filename = RegExp(r'filename="([^"]*)"').firstMatch(head)?.group(1);
+      if (filename == null) {
+        fields[name] = utf8.decode(latin1.encode(value));
+      } else {
+        files.add((name, filename, RegExp(r'Content-Type: (\S+)').firstMatch(head)!.group(1)!, value.length));
+      }
+    }
+    return MultipartBody(fields, files);
+  }
+}

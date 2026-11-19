@@ -4,15 +4,20 @@ namespace App\Domains\Reviews\Http\Controllers\Seller;
 
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Reviews\Enums\ModerationStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Http\Requests\AnswerQuestionRequest;
 use App\Domains\Reviews\Models\ProductQuestion;
 use App\Domains\Reviews\Models\ProductReview;
+use App\Domains\Reviews\Models\ProductReviewReport;
 use App\Domains\Reviews\Support\ProductQuestions;
 use App\Domains\Reviews\Support\RatingAggregates;
+use App\Domains\Reviews\Support\ReviewFeedback;
 use App\Domains\Vendors\Support\VendorWorkspace;
 use App\Http\Controllers\Controller;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -33,12 +38,42 @@ class SellerReviewController extends Controller
 
         return view('panels.partner.reviews.index', [
             'summary' => $aggregates->summary(ProductReview::query()->where('vendor_id', $vendor->id)),
-            'reviews' => ProductReview::query()->where('vendor_id', $vendor->id)->where('status', ModerationStatus::Approved)
-                ->with(['product', 'photos'])->latest('id')->paginate(20, pageName: 'reviews_page'),
+            'reviews' => ProductReview::query()->where('vendor_id', $vendor->id)->whereIn('status', ReviewStatus::public())
+                ->with(['product', 'photos', 'reply'])->latest('id')->paginate(20, pageName: 'reviews_page'),
             'questions' => ProductQuestion::query()->whereIn('product_id', $productIds)->where('status', ModerationStatus::Approved)
                 ->with(['product', 'answers' => fn ($answers) => $answers->where('vendor_id', $vendor->id)])
                 ->latest('id')->paginate(20, pageName: 'questions_page'),
         ]);
+    }
+
+    public function reply(Request $request, int $review, ReviewFeedback $feedback): RedirectResponse
+    {
+        $body = $request->validate(['body' => ['required', 'string', 'min:2', 'max:1000']])['body'];
+
+        try {
+            $feedback->reply($this->workspace->vendor(), $request->user()->id, ProductReview::query()->findOrFail($review), $body);
+        } catch (TransitionRefused $refused) {
+            return back()->withErrors(['action' => $refused->getMessage()]);
+        }
+
+        return back()->with('status', __('Reply sent; it shows once Nawy approves it.'));
+    }
+
+    public function report(Request $request, int $review, ReviewFeedback $feedback): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(ProductReviewReport::REASONS)],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $vendor = $this->workspace->vendor();
+
+        try {
+            $feedback->report(ProductReview::query()->findOrFail($review), $request->user()->id, 'vendor', $data['reason'], $data['note'] ?? null, $vendor);
+        } catch (TransitionRefused $refused) {
+            return back()->withErrors(['action' => $refused->getMessage()]);
+        }
+
+        return back()->with('status', __('Thanks — Nawy will review the report.'));
     }
 
     public function answer(AnswerQuestionRequest $request, int $question, ProductQuestions $questions): RedirectResponse

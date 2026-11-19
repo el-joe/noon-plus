@@ -170,7 +170,7 @@ it('runs the code-match delivery through the agent API and records the COD cash 
     $this->withToken($token)->postJson("{$base}/arrive")->assertOk()->assertJsonPath('data.arrived_at', fn ($value) => $value !== null);
     $this->withToken($token)->postJson("{$base}/confirm", ['codes_match' => false])->assertUnprocessable();
     $this->withToken($token)->postJson("{$base}/confirm", ['codes_match' => true])->assertUnprocessable()
-        ->assertJsonPath('error.code', 'not_allowed');
+        ->assertJsonPath('error.code', 'transition_refused');
 
     $this->withToken($token)->post("{$base}/proof", ['photo' => UploadedFile::fake()->image('door.jpg')], ['Accept' => 'application/json'])
         ->assertOk()->assertJsonPath('data.proof.has_photo', true);
@@ -459,6 +459,14 @@ it('lets operations dispatch from the admin panel and keeps other roles out', fu
 
     $ksaOps = adminAccount('ksa', 'operations');
     $this->actingAs($ksaOps)->get(onPanel('admin', "delivery/assignments/{$assignment->id}"))->assertNotFound();
+});
+
+it('answers an unknown parcel number on a carrier claim with a form error, not a 404 (browser test BT-ADM-002)', function () {
+    $this->actingAs(adminAccount())
+        ->from(onPanel('admin', 'delivery/claims'))
+        ->post(onPanel('admin', 'delivery/claims'), ['sub_order_number' => 'NW-AE-NOPE-1', 'type' => 'lost', 'description' => 'Lost in transit', 'amount' => '10', 'compensate_to' => 'vendor'])
+        ->assertRedirect(onPanel('admin', 'delivery/claims'))
+        ->assertSessionHasErrors('sub_order_number');
 });
 
 it('invites agents from the admin panel; the agent exists once the invitation is accepted (wave 2)', function () {

@@ -6,6 +6,7 @@ use App\Domains\Contracts\Enums\ContractKind;
 use App\Domains\Contracts\Enums\SignatureMethod;
 use App\Domains\Contracts\Enums\SignerType;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\StateMachine\HasStateTransitions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class ContractSignature extends Model
 {
-    use UsesCountryDatabase;
+    use HasStateTransitions, UsesCountryDatabase;
 
     public const STATUS_ACTIVE = 'active';
 

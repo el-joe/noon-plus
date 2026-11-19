@@ -116,5 +116,5 @@
         </div>
     @endcan
 
-    <x-ui.state-timeline :title="__('Status history')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => ucfirst($row->to_status), 'meta' => ucfirst((string) $row->actor_type).' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
+    <x-ui.state-timeline :title="__('Status history')" :steps="$history->map(fn ($row) => ['state' => 'done', 'label' => ucfirst($row->to_status), 'meta' => ucfirst((string) $row->actor_type).($row->actor_user_id ? ' '.app(\App\Shared\Support\UserNames::class)->name($row->actor_user_id) : '').' · '.$clock->inAdminTime($row->created_at)->format('j M H:i').($row->reason ? ' · '.$row->reason : '')])->all()" />
 </x-layouts.panel>

@@ -9,6 +9,8 @@ use App\Domains\Documents\Support\Documents;
 use App\Domains\Onboarding\Enums\ApplicationStatus;
 use App\Domains\Onboarding\Models\PartnerApplication;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\PanelCountries;
+use App\Domains\Vendors\Models\Vendor;
 use App\Shared\Notifications\RequestNotification;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\StateTransition;
@@ -30,6 +32,7 @@ class ApplicationReview
         private Documents $documents,
         private ApplicationWizard $wizard,
         private CountryContext $countryContext,
+        private AcquirerReferrals $referrals,
     ) {}
 
     public function assign(PartnerApplication $application, int $adminUserId): PartnerApplication
@@ -44,6 +47,41 @@ class ApplicationReview
             'actor_user_id' => $adminUserId,
             'reason' => 'Assigned to reviewer',
             'meta' => ['event' => 'assigned', 'assigned_to_user_id' => $adminUserId],
+        ]);
+
+        return $application;
+    }
+
+    /**
+     * FR-FIN-6: record (or clear) the account manager who brought the
+     * partner in. Allowed until the application is decided; approval credits
+     * the new store to them ({@see approve()}).
+     */
+    public function setAcquirer(PartnerApplication $application, ?int $acquirerUserId, int $adminUserId): PartnerApplication
+    {
+        if (in_array($application->status, [ApplicationStatus::Approved, ApplicationStatus::Rejected, ApplicationStatus::Withdrawn], true)) {
+            throw new TransitionRefused(__('The application is already decided; change the acquirer on the seller instead.'));
+        }
+
+        if ($acquirerUserId !== null && ! $this->referrals->isAcquirer($acquirerUserId)) {
+            throw new TransitionRefused(__('Choose an account manager of this country.'));
+        }
+
+        if ($application->acquired_by_user_id === $acquirerUserId) {
+            return $application;
+        }
+
+        $before = $application->acquired_by_user_id;
+        $application->forceFill(['acquired_by_user_id' => $acquirerUserId])->save();
+        StateTransition::query()->create([
+            'subject_type' => $application->transitionSubject(),
+            'subject_id' => $application->id,
+            'from_status' => $application->status->value,
+            'to_status' => $application->status->value,
+            'actor_type' => ActorType::Admin,
+            'actor_user_id' => $adminUserId,
+            'reason' => $acquirerUserId === null ? 'Acquirer cleared' : 'Acquirer set',
+            'meta' => ['event' => 'acquirer', 'from' => $before, 'to' => $acquirerUserId],
         ]);
 
         return $application;
@@ -80,6 +118,12 @@ class ApplicationReview
             ->each(fn (Document $document) => $this->documents->approve($document, $adminUserId));
 
         $tenant = $this->provisioner->provision($application, $adminUserId);
+
+        // FR-FIN-6: the store is credited to the account manager who brought it in.
+        if ($application->acquired_by_user_id !== null && $tenant['tenant_type'] === PanelCountries::VENDOR_TENANT) {
+            Vendor::query()->whereKey($tenant['tenant_id'])->whereNull('acquired_by_user_id')
+                ->update(['acquired_by_user_id' => $application->acquired_by_user_id, 'acquired_at' => now()]);
+        }
 
         return $this->machine->move($application, ApplicationStatus::Approved, ActorType::Admin, $adminUserId, $note, [
             'reviewed_by_user_id' => $adminUserId,
@@ -152,7 +196,7 @@ class ApplicationReview
             $application->forceFill(['completed_steps' => array_values(array_diff($application->completed_steps, ['documents']))])->save();
         }
 
-        $token = $this->wizard->rotateToken($application);
+        $token = $this->wizard->issueResumeToken($application);
         $link = $resumeBaseUrl === null
             ? $this->wizard->resumeLink($application, $token)
             : rtrim($resumeBaseUrl, '/').'/'.$this->countryContext->current()->marketSlug($application->locale).'/join/resume?'.http_build_query(['number' => $application->number, 'token' => $token]);

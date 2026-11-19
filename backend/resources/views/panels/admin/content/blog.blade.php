@@ -43,8 +43,8 @@
                 <x-ui.input :label="__('Title (Arabic)')" name="title_ar" dir="rtl" required />
                 <x-ui.input :label="__('Excerpt (English)')" name="excerpt_en" />
                 <x-ui.input :label="__('Excerpt (Arabic)')" name="excerpt_ar" dir="rtl" />
-                <x-ui.textarea :label="__('Body (English)')" name="body_en" rows="6" />
-                <x-ui.textarea :label="__('Body (Arabic)')" name="body_ar" rows="6" dir="rtl" />
+                <x-ui.textarea :label="__('Body (English)')" name="body_en" rows="6" required />
+                <x-ui.textarea :label="__('Body (Arabic)')" name="body_ar" rows="6" dir="rtl" required />
                 <x-ui.select :label="__('Category')" name="category_id" :options="$categories->pluck('name_en', 'id')->all()" :placeholder="__('None')" />
                 <x-ui.input :label="__('Tags (comma separated)')" name="tags" />
                 <x-ui.input :label="__('Cover image')" name="cover" type="file" accept="image/*" />

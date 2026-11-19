@@ -5,6 +5,7 @@ namespace App\Domains\Classifieds\Http;
 use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Classifieds\Models\ClassifiedAdMedia;
+use App\Domains\Classifieds\Models\ClassifiedFavourite;
 use App\Domains\Classifieds\Support\ClassifiedAds;
 use App\Domains\Classifieds\Support\ClassifiedRequests;
 use App\Domains\RealEstate\Support\ExclusiveContracts;
@@ -72,6 +73,8 @@ class ClassifiedPresenter
             ],
             'exclusive_marketer' => $exclusive === null ? null : ['slug' => $exclusive->marketer->slug, 'name' => $exclusive->marketer->display_name, 'scope' => $exclusive->subject_type],
             'views' => $ad->views,
+            // QC-061: "Save (n)" on the ad title card.
+            'saves' => $ad->exists ? ClassifiedFavourite::query()->where('classified_ad_id', $ad->id)->count() : 0,
             'expires_at' => $ad->expires_at?->toIso8601String(),
             'rejection_reason' => $ad->rejection_reason,
             'sold' => $ad->sold_at === null ? null : ['price' => MoneyResource::of((string) $ad->sold_price, $ad->currency), 'at' => $ad->sold_at->toIso8601String()],

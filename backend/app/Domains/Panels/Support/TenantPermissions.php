@@ -30,23 +30,23 @@ class TenantPermissions
      */
     public const MATRIX = [
         'partner' => [
-            'manager' => ['dashboard' => 'F', 'orders' => 'F', 'returns' => 'F', 'listings' => 'F', 'reviews' => 'F', 'campaigns' => 'F', 'marketing' => 'F', 'legal' => 'V', 'classifieds' => 'F', 'finance' => 'V', 'profile' => 'F', 'documents' => 'F'],
-            'catalog' => ['dashboard' => 'V', 'listings' => 'F', 'reviews' => 'F', 'legal' => 'V', 'classifieds' => 'F'],
-            'orders' => ['dashboard' => 'V', 'orders' => 'F', 'returns' => 'F', 'listings' => 'V', 'reviews' => 'V', 'legal' => 'V', 'profile' => 'V'],
-            'finance' => ['dashboard' => 'V', 'orders' => 'V', 'returns' => 'V', 'campaigns' => 'V', 'marketing' => 'V', 'legal' => 'V', 'finance' => 'F', 'profile' => 'V'],
-            'marketing' => ['dashboard' => 'V', 'listings' => 'V', 'reviews' => 'V', 'campaigns' => 'F', 'marketing' => 'F', 'legal' => 'V', 'classifieds' => 'V'],
-            'viewer' => ['dashboard' => 'V', 'orders' => 'V', 'returns' => 'V', 'listings' => 'V', 'reviews' => 'V', 'campaigns' => 'V', 'marketing' => 'V', 'legal' => 'V', 'classifieds' => 'V', 'profile' => 'V', 'documents' => 'V'],
+            'manager' => ['dashboard' => 'F', 'orders' => 'F', 'returns' => 'F', 'listings' => 'F', 'inventory' => 'F', 'reviews' => 'F', 'campaigns' => 'F', 'marketing' => 'F', 'legal' => 'V', 'classifieds' => 'F', 'finance' => 'V', 'profile' => 'F', 'documents' => 'F', 'support' => 'F'],
+            'catalog' => ['dashboard' => 'V', 'listings' => 'F', 'inventory' => 'F', 'reviews' => 'F', 'legal' => 'V', 'classifieds' => 'F', 'support' => 'F'],
+            'orders' => ['dashboard' => 'V', 'orders' => 'F', 'returns' => 'F', 'listings' => 'V', 'inventory' => 'F', 'reviews' => 'V', 'legal' => 'V', 'profile' => 'V', 'support' => 'F'],
+            'finance' => ['dashboard' => 'V', 'orders' => 'V', 'returns' => 'V', 'inventory' => 'V', 'campaigns' => 'V', 'marketing' => 'V', 'legal' => 'V', 'finance' => 'F', 'profile' => 'V', 'support' => 'F'],
+            'marketing' => ['dashboard' => 'V', 'listings' => 'V', 'reviews' => 'V', 'campaigns' => 'F', 'marketing' => 'F', 'legal' => 'V', 'classifieds' => 'V', 'support' => 'F'],
+            'viewer' => ['dashboard' => 'V', 'orders' => 'V', 'returns' => 'V', 'listings' => 'V', 'inventory' => 'V', 'reviews' => 'V', 'campaigns' => 'V', 'marketing' => 'V', 'legal' => 'V', 'classifieds' => 'V', 'profile' => 'V', 'documents' => 'V', 'support' => 'V'],
         ],
         'travel_agency' => [
-            'operations' => ['dashboard' => 'V', 'packages' => 'F', 'bookings' => 'F', 'inquiries' => 'F', 'reports' => 'V'],
-            'finance' => ['dashboard' => 'V', 'bookings' => 'V', 'reports' => 'V'],
-            'viewer' => ['dashboard' => 'V', 'packages' => 'V', 'bookings' => 'V', 'inquiries' => 'V', 'reports' => 'V'],
+            'operations' => ['dashboard' => 'V', 'packages' => 'F', 'bookings' => 'F', 'inquiries' => 'F', 'promotions' => 'F', 'reports' => 'V', 'support' => 'F'],
+            'finance' => ['dashboard' => 'V', 'bookings' => 'V', 'promotions' => 'V', 'reports' => 'V', 'support' => 'F'],
+            'viewer' => ['dashboard' => 'V', 'packages' => 'V', 'bookings' => 'V', 'inquiries' => 'V', 'promotions' => 'V', 'reports' => 'V', 'support' => 'V'],
         ],
         'carrier' => [
-            'supervisor' => ['dashboard' => 'V', 'agents' => 'F', 'dispatch' => 'F', 'cod' => 'V', 'claims' => 'V'],
+            'supervisor' => ['dashboard' => 'V', 'agents' => 'F', 'dispatch' => 'F', 'cod' => 'V', 'claims' => 'V', 'payouts' => 'F', 'support' => 'F'],
         ],
         'marketer' => [
-            'agency' => ['studio' => 'F', 'campaigns' => 'F', 'wallet' => 'V', 'contract' => 'V', 'profile' => 'F', 'broker' => 'F'],
+            'agency' => ['studio' => 'F', 'campaigns' => 'F', 'wallet' => 'V', 'contract' => 'V', 'profile' => 'F', 'broker' => 'F', 'support' => 'F'],
         ],
     ];
 

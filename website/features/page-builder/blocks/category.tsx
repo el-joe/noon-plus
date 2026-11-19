@@ -113,7 +113,7 @@ export function CategoryHeader({ s, ctx }: { s: Settings; ctx: BlockContext }) {
         <img src={banner} alt="" className="absolute inset-0 size-full object-cover opacity-30" />
       ) : null}
       <div className="relative">
-        <nav className="mb-2 flex items-center gap-1.5 text-body-sm opacity-80" aria-label="Breadcrumb">
+        <nav className="mb-2 flex items-center gap-1.5 text-body-sm opacity-80" aria-label={t("common.breadcrumb")}>
           <Link href={`/${ctx.market.slug}`} aria-label={t("common.home")}>
             <Home className="size-3.5" />
           </Link>

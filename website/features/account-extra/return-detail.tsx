@@ -25,7 +25,17 @@ export function ReturnDetail({ number }: { number: string }) {
   const href = useHref();
   const client = useQueryClient();
   const key = ["return", market.slug, number];
-  const { data, isLoading, error } = useQuery({ queryKey: key, retry: false, queryFn: async () => (await api.getReturn(market.slug, number)).data });
+  // QC-049: `photos[]` are signed links that expire after 30 minutes, so the
+  // return is never kept in the cache and is re-read before the links expire.
+  const { data, isLoading, error } = useQuery({
+    queryKey: key,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 20 * 60_000,
+    queryFn: async () => (await api.getReturn(market.slug, number)).data,
+  });
   const cancel = useMutation({
     mutationFn: async () => (await api.cancelReturn(market.slug, number)).data,
     onSuccess: (updated) => {
@@ -141,9 +151,9 @@ export function ReturnDetail({ number }: { number: string }) {
                     <p className="mb-2 text-body-sm text-secondary">{t("accountExtra.returnDetail.photos")}</p>
                     <div className="flex flex-wrap gap-2">
                       {data.photos.filter((p) => /^(https?:)?\//.test(p)).map((photo) => (
-                        <a key={photo} href={photo} target="_blank" rel="noreferrer" className="size-16 overflow-hidden rounded-md border border-line">
+                        <a key={photo} href={photo} target="_blank" rel="noreferrer noopener" referrerPolicy="no-referrer" className="size-16 overflow-hidden rounded-md border border-line">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photo} alt="" className="size-full object-cover" />
+                          <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-cover" />
                         </a>
                       ))}
                     </div>

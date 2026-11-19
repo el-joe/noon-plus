@@ -10,10 +10,12 @@ use App\Domains\Finance\Models\VendorBalanceItem;
 use App\Domains\Orders\Enums\ActorType;
 use App\Shared\Money\MoneyFactory;
 use App\Shared\StateMachine\StateMachine;
+use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Paid ad bookings / Nawi Ads (SRS §10, §11.13, lifecycle catalogue §4.8).
@@ -39,7 +41,7 @@ class AdBookings
      */
     public function draft(AdSlot $slot, string $advertiserType, int $advertiserId, array $data, ?UploadedFile $creative, int $userId): AdBooking
     {
-        if (! $slot->is_active) {
+        if (! $slot->is_active || $slot->placement === AdSlot::PLACEMENT_TRAVEL) {
             throw new TransitionRefused(__('This placement is not on sale.'));
         }
 
@@ -92,6 +94,37 @@ class AdBookings
 
             return $this->machine->move($booking, AdBookingStatus::PendingReview, $booking->advertiser_type === AdvertiserBilling::VENDOR ? ActorType::Vendor : ActorType::Marketer, $userId, null, ['payment_status' => 'paid']);
         });
+    }
+
+    /**
+     * ADR 11 / QC-018: sponsored video creatives are uploaded by an admin on
+     * the booking (advertisers upload images only). The video replaces the
+     * creative until the booking ends; the change is in the history.
+     */
+    public function attachVideo(AdBooking $booking, UploadedFile $video, int $adminUserId): AdBooking
+    {
+        if (in_array($booking->status, [AdBookingStatus::Completed, AdBookingStatus::Rejected, AdBookingStatus::Cancelled, AdBookingStatus::Expired], true)) {
+            throw new TransitionRefused(__('This booking has ended.'));
+        }
+
+        $previous = $booking->creative_type === 'video' ? $booking->creative_path : null;
+        $path = $video->store('ads/'.$this->countryContext->current()->code.'/video', 'public');
+        $booking->forceFill(['creative_path' => $path, 'creative_type' => 'video'])->save();
+        StateTransition::query()->create([
+            'subject_type' => $booking->transitionSubject(),
+            'subject_id' => $booking->id,
+            'from_status' => $booking->status->value,
+            'to_status' => $booking->status->value,
+            'actor_type' => ActorType::Admin,
+            'actor_user_id' => $adminUserId,
+            'reason' => 'Video creative uploaded by admin',
+        ]);
+
+        if ($previous !== null) {
+            Storage::disk('public')->delete($previous);
+        }
+
+        return $booking;
     }
 
     public function approve(AdBooking $booking, int $adminUserId): AdBooking

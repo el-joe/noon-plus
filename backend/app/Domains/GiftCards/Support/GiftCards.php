@@ -60,7 +60,12 @@ class GiftCards
         $country = $this->countryContext->current();
         $option = app(PaymentMethodCatalog::class)->find($country, $methodCode, $amount);
 
-        if ($option === null || ! $option['method']->isGateway()) {
+        // QA-038: a method switched off in this country is not "the wrong kind of method".
+        if ($option === null) {
+            throw new TransitionRefused(__('This payment method is not available in :country.', ['country' => app()->getLocale() === 'ar' ? $country->name_ar : $country->name_en]));
+        }
+
+        if (! $option['method']->isGateway()) {
             throw new TransitionRefused(__('Gift cards are paid by card.'));
         }
 

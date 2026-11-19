@@ -11,7 +11,8 @@ use Illuminate\Support\Collection;
  * The countries a user may work in on a panel (role-permission matrix §1, §3.4):
  * an admin membership without a country covers every active country; any
  * other membership covers its own country only. On the partner panel only
- * product-vendor memberships bound to a vendor (tenant) count.
+ * store memberships (product vendor or classified shop) bound to a vendor
+ * (tenant) count.
  */
 class PanelCountries
 {
@@ -26,7 +27,7 @@ class PanelCountries
             ->where('status', 'active')
             ->whereIn('role', array_map(fn (MembershipRole $role): string => $role->value, $panel->roles))
             ->when($panel->key === 'partner', fn ($query) => $query
-                ->where('role', MembershipRole::ProductVendor)
+                ->whereIn('role', [MembershipRole::ProductVendor, MembershipRole::ClassifiedSeller])
                 ->where('tenant_type', self::VENDOR_TENANT)
                 ->whereNotNull('tenant_id')
                 ->whereNotNull('country_id'))

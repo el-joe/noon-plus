@@ -62,11 +62,28 @@ final readonly class AccountRef
     }
 
     /**
+     * A delivery agent's pay wallet (issued payslips): spendable, and
+     * reserved while a withdrawal is pending or approved. Owner = agent user.
+     */
+    public static function agentWallet(int $agentUserId, WalletBucket $bucket = WalletBucket::Spendable): self
+    {
+        return new self(LedgerAccountCode::AgentPayable, LedgerAccount::OWNER_AGENT, $agentUserId, $bucket->value);
+    }
+
+    /**
      * Money a carrier owes Nawy for an approved claim (WP7, lifecycle catalogue §6.4).
      */
     public static function carrierReceivable(int $carrierId): self
     {
         return new self(LedgerAccountCode::CarrierReceivable, LedgerAccount::OWNER_CARRIER, $carrierId);
+    }
+
+    /**
+     * Acquisition commissions owed to an admin who brought vendors in (FR-FIN-6). Owner = central user id.
+     */
+    public static function staff(int $userId): self
+    {
+        return new self(LedgerAccountCode::StaffPayable, LedgerAccount::OWNER_STAFF, $userId);
     }
 
     public function key(): string

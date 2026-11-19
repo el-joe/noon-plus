@@ -28,11 +28,16 @@ use App\Domains\Shipping\Support\ShippingDestination;
 use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Domains\Warranty\Models\WarrantyPurchase;
 use App\Shared\Money\MoneyFactory;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Brick\Money\Money;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Turns a cart into one order with one sub-order per seller (FR-CHK-5).
+ * Turns a cart into one order with one sub-order per seller (FR-CHK-5);
+ * a seller's FBN and seller-shipped items become two sub-orders (two
+ * parcels, owner decision 2026-11-19, see {@see self::parcels()}).
  * Stock is re-checked under row locks and taken from the inventory ledger in
  * the same transaction, so two customers can never buy the same last unit.
  * Running flash deals are locked too, so their caps and per-customer
@@ -124,10 +129,23 @@ class PlaceOrder
             ]);
             $order->forceFill(['number' => sprintf('NW-%s-%07d', $country->iso2, 1_000_000 + $order->id)])->save();
 
-            foreach ($quote->groups as $index => $group) {
+            $sequence = 0;
+            $parcels = [];
+
+            foreach ($quote->groups as $quoteGroup) {
+                foreach ($this->parcels($quoteGroup, $listings) as $parcel) {
+                    $parcels[] = $parcel;
+                }
+            }
+
+            $splitFrom = [];
+
+            foreach ($parcels as $group) {
                 $subOrder = $order->subOrders()->create([
                     'vendor_id' => $group['vendor_id'],
-                    'number' => $order->number.'-'.($index + 1),
+                    'fulfilled_by' => $group['fulfilled_by'],
+                    'split_from_sub_order_id' => $group['fulfilled_by'] === 'nawy' ? ($splitFrom[$group['vendor_id']] ?? null) : null,
+                    'number' => $order->number.'-'.(++$sequence),
                     'subtotal' => $amount($group['subtotal']),
                     'discount_total' => $amount($group['discount']),
                     'shipping_total' => $amount($group['shipping']),
@@ -142,6 +160,10 @@ class PlaceOrder
                     'estimated_delivery_from' => $group['eta']->from->toDateString(),
                     'estimated_delivery_by' => $group['eta']->by->toDateString(),
                 ]);
+                if ($group['fulfilled_by'] === 'seller' && $group['split']) {
+                    $splitFrom[$group['vendor_id']] = $subOrder->id;
+                }
+
                 $subOrder->statusHistory()->create([
                     'to_status' => SubOrderStatus::Placed,
                     'actor_type' => ActorType::Customer,
@@ -209,6 +231,64 @@ class PlaceOrder
 
             return $order->load('subOrders.items');
         });
+    }
+
+    /**
+     * The parcels of one seller's checkout group. Owner decision 2026-11-19:
+     * a group mixing FBN items and items the seller ships becomes two
+     * sub-orders. The seller's parcel comes first and keeps the shipping
+     * charged (the customer pays the same as one parcel); the warehouse
+     * parcel (`fulfilled_by` = `nawy`) carries the FBN lines, their warranty
+     * and a share of the seller's discount pro rata to its goods.
+     *
+     * @param  array<string, mixed>  $group
+     * @param  Collection<int, Listing>  $listings
+     * @return list<array<string, mixed>>
+     */
+    private function parcels(array $group, Collection $listings): array
+    {
+        $isFbn = fn (array $line): bool => $listings->get($line['listing_id'])?->fulfilment === 'fbn';
+        $fbnLines = array_values(array_filter($group['lines'], $isFbn));
+        $sellerLines = array_values(array_filter($group['lines'], fn (array $line): bool => ! $isFbn($line)));
+
+        if ($fbnLines === [] || $sellerLines === []) {
+            return [$group + ['fulfilled_by' => $sellerLines === [] && $fbnLines !== [] ? 'nawy' : 'seller', 'split' => false]];
+        }
+
+        /** @var Money $zero */
+        $zero = $group['subtotal']->multipliedBy(0);
+        $subtotal = array_reduce($fbnLines, fn (Money $sum, array $line): Money => $sum->plus($line['line_total']), $zero);
+        $warranty = array_reduce($fbnLines, fn (Money $sum, array $line): Money => $sum->plus($line['warranty_total']), $zero);
+        $discount = $group['subtotal']->isPositive()
+            ? Money::min($subtotal, $group['discount']->multipliedBy(BigDecimal::of((string) $subtotal->getAmount())->toBigRational()->dividedBy((string) $group['subtotal']->getAmount()), RoundingMode::Down))
+            : $zero;
+        $total = $subtotal->minus($discount);
+
+        $warehouse = array_merge($group, [
+            'lines' => $fbnLines,
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'shipping' => $zero,
+            'shipping_cost' => $zero,
+            'shipping_subsidy_vendor' => $zero,
+            'shipping_subsidy_platform' => $zero,
+            'shipping_absorbed' => $zero,
+            'warranty' => $warranty,
+            'total' => $total,
+            'fulfilled_by' => 'nawy',
+            'split' => true,
+        ]);
+        $seller = array_merge($group, [
+            'lines' => $sellerLines,
+            'subtotal' => $group['subtotal']->minus($subtotal),
+            'discount' => $group['discount']->minus($discount),
+            'warranty' => $group['warranty']->minus($warranty),
+            'total' => $group['total']->minus($total),
+            'fulfilled_by' => 'seller',
+            'split' => true,
+        ]);
+
+        return [$seller, $warehouse];
     }
 
     /**

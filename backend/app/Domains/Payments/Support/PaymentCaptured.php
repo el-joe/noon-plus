@@ -2,12 +2,16 @@
 
 namespace App\Domains\Payments\Support;
 
+use App\Domains\Advertising\Models\TravelPromotion;
+use App\Domains\Advertising\Support\TravelPromotions;
 use App\Domains\Classifieds\Models\ClassifiedPackagePurchase;
 use App\Domains\Classifieds\Support\ClassifiedPackages;
 use App\Domains\Finance\Enums\LedgerAccountCode;
+use App\Domains\Finance\Models\VendorSubscriptionInvoice;
 use App\Domains\Finance\Support\AccountRef;
 use App\Domains\Finance\Support\Ledger;
 use App\Domains\Finance\Support\Posting;
+use App\Domains\Finance\Support\VendorSubscriptions;
 use App\Domains\GiftCards\Models\GiftCard;
 use App\Domains\GiftCards\Support\GiftCards;
 use App\Domains\Membership\Models\MembershipInvoice;
@@ -20,8 +24,8 @@ use App\Shared\Money\MoneyFactory;
  * What happens when a payment is captured (inside the payment transition):
  * an order payment moves the money from the provider clearing account into
  * the order liability until the sub-orders settle (COD is booked per
- * delivered sub-order instead); a gift card or membership payment is handed
- * to its module.
+ * delivered sub-order instead); a gift card, membership, classified package
+ * or travel promotion (D14) payment is handed to its module.
  */
 class PaymentCaptured
 {
@@ -47,6 +51,8 @@ class PaymentCaptured
             GiftCard::PAYABLE => app(GiftCards::class)->paid($payment),
             MembershipInvoice::PAYABLE => app(Memberships::class)->invoicePaid($payment),
             ClassifiedPackagePurchase::PAYABLE => app(ClassifiedPackages::class)->paid($payment),
+            TravelPromotion::PAYABLE => app(TravelPromotions::class)->paid($payment),
+            VendorSubscriptionInvoice::PAYABLE => app(VendorSubscriptions::class)->invoicePaid($payment),
             default => null,
         };
     }

@@ -5,10 +5,13 @@ namespace App\Domains\Finance\Console;
 use App\Domains\Countries\Models\Country;
 use App\Domains\Finance\Support\Wallets;
 use App\Shared\Scheduling\ForEachCountry;
+use Illuminate\Console\Attributes\Aliases;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
+// QC-039: the SRS (Appendix B) command name still works as an alias.
+#[Aliases(['promotion:expire-items'])]
 #[Signature('nawy:wallet:expire-promotional')]
 #[Description('Expire promotional Nawy Credits past their expiry date, in every country (every 15 minutes)')]
 class ExpirePromotionalCreditsCommand extends Command

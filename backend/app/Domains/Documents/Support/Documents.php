@@ -65,7 +65,28 @@ class Documents
             $categoryId = $type->category_id ?? throw new TransitionRefused(__('Choose the category this certification is for.'));
         }
 
-        $path = $file->storeAs('documents/'.$this->countryContext->current()->code.'/'.$ownerType.'/'.$ownerId, Str::uuid().'.'.$file->getClientOriginalExtension(), self::DISK);
+        $path = $file->storeAs('documents/'.$this->countryContext->current()->code.'/'.$ownerType.'/'.$ownerId, Str::uuid().'.'.($file->extension() ?: 'bin'), self::DISK);
+
+        $previous = Document::query()->where('document_type_id', $type->id)->where('owner_type', $ownerType)->where('owner_id', $ownerId)
+            ->where('category_id', $categoryId)->latest('id')->first();
+
+        /*
+        | QC-037: a rejected or expired document is resubmitted — the same
+        | row goes back to pending with the new file (history keeps the old).
+        */
+        if ($previous !== null && in_array($previous->status, [DocumentStatus::Rejected, DocumentStatus::Expired], true)) {
+            return $this->machine->move($previous, DocumentStatus::Pending, $ownerType === 'vendor' ? ActorType::Vendor : ActorType::Customer, $userId, 'Resubmitted', [
+                'file_path' => $path,
+                'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                'mime' => (string) $file->getMimeType(),
+                'size' => (int) $file->getSize(),
+                'valid_until' => $validUntil,
+                'uploaded_by_user_id' => $userId,
+                'reviewed_by_user_id' => null,
+                'reviewed_at' => null,
+                'rejection_reason' => null,
+            ], ['previous_file' => $previous->file_path, 'previous_rejection_reason' => $previous->rejection_reason]);
+        }
 
         $document = Document::query()->create([
             'document_type_id' => $type->id,
@@ -110,7 +131,7 @@ class Documents
     {
         $expired = 0;
 
-        Document::query()->where('status', DocumentStatus::Approved)->whereNotNull('valid_until')->whereDate('valid_until', '<', now()->toDateString())
+        Document::query()->where('status', DocumentStatus::Approved)->whereNotNull('valid_until')->where('valid_until', '<', now()->startOfDay())
             ->each(function (Document $document) use (&$expired): void {
                 $this->machine->move($document, DocumentStatus::Expired, ActorType::System);
                 $expired++;

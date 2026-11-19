@@ -3,18 +3,23 @@
 namespace App\Domains\Orders\Http\Controllers\Seller;
 
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Delivery\Models\Shipment;
+use App\Domains\Delivery\Support\ParcelLabels;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Orders\Support\InvoicePdf;
 use App\Domains\Orders\Support\SellerFulfilment;
 use App\Domains\Orders\Support\SubOrderTimeline;
 use App\Domains\Vendors\Support\VendorWorkspace;
 use App\Http\Controllers\Controller;
+use App\Shared\Http\LikeSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Seller Center → Orders (SRS §4.3 My Orders, §7.1; Figma 90:2170): the
@@ -40,7 +45,7 @@ class SellerOrderController extends Controller
             ->where('vendor_id', $this->workspace->vendor()->id)
             ->with('order:id,placed_at')
             ->withCount('items')
-            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', "%{$search}%"))
+            ->when($filters['q'] ?? null, fn ($query, string $search) => $query->where('number', 'like', LikeSearch::contains($search)))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->latest('id')
             ->paginate(20)
@@ -58,7 +63,7 @@ class SellerOrderController extends Controller
         $subOrder = $this->ownSubOrder($subOrder);
         $subOrder->load(['order', 'items', 'statusHistory']);
         $country = $this->countryContext->current();
-        $next = $this->fulfilment->nextStep($subOrder->status);
+        $next = $this->fulfilment->nextStepFor($subOrder);
 
         return view('panels.partner.orders.show', [
             'subOrder' => $subOrder,
@@ -81,6 +86,32 @@ class SellerOrderController extends Controller
             'vendor' => $this->workspace->vendor(),
             'country' => $this->countryContext->current(),
         ]);
+    }
+
+    /**
+     * The parcel label (ParcelBarcode) once Nawy created the shipment; `.pdf` for the A6 PDF.
+     */
+    public function parcelLabel(Request $request, int $subOrder, ParcelLabels $labels): Response|View
+    {
+        $subOrder = $this->ownSubOrder($subOrder);
+        $shipment = Shipment::query()->where('sub_order_id', $subOrder->id)->latest('id')->first();
+        abort_if($shipment === null, 409, __('The parcel label is ready once the delivery is booked.'));
+
+        return $request->routeIs('partner.orders.label-pdf') ? $labels->pdf($shipment) : $labels->view($shipment);
+    }
+
+    /**
+     * D16: this shipment's tax invoice as a PDF (only the seller's own lines
+     * and totals), once the order is paid.
+     */
+    public function invoicePdf(int $subOrder, InvoicePdf $pdf): Response
+    {
+        $subOrder = $this->ownSubOrder($subOrder);
+        $subOrder->load(['order.subOrders', 'items', 'vendor']);
+
+        abort_unless(InvoicePdf::isReady($subOrder->order), 409, __('The invoice is ready once the order is paid.'));
+
+        return $pdf->download($pdf->forSubOrder($subOrder, $this->countryContext->current()), $subOrder->number);
     }
 
     public function advance(Request $request, int $subOrder): RedirectResponse

@@ -4,12 +4,14 @@ namespace App\Domains\Travel\Http\Controllers\Api;
 
 use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Travel\Enums\BookingStatus;
 use App\Domains\Travel\Enums\PackageStatus;
 use App\Domains\Travel\Models\TravelBooking;
 use App\Domains\Travel\Models\TravelDeparture;
 use App\Domains\Travel\Models\TravelDepartureRoom;
 use App\Domains\Travel\Models\TravelPackage;
 use App\Domains\Travel\Support\TravelBookings;
+use App\Domains\Travel\Support\TravelCatalog;
 use App\Domains\Travel\Support\TravelInquiries;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
@@ -29,31 +31,39 @@ class TravelController extends Controller
 {
     public const TOKEN_HEADER = 'X-Booking-Token';
 
-    public function __construct(private TravelBookings $bookings) {}
+    /**
+     * The room type that prices a child (QC-060 adults / children split).
+     */
+    public const CHILD_ROOM = 'child';
 
+    public function __construct(private TravelBookings $bookings, private TravelCatalog $catalog) {}
+
+    /**
+     * Trips on sale (lists and travel search). D14: promoted trips lead
+     * page 1 with `sponsored: true` and the label; `meta.sponsored` counts them.
+     */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->validate(['destination' => ['nullable', 'string', 'max:80'], 'trip_type' => ['nullable', 'string', 'max:24'], 'month' => ['nullable', 'date_format:Y-m']]);
-        $packages = TravelPackage::query()->whereIn('status', [PackageStatus::Active, PackageStatus::SoldOut])
-            ->whereHas('vendor', fn ($vendor) => $vendor->where('status', 'active'))
-            ->when($filters['destination'] ?? null, fn ($query, $destination) => $query->where('destination_city', 'like', '%'.$destination.'%'))
-            ->when($filters['trip_type'] ?? null, fn ($query, $type) => $query->where('trip_type', $type))
-            ->when($filters['month'] ?? null, fn ($query, $month) => $query->whereHas('departures', fn ($departure) => $departure->where('departs_on', 'like', $month.'%')))
-            ->with(['vendor', 'departures.rooms'])->latest('approved_at')->paginate(24);
+        $filters = $request->validate(['destination' => ['nullable', 'string', 'max:80'], 'trip_type' => ['nullable', 'string', 'max:24'], 'month' => ['nullable', 'date_format:Y-m'], 'page' => ['nullable', 'integer', 'min:1']]);
+        $result = $this->catalog->page($filters, (int) ($filters['page'] ?? 1));
 
-        return ApiResponse::success(collect($packages->items())->map(fn (TravelPackage $package): array => $this->card($package))->all(), ['total' => $packages->total(), 'page' => $packages->currentPage()]);
+        return ApiResponse::success($result['items'], ['total' => $result['total'], 'page' => $result['page'], 'sponsored' => $result['sponsored']]);
     }
 
     public function show(string $slug): JsonResponse
     {
         $package = TravelPackage::query()->where('slug', $slug)->whereIn('status', [PackageStatus::Active, PackageStatus::SoldOut])->with(['vendor', 'departures.rooms'])->firstOrFail();
 
-        return ApiResponse::success($this->card($package) + [
+        $sponsored = $this->catalog->isSponsored($package);
+
+        return ApiResponse::success($this->catalog->card($package, $sponsored ? $this->catalog->sponsoredLabel() : null) + [
             'description' => app()->getLocale() === 'ar' ? $package->description_ar : $package->description_en,
             'itinerary' => $package->itinerary ?? [],
             'inclusions' => $package->inclusions ?? [],
             'exclusions' => $package->exclusions ?? [],
             'cancellation_policy' => $package->cancellation_policy ?? [],
+            'gallery' => $this->gallery($package),
+            'stats' => $this->stats($package),
             'departures' => $package->departures->where('departs_on', '>', now())->sortBy('departs_on')->values()->map(fn (TravelDeparture $departure): array => [
                 'id' => $departure->id,
                 'departs_on' => $departure->departs_on->toDateString(),
@@ -61,7 +71,11 @@ class TravelController extends Controller
                 'seats_left' => max(0, $departure->seat_capacity - $departure->seats_reserved),
                 'status' => $departure->seat_capacity - $departure->seats_reserved <= 0 ? 'sold_out' : $departure->status,
                 'rooms' => $departure->rooms->map(fn (TravelDepartureRoom $room): array => ['type' => $room->room_type, 'price_per_person' => MoneyResource::make((string) $room->price_per_person)])->values()->all(),
+                // QC-060: children travel on the departure's `child` room price; null = no child price, children cannot be booked.
+                'child_price_per_person' => MoneyResource::make(($child = $departure->rooms->firstWhere('room_type', self::CHILD_ROOM)) === null ? null : (string) $child->price_per_person),
             ])->all(),
+            // D14: similar trips, promoted ones first.
+            'related' => $this->catalog->related($package),
         ]);
     }
 
@@ -88,6 +102,7 @@ class TravelController extends Controller
             'rooms' => ['required', 'array', 'min:1', 'max:10'],
             'rooms.*.room_type' => ['required', 'string', 'max:12'],
             'rooms.*.travellers' => ['required', 'integer', 'min:1', 'max:20'],
+            'children' => ['nullable', 'integer', 'min:0', 'max:19'],
             'traveller_names' => ['nullable', 'array', 'max:20'],
             'traveller_names.*' => ['nullable', 'string', 'max:160'],
             'message' => ['nullable', 'string', 'max:1000'],
@@ -95,6 +110,15 @@ class TravelController extends Controller
             'ref' => ['nullable', 'string', 'max:120'],
         ]);
         $departure = TravelDeparture::query()->with('package.vendor')->findOrFail($departure);
+
+        if (($data['children'] ?? 0) > 0) {
+            if (! $departure->rooms()->where('room_type', self::CHILD_ROOM)->exists()) {
+                return ApiResponse::error('children_not_offered', __('This departure has no child price. Book every traveller as an adult or ask the agency.'), 422, ['children' => [__('This departure has no child price. Book every traveller as an adult or ask the agency.')]]);
+            }
+
+            $data['rooms'][] = ['room_type' => self::CHILD_ROOM, 'travellers' => (int) $data['children']];
+        }
+
         $booking = $this->bookings->request($departure, $request->user('sanctum'), $data['rooms'], [
             'name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone'], 'message' => $data['message'] ?? null,
         ], $data['traveller_names'] ?? [], (bool) ($data['submit'] ?? true), $data['ref'] ?? null);
@@ -162,8 +186,16 @@ class TravelController extends Controller
             'package' => ['slug' => $booking->package->slug, 'title' => app()->getLocale() === 'ar' ? $booking->package->title_ar : $booking->package->title_en],
             'departs_on' => $booking->departure->departs_on->toDateString(),
             'returns_on' => $booking->departure->returns_on->toDateString(),
-            'rooms' => $booking->rooms,
+            // QA-037: room line money as {amount, currency}, like quoted_total.
+            'rooms' => collect($booking->rooms ?? [])->map(fn (array $line): array => [
+                'room_type' => $line['room_type'],
+                'travellers' => (int) $line['travellers'],
+                'unit_price' => MoneyResource::of((string) $line['unit_price'], $booking->currency),
+                'line_total' => MoneyResource::of((string) $line['line_total'], $booking->currency),
+            ])->all(),
             'seats' => $booking->seats,
+            'children' => $children = (int) collect($booking->rooms ?? [])->where('room_type', self::CHILD_ROOM)->sum('travellers'),
+            'adults' => (int) $booking->seats - $children,
             'quoted_total' => MoneyResource::of((string) $booking->total, $booking->currency),
             'payment' => 'with_agency',
             'contact' => ['name' => $booking->contact_name, 'email' => $booking->contact_email, 'phone' => $booking->contact_phone],
@@ -175,24 +207,36 @@ class TravelController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * Trip photos for the detail gallery (QC-060): the cover first, then the
+     * package's gallery images.
+     *
+     * @return array<int, array{url: string, alt: string}>
      */
-    private function card(TravelPackage $package): array
+    private function gallery(TravelPackage $package): array
     {
-        $from = $package->departures->where('departs_on', '>', now())->flatMap->rooms->pluck('price_per_person')
-            ->reduce(fn (?string $lowest, $price): string => $lowest === null || bccomp((string) $price, $lowest, 4) < 0 ? (string) $price : $lowest);
+        $title = app()->getLocale() === 'ar' ? $package->title_ar : $package->title_en;
+
+        return collect([$package->cover_path, ...($package->gallery ?? [])])
+            ->filter(fn ($path): bool => is_string($path) && $path !== '')->unique()
+            ->map(fn (string $path): ?string => PublicUrl::of($path))->filter()
+            ->map(fn (string $url): array => ['url' => $url, 'alt' => $title])->values()->all();
+    }
+
+    /**
+     * Social proof for the trip header (QC-060). Travel has no reviews yet,
+     * so `rating` stays null; trips are confirmed or completed requests.
+     *
+     * @return array{rating: null, travellers: int, bookings: int, agency_trips: int}
+     */
+    private function stats(TravelPackage $package): array
+    {
+        $booked = TravelBooking::query()->where('travel_package_id', $package->id)->whereIn('status', [BookingStatus::Confirmed, BookingStatus::Completed]);
 
         return [
-            'slug' => $package->slug,
-            'title' => app()->getLocale() === 'ar' ? $package->title_ar : $package->title_en,
-            'agency' => $package->vendor->store_name,
-            'trip_type' => $package->trip_type,
-            'destination' => $package->destination_city,
-            'nights' => $package->nights,
-            'from_price' => MoneyResource::make($from),
-            'image' => PublicUrl::of($package->cover_path) === null ? null : ['url' => PublicUrl::of($package->cover_path), 'alt' => app()->getLocale() === 'ar' ? $package->title_ar : $package->title_en],
-            'cover_url' => PublicUrl::of($package->cover_path),
-            'status' => $package->status->value,
+            'rating' => null,
+            'travellers' => (int) (clone $booked)->sum('seats'),
+            'bookings' => (clone $booked)->count(),
+            'agency_trips' => TravelPackage::query()->where('vendor_id', $package->vendor_id)->whereIn('status', [PackageStatus::Active, PackageStatus::SoldOut])->count(),
         ];
     }
 

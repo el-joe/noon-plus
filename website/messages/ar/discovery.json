@@ -1,0 +1,89 @@
+{
+  "discovery": {
+    "search": {
+      "suggestions": "اقتراحات",
+      "recent": "عمليات البحث الأخيرة",
+      "categories": "الفئات",
+      "brands": "العلامات التجارية",
+      "products": "المنتجات",
+      "clearRecent": "مسح",
+      "removeRecent": "إزالة «{query}» من عمليات البحث الأخيرة",
+      "noSuggestions": "لا توجد اقتراحات لـ «{query}»",
+      "loading": "جارٍ البحث…",
+      "searchFor": "ابحث عن «{query}»",
+      "trending": "الأكثر رواجًا الآن",
+      "popular": "عمليات البحث الشائعة"
+    },
+    "recent": {
+      "clear": "مسح"
+    },
+    "pdp": {
+      "model": "الطراز:",
+      "badges": "مميزات",
+      "bnpl": "قسّمها على {count} دفعات بقيمة {amount} — بدون فوائد.",
+      "delivery": "التوصيل",
+      "fbnBadge": "الاستيفاء بواسطة ناوي",
+      "fbnBadgeHint": "شحن سريع من مستودع ناوي",
+      "fbnHint": "يتولى نوي التوصيل: يُشحن من مركز تنفيذ نوي.",
+      "sellerRating": "تقييم البائع",
+      "ratings": "التقييمات",
+      "otherOffersFrom": "{count, plural, one {عرض آخر واحد} two {عرضان آخران} few {# عروض أخرى} many {# عرضًا آخر} other {# عرض آخر}} بدءًا من {price}",
+      "warranty": "الضمان متاح",
+      "warrantyHint": "أضف خطة حماية قبل الإضافة إلى السلة"
+    },
+    "fbt": {
+      "title": "يُشترى معًا عادةً",
+      "thisItem": "(هذا المنتج)",
+      "include": "تضمين {title}",
+      "totalFor": "{count, plural, one {الإجمالي لمنتج واحد} two {الإجمالي لمنتجين} few {الإجمالي لـ # منتجات} many {الإجمالي لـ # منتجًا} other {الإجمالي لـ # منتج}}",
+      "addAll": "{count, plural, one {أضف المنتج إلى السلة} two {أضف المنتجين إلى السلة} few {أضف المنتجات الـ # إلى السلة} many {أضف الـ # منتجًا إلى السلة} other {أضف الـ # منتج إلى السلة}}",
+      "adding": "جارٍ الإضافة…",
+      "added": "تمت الإضافة إلى السلة",
+      "viewCart": "عرض السلة"
+    },
+    "coupons": {
+      "code": "الرمز:",
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "copyCode": "نسخ الرمز {code}",
+      "apply": "تطبيق على السلة",
+      "applying": "جارٍ التطبيق…",
+      "applied": "تم التطبيق",
+      "minOrder": "حد أدنى للطلب {amount}",
+      "maxDiscount": "حتى {amount}",
+      "seller": "لدى {name} فقط",
+      "firstOrder": "الطلب الأول",
+      "endsOn": "ينتهي {date}"
+    },
+    "compare": {
+      "title": "مقارنة المنتجات",
+      "add": "أضف للمقارنة",
+      "added": "قيد المقارنة",
+      "full": "يمكنك مقارنة {max} منتجات كحد أقصى",
+      "tray": "منتجات للمقارنة",
+      "trayCount": "مقارنة ({count}/{max})",
+      "remove": "إزالة {title}",
+      "clear": "مسح الكل",
+      "compareNow": "قارن الآن",
+      "pickMore": "اختر منتجين على الأقل",
+      "emptyTitle": "اختر منتجات للمقارنة",
+      "emptyBody": "استخدم «أضف للمقارنة» في صفحة المنتج لمقارنة من 2 إلى {max} منتجات جنبًا إلى جنب.",
+      "browse": "تصفح المنتجات",
+      "addMore": "أضف منتجًا",
+      "price": "السعر",
+      "rating": "التقييم",
+      "availability": "التوفر",
+      "inStock": "متوفر",
+      "brand": "العلامة التجارية",
+      "modelNumber": "رقم الطراز"
+    },
+    "offers": {
+      "title": "عروض لك",
+      "liveNow": "مباشر الآن",
+      "upcoming": "قريبًا",
+      "deals": "{count, plural, one {عرض واحد} two {عرضان} few {# عروض} many {# عرضًا} other {# عرض}}",
+      "endsIn": "ينتهي خلال",
+      "startsIn": "يبدأ خلال"
+    }
+  }
+}

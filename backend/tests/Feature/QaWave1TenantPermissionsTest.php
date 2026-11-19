@@ -51,6 +51,19 @@ it('QC-020: Seller Center staff get only what their role grants; the owner keeps
     $this->actingAs($owner)->get(onPanel('partner', 'team'))->assertOk()->assertSee($viewer->email);
 });
 
+it('QC-020: a read-only member cannot open the forms for changes, and is not offered them', function () {
+    // Browser test BT-VEN-006: an Orders member (products: view) could open "Add a product" and only met a 403 on submit.
+    [$owner, $vendor] = sellerAccount();
+    $orders = wave1Staff($vendor, MembershipRole::ProductVendor, 'orders');
+
+    $this->actingAs($orders)->get(onPanel('partner', 'products'))->assertOk()->assertDontSee('Add a product');
+    $this->actingAs($orders)->get(onPanel('partner', 'products/create'))->assertForbidden();
+    $this->actingAs($orders)->get(onPanel('partner', 'inventory/inbound/create'))->assertOk();
+
+    $this->actingAs($owner)->get(onPanel('partner', 'products'))->assertOk()->assertSee('Add a product');
+    $this->actingAs($owner)->get(onPanel('partner', 'products/create'))->assertOk();
+});
+
 it('QC-020: the owner invites staff with a role, the invitee accepts and gets exactly that role', function () {
     [$owner, $vendor] = sellerAccount();
 
@@ -102,4 +115,40 @@ it('QC-020: travel, carrier and Creator Studio staff are limited too', function 
     $this->actingAs($agencyUser)->post(onPanel('marketer', 'agency/switch'), ['marketer_id' => $managed->id])->assertRedirect();
     $this->actingAs($agencyUser)->get(onPanel('marketer', 'wallet'))->assertOk();
     $this->actingAs($agencyUser)->post(onPanel('marketer', 'wallet/withdrawals'), ['amount' => '5', 'iban' => 'AE07033', 'account_name' => 'X'])->assertForbidden();
+});
+
+it('QC-020: the sidebar hides pages the team role cannot open (travel Finance, Seller Center Catalog)', function () {
+    $owner = User::factory()->create();
+    $agency = Vendor::factory()->create(['type' => 'travel', 'owner_user_id' => $owner->id]);
+    $owner->memberships()->create(['role' => MembershipRole::TravelAgency, 'country_id' => $this->country->id, 'tenant_type' => 'vendor', 'tenant_id' => $agency->id]);
+    $finance = wave1Staff($agency, MembershipRole::TravelAgency, 'finance');
+
+    $sidebar = fn (string $html): string => (string) str($html)->after('id="panel-sidebar"')->before('</aside>');
+
+    $financeNav = $sidebar($this->actingAs($finance)->get(onPanel('travel-agency', 'bookings'))->assertOk()->getContent());
+    expect($financeNav)->toContain(onPanel('travel-agency', 'bookings'))
+        ->toContain(onPanel('travel-agency', 'reports'))
+        ->not->toContain(onPanel('travel-agency', 'packages'))
+        ->not->toContain(onPanel('travel-agency', 'inquiries'))
+        ->not->toContain(onPanel('travel-agency', 'team'))
+        ->not->toContain(onPanel('travel-agency', 'change-requests'));
+
+    // Read-only roles see no action they would be refused (Promote a trip, New package).
+    $main = fn (string $html): string => (string) str($html)->after('</aside>');
+    expect($main($this->actingAs($finance)->get(onPanel('travel-agency', 'promotions'))->assertOk()->getContent()))->not->toContain(onPanel('travel-agency', 'promotions/create'));
+    expect($main($this->actingAs($owner)->get(onPanel('travel-agency', 'promotions'))->assertOk()->getContent()))->toContain(onPanel('travel-agency', 'promotions/create'));
+    $this->actingAs($finance)->get(onPanel('travel-agency'))->assertOk()->assertDontSee(onPanel('travel-agency', 'packages/create'), false);
+    $this->actingAs($finance)->get(onPanel('travel-agency', 'promotions/create'))->assertOk()->assertSee('data-read-only', false)->assertDontSee('data-promote-form', false);
+    $this->actingAs($owner)->get(onPanel('travel-agency'))->assertOk()->assertSee(onPanel('travel-agency', 'packages/create'), false);
+
+    $ownerNav = $sidebar($this->actingAs($owner)->get(onPanel('travel-agency', 'bookings'))->assertOk()->getContent());
+    expect($ownerNav)->toContain(onPanel('travel-agency', 'packages'))->toContain(onPanel('travel-agency', 'team'));
+
+    [, $vendor] = sellerAccount();
+    $catalog = wave1Staff($vendor, MembershipRole::ProductVendor, 'catalog');
+    $catalogNav = $sidebar($this->actingAs($catalog)->get(onPanel('partner', 'products'))->assertOk()->getContent());
+    expect($catalogNav)->toContain(onPanel('partner', 'products'))
+        ->not->toContain(onPanel('partner', 'orders').'"')
+        ->not->toContain(onPanel('partner', 'payouts'))
+        ->not->toContain(onPanel('partner', 'team'));
 });

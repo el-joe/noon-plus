@@ -1,0 +1,747 @@
+{
+ "title": "Vendor panel (Seller Center): catalogue, orders and onboarding — browser test report",
+ "area": "Seller Center (partner panel) and /join",
+ "date": "2026-11-19",
+ "summary": "Playwright browser test of the Seller Center catalogue and order side on data created by the run: every page of the product-store sidebar (23 of 23, plus Notifications and Sign-in history), listings on two variants of one product (validation, draft, review, admin approval, price, images and alt text, stock ledger, pause/resume), product and change requests, an order confirmed through to shipped with packing slip, an order cancelled, a return approved, received, inspected and refunded, review replies and answers, tenant isolation, the /join?ref= application with the referral recorded, approval and first sign-in, and the Seller Agreement gate with signing. 15 tests, all passing on the final run (31/31 for the whole vendor area). Bugs found here: BT-VEN-001 and BT-VEN-006 (fixed); open: BT-VEN-008, BT-VEN-010.",
+ "environment": [
+  "Storefront http://localhost:3000 (next start, production build)",
+  "API + panels http://localhost:8000; Seller Center host partner.nawy.test:8000 (Chromium host-resolver-rules)",
+  "Laravel dev DB (uae; Qatar for the Seller Agreement gate), MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake",
+  "Playwright project 'areas', Desktop Chrome, 2 workers, E2E_SKIP_SEED=1, --no-deps"
+ ],
+ "accounts": [
+  {
+   "role": "Seller (store owner)",
+   "login": "e2e-seller@nawy.test — E2E Store (E2eSeeder, email 2FA); one session per worker"
+  },
+  {
+   "role": "New store owner (per run)",
+   "login": "e2e-ven-<run>@nawy.test — store e2e-ven-<run>, created by support/setup.php"
+  },
+  {
+   "role": "Store not yet signed (Qatar)",
+   "login": "e2e-ven-gate-<run>@nawy.test — Seller Agreement published for Qatar only"
+  },
+  {
+   "role": "Applicant",
+   "login": "e2e-ven-apply-<run>j@nawy.test — created through /join"
+  },
+  {
+   "role": "Orders team member",
+   "login": "e2e-ven-staff-<run>@nawy.test — invited during the run, removed at the end"
+  },
+  {
+   "role": "Admin (approvals only)",
+   "login": "e2e-admin@nawy.test"
+  }
+ ],
+ "specs": [
+  "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+  "e2e/specs/areas/vendor/onboarding.spec.ts",
+  "e2e/specs/areas/vendor/support/{vendor.ts,test.ts,setup.php}"
+ ],
+ "totals": {
+  "passed": 15,
+  "failed": 0,
+  "skipped": 0
+ },
+ "flows": [
+  {
+   "id": "VEN-01",
+   "name": "Dashboard and daily report",
+   "goal": "KPIs, attention list and CSV report download.",
+   "preconditions": "e2e seller signed in (2FA).",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Seller Center dashboard",
+     "expected": "Sidebar, 4 KPI cards",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-01-1.png"
+    },
+    {
+     "action": "Download report (dashboard/report)",
+     "expected": "HTTP 200, CSV body",
+     "result": "pass"
+    }
+   ]
+  },
+  {
+   "id": "VEN-02",
+   "name": "Every Seller Center page opens",
+   "goal": "All 23 sidebar items of PanelNavigation 'partner' (product store layout) plus Notifications and Sign-in history.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open dashboard",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-1-dashboard.png"
+    },
+    {
+     "action": "Open orders",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-2-orders.png"
+    },
+    {
+     "action": "Open returns",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-3-returns.png"
+    },
+    {
+     "action": "Open disputes",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-4-disputes.png"
+    },
+    {
+     "action": "Open products",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-5-products.png"
+    },
+    {
+     "action": "Open product-requests",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-6-product-requests.png"
+    },
+    {
+     "action": "Open inventory",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-7-inventory.png"
+    },
+    {
+     "action": "Open packaging",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-8-packaging.png"
+    },
+    {
+     "action": "Open coupons",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-9-coupons.png"
+    },
+    {
+     "action": "Open flash-sales",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-10-flash-sales.png"
+    },
+    {
+     "action": "Open campaigns",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-11-campaigns.png"
+    },
+    {
+     "action": "Open advertising",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-12-advertising.png"
+    },
+    {
+     "action": "Open reviews",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-13-reviews.png"
+    },
+    {
+     "action": "Open earnings",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-14-earnings.png"
+    },
+    {
+     "action": "Open statements",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "note": "Statements & invoices redirects to Payouts (by design)",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-15-statements.png"
+    },
+    {
+     "action": "Open payouts",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-16-payouts.png"
+    },
+    {
+     "action": "Open subscription",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-17-subscription.png"
+    },
+    {
+     "action": "Open store",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-18-store.png"
+    },
+    {
+     "action": "Open change-requests",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-19-change-requests.png"
+    },
+    {
+     "action": "Open team",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-20-team.png"
+    },
+    {
+     "action": "Open contracts",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-21-contracts.png"
+    },
+    {
+     "action": "Open documents",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-22-documents.png"
+    },
+    {
+     "action": "Open support",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-23-support.png"
+    },
+    {
+     "action": "Open notifications",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "note": "not in the sidebar (header link)",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-24-notifications.png"
+    },
+    {
+     "action": "Open account/security",
+     "expected": "HTTP 200, no server error, no console error",
+     "result": "pass",
+     "note": "not in the sidebar (header link)",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-02-25-account_security.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-03",
+   "name": "Create a listing",
+   "goal": "List an existing catalogue variant with price, sale price, stock, SKU and an image with EN/AR alt text; submit for review.",
+   "preconditions": "New catalogue variant E2E-VEN-<run>-A (setup).",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Search the SKU on Add a product",
+     "expected": "The variant is found with 'Sell this'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-03-1.png"
+    },
+    {
+     "action": "Fill price 150, sale price 170, stock 12, SKU, image, alt text",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-03-2.png"
+    },
+    {
+     "action": "Submit for review",
+     "expected": "Refused: 'The sale price field must be less than 150.'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-03-3.png"
+    },
+    {
+     "action": "Fix sale price to 139 and submit",
+     "expected": "Listing page, status Pending review, 12 units, image with alt text 'Front view'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-03-4.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-04",
+   "name": "Second variant of the same product; Nawy approves",
+   "goal": "Save a draft listing, submit it, see both variants, admin approves both.",
+   "preconditions": "Variant E2E-VEN-<run>-B.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Price 155, stock 7, Save draft",
+     "expected": "Listing in Draft",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-04-1.png"
+    },
+    {
+     "action": "Submit for review",
+     "expected": "Pending review",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-04-2.png"
+    },
+    {
+     "action": "Products filtered by Pending review",
+     "expected": "Both run variants listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-04-3.png"
+    },
+    {
+     "action": "Admin → Approvals: approve both listings (admin used only so the flow can continue)",
+     "expected": "Both leave the queue",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-04-4.png"
+    },
+    {
+     "action": "Back in Seller Center",
+     "expected": "Listing is Active",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-04-5.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-05",
+   "name": "Manage a live listing",
+   "goal": "Price/handling, images (variant-only upload, alt text and position, remove), stock ledger, pause/resume.",
+   "preconditions": "VEN-03 listing, active.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Price 149.5, sale 135, handling 2 days → Save",
+     "expected": "Saved values shown",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-1.png"
+    },
+    {
+     "action": "Upload a 'Side view' image for this variant only",
+     "expected": "One more image, 'This variant only'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-2.png"
+    },
+    {
+     "action": "Edit the run's image: alt 'Front view, updated', position 5",
+     "expected": "Saved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-3.png"
+    },
+    {
+     "action": "Remove both run images",
+     "expected": "Images back to the count before the run",
+     "result": "pass",
+     "note": "images belong to the store's product, so the run cleans up"
+    },
+    {
+     "action": "Stock +5 restock, then −2 damaged",
+     "expected": "17 then 15 units available; ledger rows",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-4.png"
+    },
+    {
+     "action": "Pause",
+     "expected": "Resume button shown",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-5.png"
+    },
+    {
+     "action": "Resume",
+     "expected": "Pause button shown again",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-05-6.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-06",
+   "name": "Product request",
+   "goal": "Ask Nawy to add a product missing from the catalogue, then cancel.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Fill title EN/AR, brand, GTIN, model, link, description",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-06-1.png"
+    },
+    {
+     "action": "Send request",
+     "expected": "Row Pending",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-06-2.png"
+    },
+    {
+     "action": "Cancel",
+     "expected": "Row Cancelled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-06-3.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-07",
+   "name": "Change request for a locked section",
+   "goal": "Locked profile details change only through Nawy review.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Change requests",
+     "expected": "Locked sections with current values",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-07-1.png"
+    },
+    {
+     "action": "Ask for a change of the first section with a note",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-07-2.png"
+    },
+    {
+     "action": "Send request",
+     "expected": "Request Pending",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-07-3.png"
+    },
+    {
+     "action": "Cancel it",
+     "expected": "Cancelled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-07-4.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-08",
+   "name": "Fulfil an order",
+   "goal": "Packing slip, confirm → processing → packed → shipped.",
+   "preconditions": "A placed COD sub-order of the run on E2E-VEN-ORD.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Orders filtered by Placed",
+     "expected": "The run's order listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-1.png"
+    },
+    {
+     "action": "Open the order",
+     "expected": "Items, customer address, next-step button",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-2.png"
+    },
+    {
+     "action": "Packing slip (HTML)",
+     "expected": "HTTP 200 with the order number",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-9.png"
+    },
+    {
+     "action": "Confirm",
+     "expected": "Flash 'is now confirmed'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-3.png"
+    },
+    {
+     "action": "Start processing",
+     "expected": "Flash 'is now processing'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-4.png"
+    },
+    {
+     "action": "Mark packed",
+     "expected": "Flash 'is now packed'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-5.png"
+    },
+    {
+     "action": "Mark shipped",
+     "expected": "Flash 'is now shipped'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-08-6.png"
+    },
+    {
+     "action": "Parcel label HTML/PDF and invoice PDF",
+     "expected": "Shown when a carrier shipment exists / the invoice is issued",
+     "result": "skip",
+     "note": "Not shown on this path (no carrier allocation; COD invoice after delivery) — see notes"
+    }
+   ]
+  },
+  {
+   "id": "VEN-09",
+   "name": "Cancel an order",
+   "goal": "Seller cancels with a reason and is warned about the strike.",
+   "preconditions": "A second placed sub-order of the run.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Reason 'Out of stock at the store'",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-09-1.png"
+    },
+    {
+     "action": "Cancel order",
+     "expected": "Flash 'was cancelled. A strike was added…', status Cancelled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-09-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-10",
+   "name": "Return: approve, receive, inspect, refund",
+   "goal": "Seller handles a customer's drop-off return to the refund.",
+   "preconditions": "Delivered COD sub-order with COD cash collected; customer return requested (setup).",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Returns list",
+     "expected": "The run's return listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-10-1.png"
+    },
+    {
+     "action": "Open the return",
+     "expected": "Requested, Approve/Reject",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-10-2.png"
+    },
+    {
+     "action": "Approve return",
+     "expected": "Approved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-10-3.png"
+    },
+    {
+     "action": "Mark in transit, then received",
+     "expected": "Inspection form shown",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-10-4.png"
+    },
+    {
+     "action": "Outcome Good condition, put back in stock → Save inspection and refund",
+     "expected": "Completed, refund AED 80.00",
+     "result": "pass",
+     "note": "Found BT-VEN-001 (flash showed 80.0000)",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-10-5.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-11",
+   "name": "Reviews and questions",
+   "goal": "Reply to a published review; answer an approved question.",
+   "preconditions": "Published review and approved question of the run.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Reviews",
+     "expected": "The run's review and question listed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-11-1.png"
+    },
+    {
+     "action": "Reply to the review; answer the question",
+     "expected": "'Reply sent' and both texts shown (pending Nawy approval)",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-11-2.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-12",
+   "name": "Disputes",
+   "goal": "Disputes list renders (detail when one exists).",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Disputes",
+     "expected": "Page renders",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-12-1.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-02b",
+   "name": "Tenant isolation",
+   "goal": "Ids outside the store answer 404.",
+   "preconditions": "e2e seller.",
+   "spec": "e2e/specs/areas/vendor/catalog-orders.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "orders/999999 and products/999999/edit",
+     "expected": "HTTP 404",
+     "result": "pass"
+    }
+   ]
+  },
+  {
+   "id": "VEN-13",
+   "name": "Become a seller: /join?ref= → approval → first sign-in",
+   "goal": "Account-manager referral link, full vendor wizard with email code and documents, admin approval, first Seller Center sign-in.",
+   "preconditions": "Acquirer code of the e2e admin (AcquirerReferrals).",
+   "spec": "e2e/specs/areas/vendor/onboarding.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-en/join?ref=AM…",
+     "expected": "Chooser; the code is kept in localStorage nawy_join_ref",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-1.png"
+    },
+    {
+     "action": "Seller wizard: account step",
+     "expected": "Filled",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-2.png"
+    },
+    {
+     "action": "Confirm the 6-digit email code",
+     "expected": "Confirm email Completed",
+     "result": "pass"
+    },
+    {
+     "action": "Store, address and documents steps (documents uploaded with expiry)",
+     "expected": "Each step saved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-3.png"
+    },
+    {
+     "action": "Address step",
+     "expected": "Saved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-4.png"
+    },
+    {
+     "action": "Sign the agreement and submit",
+     "expected": "'Application submitted'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-12.png"
+    },
+    {
+     "action": "Application record",
+     "expected": "acquired_by_user_id = e2e admin (from ?ref=)",
+     "result": "pass"
+    },
+    {
+     "action": "Admin: Start review → Approve (admin used only so the flow can continue)",
+     "expected": "Approved",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-13.png"
+    },
+    {
+     "action": "Applicant signs in to Seller Center (email 2FA)",
+     "expected": "New store dashboard",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-13-14.png"
+    }
+   ]
+  },
+  {
+   "id": "VEN-14",
+   "name": "Seller Agreement gate and signing",
+   "goal": "A store that has not signed the current Seller Agreement is sent to Contracts; signing unlocks the panel.",
+   "preconditions": "Qatar store of the run; agreement published for Qatar only.",
+   "spec": "e2e/specs/areas/vendor/onboarding.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Products",
+     "expected": "Redirected to Contracts: 'Sign the updated Seller Agreement to continue.'",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-14-1.png"
+    },
+    {
+     "action": "Open the agreement",
+     "expected": "Text and sign form",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-14-2.png"
+    },
+    {
+     "action": "Sign without ticking 'I have read and accept'",
+     "expected": "Refused",
+     "result": "pass"
+    },
+    {
+     "action": "Tick, type full name, Sign contract",
+     "expected": "Signed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-14-3.png"
+    },
+    {
+     "action": "Open Products again",
+     "expected": "Allowed",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-14-4.png"
+    },
+    {
+     "action": "Download the signed copy",
+     "expected": "HTTP 200",
+     "result": "pass",
+     "screenshot": "../shots/vendor-panel-catalog-and-orders/VEN-14-5.png"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "id": "BT-VEN-001",
+   "severity": "minor",
+   "area": "Returns → inspection",
+   "description": "After inspecting a return, the flash said \"Inspection saved. Refund 80.0000.\" — the raw 4-decimal storage value with no currency.",
+   "status": "fixed",
+   "fix": "ManagesReturns::inspect formats the amount with MoneyFormatter (\"Refund AED 80.00.\"). Pest: ReturnsAndRefundsTest 'lets the seller review and inspect only their own returns'."
+  },
+  {
+   "id": "BT-VEN-006",
+   "severity": "minor",
+   "area": "Team & permissions (read-only roles)",
+   "description": "An Orders member (products: view only) saw 'Add a product' and could open the create form, only to get a 403 on submit. Same for coupon, campaign and inbound-plan create pages.",
+   "status": "fixed",
+   "fix": "tenant.can:{panel},{group},write for form-only GET pages (products/create, coupons/create & edit, campaigns/create, inventory/inbound/create, marketplace/ads/create); create buttons hidden without write access. Pest: QaWave1TenantPermissionsTest 'a read-only member cannot open the forms for changes…'."
+  },
+  {
+   "id": "BT-VEN-008",
+   "severity": "minor",
+   "area": "Products → manage listing (read-only roles)",
+   "description": "A read-only member still sees the price/stock/image forms on a listing page (the server refuses the change with 403).",
+   "status": "open",
+   "fix": ""
+  },
+  {
+   "id": "BT-VEN-010",
+   "severity": "cosmetic",
+   "area": "Returns → completed return",
+   "description": "A completed return keeps an empty 'Actions' card.",
+   "status": "open",
+   "fix": ""
+  }
+ ],
+ "notes": [
+  "Dev-only: uploaded images are served from APP_URL (http://localhost:8000/storage/…) while the panel CSP allows img-src 'self' https:, so product images do not render on partner.nawy.test:8000 in dev. On the https production hosts they load; the specs drop exactly that console line (dropDevImageCsp).",
+  "Panel sign-in is rate-limited per IP (30/min) and per account (30/hour); every agent's browser is 127.0.0.1, so the specs keep one e2e-seller session per worker in the OS temp dir (the shared e2e/.auth files are never rewritten) and serialise sign-ins of one email (two parallel 2FA logins read each other's mail code).",
+  "Panel language is saved on the user (preferred_locale), so the Arabic test runs as the run's own store owner, never the shared e2e seller.",
+  "Test data per run (support/setup.php, test values only): two new catalogue variants and an FBN variant of the first active product, sub-orders on the e2e store's own variant E2E-VEN-ORD (never listing 19 or the seeded e2e orders), a COD cash record for the delivered ones, a published review and an approved question, a return, a new uae store, a Qatar store, a Seller Agreement template published for Qatar only, a test ad slot (placement e2e_test, never requested by the storefront) and an 'E2E vendor flash sale' open for submissions.",
+  "The warehouse receiving of the inbound plan (arrive → receive 6 → finish) is a warehouse-staff step and was run through the InboundShipments service in tinker, so the removal flow had units to remove.",
+  "Order labels: the seller moved the COD order to Shipped (confirmed → processing → packed → shipped). No carrier shipment is allocated by that path, so the parcel label button did not show; the invoice PDF is only issued once the order is invoiced (after delivery for COD). Packing slip HTML was checked. Carrier label / delivery are covered in the order-lifecycle report.",
+  "FBN fees: the fee preview shows 0 per unit (owner decision).",
+  "Coupon limits D10 checked on a brand-new store: 91% refused, an end date more than 365 days away refused, the 20th live coupon accepted and the 21st refused (coupons 2–19 were copies made in tinker)."
+ ]
+}

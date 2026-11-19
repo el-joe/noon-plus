@@ -39,7 +39,15 @@
         <x-ui.card :title="__('Your code')" data-referral-card>
             @if ($topCode)
                 <p class="text-2xl font-bold font-mono">{{ $topCode->referral_code }}</p>
-                <p class="text-xs text-fg-link break-all">{{ rtrim(config('nawy.payments.storefront_url'), '/') }}/r/{{ $topCode->referral_code }}</p>
+                @php($shareUrl = rtrim(config('nawy.payments.storefront_url'), '/').'/r/'.$topCode->referral_code)
+                <p class="text-xs text-fg-link break-all" data-share-url>{{ $shareUrl }}</p>
+                {{-- QC-062 (Figma 90:2452): share the link. A QR code needs a QR library (not installed). --}}
+                <div class="mt-3 flex flex-wrap gap-2" data-share-actions>
+                    <x-ui.button size="sm" variant="outline" data-copy-text="{{ $shareUrl }}" data-copied-label="{{ __('Copied') }}">{{ __('Copy link') }}</x-ui.button>
+                    <x-ui.button size="sm" variant="outline" :href="'https://wa.me/?text='.rawurlencode($shareUrl)" target="_blank" rel="noopener">{{ __('WhatsApp') }}</x-ui.button>
+                    <x-ui.button size="sm" variant="outline" :href="'https://x.com/intent/post?url='.rawurlencode($shareUrl)" target="_blank" rel="noopener">X</x-ui.button>
+                    <x-ui.button size="sm" variant="outline" :href="'mailto:?body='.rawurlencode($shareUrl)">{{ __('Email') }}</x-ui.button>
+                </div>
             @else
                 <p class="text-sm text-fg-secondary">{{ __('Accept an invitation to get your referral code.') }}</p>
             @endif

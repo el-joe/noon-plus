@@ -11,7 +11,7 @@
                     <td class="px-5 py-3">{{ $campaign->clicks }} / {{ $campaign->impressions }}</td>
                     <td class="px-5 py-3"><x-ui.status-badge :status="$campaign->status" /></td>
                     <td class="px-5 py-3">
-                        @foreach (array_intersect(['active', 'paused'], array_map(fn ($status) => $status->value, $campaign->status->allowedNext())) as $next)
+                        @foreach (in_array($campaign->status, \App\Domains\Advertising\Http\Controllers\Seller\SellerAdvertisingController::SELLER_MOVABLE, true) ? array_intersect(['active', 'paused'], array_map(fn ($status) => $status->value, $campaign->status->allowedNext())) : [] as $next)
                             <form method="POST" action="{{ route('partner.advertising.campaigns.move', $campaign->id) }}" class="inline">@csrf<input type="hidden" name="status" value="{{ $next }}"><x-ui.button type="submit" size="sm" variant="outline">{{ $next === 'active' ? __('Resume') : __('Pause') }}</x-ui.button></form>
                         @endforeach
                     </td>
@@ -22,9 +22,9 @@
             @csrf
             <x-ui.select :label="__('Listing')" name="listing_id" :options="$listings->mapWithKeys(fn ($listing) => [$listing->id => $listing->variant->product->title()])->all()" />
             <x-ui.select :label="__('Pricing')" name="pricing_model" selected="cpc" :options="['cpc' => __('Cost per click'), 'cpm' => __('Cost per 1,000 views')]" />
-            <x-ui.input :label="__('Bid')" name="bid" type="number" required />
-            <x-ui.input :label="__('Daily budget')" name="daily_budget" type="number" required />
-            <x-ui.input :label="__('Total budget (optional)')" name="total_budget" type="number" />
+            <x-ui.input :label="__('Bid')" name="bid" type="number" step="any" min="0" required />
+            <x-ui.input :label="__('Daily budget')" name="daily_budget" type="number" step="any" min="0" required />
+            <x-ui.input :label="__('Total budget (optional)')" name="total_budget" type="number" step="any" min="0" />
             <x-ui.input :label="__('Keywords (comma separated, optional)')" name="keywords" />
             <div class="flex items-end"><x-ui.button type="submit">{{ __('Create campaign') }}</x-ui.button></div>
         </form>
@@ -67,7 +67,7 @@
                             <form method="POST" enctype="multipart/form-data" action="{{ route('partner.advertising.coupons.join', $invitation->id) }}" class="flex flex-wrap gap-2">
                                 @csrf
                                 <label class="sr-only" for="fee-{{ $invitation->id }}">{{ __('Offered fee') }}</label>
-                                <input id="fee-{{ $invitation->id }}" name="offered_fee" type="number" step="0.01" value="{{ $invitation->min_fee }}" class="h-8 w-24 rounded-lg border border-line bg-surface px-2 text-sm">
+                                <input id="fee-{{ $invitation->id }}" name="offered_fee" type="number" step="0.01" value="{{ rtrim(rtrim((string) $invitation->min_fee, '0'), '.') }}" class="h-8 w-24 rounded-lg border border-line bg-surface px-2 text-sm">
                                 <select name="payment_method" class="h-8 rounded-lg border border-line bg-surface px-2 text-sm" aria-label="{{ __('Payment') }}"><option value="wallet">{{ __('Statement') }}</option><option value="bank_transfer">{{ __('Bank transfer') }}</option></select>
                                 <input type="file" name="proof" class="text-xs" aria-label="{{ __('Transfer proof') }}">
                                 <x-ui.button type="submit" size="sm">{{ __('Request to join') }}</x-ui.button>

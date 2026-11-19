@@ -113,8 +113,8 @@ it('lists document requirements and my uploads', function () {
 
     $this->withToken($this->token)->getJson('/api/v1/uae-en/delivery/me/documents')->assertOk()
         ->assertJsonPath('data.requirements', [
-            ['id' => $type->id, 'code' => 'driving_licence', 'name' => 'Driving licence', 'mandatory' => true],
-            ['id' => $type->id + 1, 'code' => 'vehicle_photo', 'name' => 'Vehicle photo', 'mandatory' => false],
+            ['id' => $type->id, 'code' => 'driving_licence', 'name' => 'Driving licence', 'mandatory' => true, 'has_expiry' => false, 'max_mb' => 10],
+            ['id' => $type->id + 1, 'code' => 'vehicle_photo', 'name' => 'Vehicle photo', 'mandatory' => false, 'has_expiry' => false, 'max_mb' => 10],
         ])
         ->assertJsonPath('data.uploads.0.id', Document::query()->sole()->id)
         ->assertJsonPath('data.uploads.0.type', 'Driving licence')

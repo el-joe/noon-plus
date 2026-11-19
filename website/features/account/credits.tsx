@@ -17,7 +17,7 @@ export function CreditsView() {
   const [page, setPage] = useState(1);
   const wallet = useQuery({ queryKey: ["wallet", market.slug], queryFn: async () => (await api.getWallet(market.slug)).data });
   const history = useQuery({ queryKey: ["wallet-tx", market.slug, page], queryFn: async () => api.getWalletTransactions(market.slug, page) });
-  const pages = Math.max(1, Math.ceil(Number(history.data?.meta.total ?? 0) / 30));
+  const pages = Math.max(1, Number(history.data?.meta.last_page ?? 1)); // G-A4: meta.per_page / last_page
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,9 +1,17 @@
 <?php
 
 use App\Domains\Cart\Exceptions\CartRejected;
+use App\Domains\Countries\Http\Middleware\MapCustomHost;
+use App\Domains\Identity\Exceptions\EmailLoginCodeRejected;
+use App\Domains\Identity\Http\Middleware\EnsureAccountEmail;
+use App\Domains\Migration\Http\LegacyRedirectFallback;
+use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
 use App\Domains\Panels\Http\Middleware\EnsureTenantPermission;
 use App\Domains\Panels\Support\Panel;
 use App\Shared\Http\ApiResponse;
+use App\Shared\Http\Middleware\SecurityHeaders;
+use App\Shared\Localization\SetApiLocale;
+use App\Shared\Localization\SetPanelLocale;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -26,6 +34,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.can' => EnsureTenantPermission::class,
         ]);
+        // QC-028: request locale — API from Accept-Language (the market slug wins), panels from the user's preference.
+        $middleware->prepend(SetApiLocale::class);
+        // QC-044: panel alias / redirect hosts from the admin domain map answer with a redirect to the canonical host.
+        $middleware->prepend(MapCustomHost::class);
+        $middleware->web(append: [SetPanelLocale::class]);
+        // WP11 hardening: security headers everywhere, a default per-user/IP limit on every API route.
+        $middleware->append(SecurityHeaders::class);
+        $middleware->throttleApi('api');
+        // Legacy phone-only customers must add an email before using signed-in API routes (data-migration-plan §5.2).
+        $middleware->api(append: [EnsureAccountEmail::class]);
         $middleware->redirectGuestsTo(fn (Request $request): string => route(
             (Panel::fromRequest($request)?->key ?? 'admin').'.login'
         ));
@@ -34,8 +52,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // WP11 extras: old-platform URLs that reach Laravel answer 301 to the new website (legacy_redirects) instead of 404.
+        $exceptions->render(new LegacyRedirectFallback);
         // Gateway credentials are write-only: never flash them back into the session.
         $exceptions->dontFlash(['credentials', 'credentials.*']);
+        // QA-046: expected business refusals are answered, not logged as errors (real 500s stay visible).
+        $exceptions->dontReport([TransitionRefused::class, SubOrderTransitionRefused::class, CartRejected::class, EmailLoginCodeRejected::class]);
         $exceptions->render(fn (TransitionRefused $refused, Request $request) => $request->is('api/*') || $request->expectsJson()
             ? ApiResponse::error('not_allowed', $refused->getMessage(), 422)
             : back()->withErrors(['action' => $refused->getMessage()]));
@@ -110,5 +132,12 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Domains/Delivery/Console',
         __DIR__.'/../app/Domains/LiveMedia/Console',
         __DIR__.'/../app/Domains/Content/Console',
+        __DIR__.'/../app/Domains/Coupons/Console',
+        __DIR__.'/../app/Domains/Catalog/Console',
+        __DIR__.'/../app/Domains/Panels/Console',
+        __DIR__.'/../app/Domains/Support/Console',
+        __DIR__.'/../app/Domains/Fulfilment/Console',
+        __DIR__.'/../app/Domains/Migration/Console',
+        __DIR__.'/../app/Domains/Reporting/Console',
     ])
     ->create();

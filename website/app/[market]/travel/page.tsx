@@ -56,6 +56,7 @@ async function TravelSections({ market }: { market: Market }) {
     return <EmptyState icon={<Plane className="size-10" />} title={t("travel.title")} body={t("travel.comingSoon")} />;
   }
 
+  // D14: `filter` keeps the server order, so promoted trips stay first in each group.
   const groups = TRIP_TYPES.map((type) => ({ type, items: packages.filter((p) => p.trip_type === type) })).filter((g) => g.items.length > 0);
   const others = packages.filter((p) => !TRIP_TYPES.some((type) => type === p.trip_type));
   const agencies = Object.entries(

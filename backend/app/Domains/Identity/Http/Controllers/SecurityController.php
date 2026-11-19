@@ -2,6 +2,7 @@
 
 namespace App\Domains\Identity\Http\Controllers;
 
+use App\Domains\Identity\Models\PushDeviceToken;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -40,6 +41,8 @@ class SecurityController extends Controller
             return ApiResponse::error('device_not_found', __('That device is not signed in to your account.'), 404);
         }
 
+        PushDeviceToken::query()->where('user_id', $request->user()->id)->where('personal_access_token_id', $tokenId)->delete();
+
         return ApiResponse::success(['revoked' => true]);
     }
 
@@ -51,6 +54,8 @@ class SecurityController extends Controller
         $token = $request->user()->currentAccessToken();
 
         if ($token instanceof PersonalAccessToken) {
+            // G-A2: a signed-out device stops receiving push.
+            PushDeviceToken::query()->where('personal_access_token_id', $token->id)->delete();
             $token->delete();
         }
 
@@ -63,7 +68,7 @@ class SecurityController extends Controller
             ->latest('created_at')
             ->orderByDesc('id')
             ->limit(20)
-            ->get(['channel', 'outcome', 'ip_address', 'user_agent', 'created_at']);
+            ->get(['channel', 'method', 'outcome', 'ip_address', 'user_agent', 'created_at']);
 
         return ApiResponse::success($events);
     }

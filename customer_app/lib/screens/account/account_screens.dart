@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:nawy_core/device.dart' show MediaPicker, UploadRules, rejectionMessages;
 
+import '../../core/api/api_client.dart';
 import '../../core/json.dart';
 import '../../core/money.dart';
 import '../../l10n/l10n.dart';
+import '../../routing/guards.dart';
 import '../../routing/navigation.dart';
+import '../auth/sign_in_screen.dart' show passwordProblem;
 import '../../state/app_state.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
@@ -164,7 +168,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     n['read'] = true;
                   } catch (_) {}
                 }
-                if (context.mounted) await openLink(context, n.s('link'));
+                if (!context.mounted) return;
+                // Review notifications (`review.published`, `review.hidden`,
+                // `review.rejected`) open the customer's reviews when the
+                // API sends no link.
+                if (n.s('link') == null && n.str('type').startsWith('review.')) {
+                  await Navigator.of(context).pushNamed(Routes.myReviews);
+                } else {
+                  await openLink(context, n.s('link'));
+                }
               },
             ),
           ),
@@ -185,8 +197,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 /// Profile: name, email language, marketing channels, email change by code
-/// (`GET/PATCH me`, `POST me/email`, `POST me/email/verify`). Avatar upload
-/// needs an image picker (owner-review WP10); removing it works.
+/// (`GET/PATCH me`, `POST me/email`, `POST me/email/verify`), avatar from
+/// the camera or gallery (`POST / DELETE me/avatar`, image_picker, D16).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -265,6 +277,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) setState(() {});
   }
 
+  /// The signed-in user's avatar after an upload / removal, else `GET me`'s.
+  String? _avatarUrl(BuildContext context, Json me) {
+    final user = AppScope.of(context).user;
+    return user != null && user.containsKey('avatar_url') ? user.s('avatar_url') : me.s('avatar_url');
+  }
+
+  /// Camera or gallery → `POST me/avatar` (`avatar`, jpg/png/webp ≤ 2 MB;
+  /// image_picker, owner-review D16).
+  Future<void> _changeAvatar() async {
+    final picker = MediaPicker.current;
+    final camera = !picker.hasCamera
+        ? false
+        : await showModalBottomSheet<bool>(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                ListTile(key: const ValueKey('avatar-camera'), leading: const Icon(Icons.photo_camera_outlined), title: Text(ctx.t('media.camera')), onTap: () => Navigator.of(ctx).pop(true)),
+                ListTile(key: const ValueKey('avatar-gallery'), leading: const Icon(Icons.photo_library_outlined), title: Text(ctx.t('media.gallery')), onTap: () => Navigator.of(ctx).pop(false)),
+              ]),
+            ),
+          );
+    if (camera == null || !mounted) return;
+    final picked = camera ? [?await picker.camera()] : await picker.gallery();
+    if (picked.isEmpty || !mounted) return;
+    const rules = UploadRules.avatar;
+    final check = rules.check(const [], picked.take(1).toList());
+    if (check.accepted.isEmpty) {
+      showToast(context, rejectionMessages(check.rejected, rules, context.t).join('\n'), error: true);
+      return;
+    }
+    final app = AppScope.read(context);
+    final res = await guarded(context, () => app.api.multipart('me/avatar', files: [check.accepted.single.part('avatar')]), success: context.t('profile.avatarUpdated'));
+    if (res != null && mounted) {
+      app.updateUser(asJson(res.data));
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(context.t('profile.title'))),
@@ -272,20 +322,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           load: _load,
           builder: (context, me, _) => ListView(padding: const EdgeInsets.all(16), children: [
             Row(children: [
-              CircleAvatar(radius: 32, backgroundColor: NawyColors.bgBrand, foregroundImage: me.s('avatar_url') != null ? NetworkImage(me.str('avatar_url')) : null, child: const Icon(Icons.person_rounded)),
+              Builder(builder: (context) {
+                final url = _avatarUrl(context, me);
+                return CircleAvatar(radius: 32, backgroundColor: NawyColors.bgBrand, foregroundImage: url != null ? netImageProvider(url) : null, onForegroundImageError: url != null ? (_, _) {} : null, child: const Icon(Icons.person_rounded));
+              }),
               const SizedBox(width: 12),
-              if (me.s('avatar_url') != null)
-                TextButton(
-                  onPressed: () async {
-                    final app = AppScope.read(context);
-                    final res = await guarded(context, () => app.api.delete('me/avatar'));
-                    if (res != null && mounted) {
-                      app.updateUser(asJson(res.data));
-                      setState(() {});
-                    }
-                  },
-                  child: Text(context.t('profile.removeAvatar')),
-                ),
+              Expanded(
+                child: Wrap(children: [
+                  TextButton(key: const ValueKey('avatar-change'), onPressed: _changeAvatar, child: Text(context.t('profile.changeAvatar'))),
+                  if (_avatarUrl(context, me) != null)
+                    TextButton(
+                      onPressed: () async {
+                        final app = AppScope.read(context);
+                        final res = await guarded(context, () => app.api.delete('me/avatar'));
+                        if (res != null && mounted) {
+                          app.updateUser(asJson(res.data));
+                          setState(() {});
+                        }
+                      },
+                      child: Text(context.t('profile.removeAvatar')),
+                    ),
+                ]),
+              ),
             ]),
             const SizedBox(height: 16),
             TextField(controller: _name, decoration: InputDecoration(labelText: context.t('profile.name'))),
@@ -314,7 +372,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 }
 
-/// Figma "41 Security": devices (revoke) and login history.
+/// Figma "41 Security": sign-in methods (D9: set or change the password,
+/// linked Google / Apple with unlink), devices (revoke) and login history
+/// with the sign-in method.
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
 
@@ -325,17 +385,81 @@ class SecurityScreen extends StatefulWidget {
 class _SecurityScreenState extends State<SecurityScreen> {
   int _gen = 0;
 
+  Future<void> _password(Json me) async {
+    final app = AppScope.read(context);
+    final hasPassword = me.b('has_password');
+    final saved = await showNawySheet<bool>(
+      context,
+      title: context.t(hasPassword ? 'security.changePassword' : 'security.setPassword'),
+      builder: (_) => PasswordSheet(hasPassword: hasPassword),
+    );
+    if (saved == true && mounted) {
+      app.updateUser({'has_password': true});
+      showToast(context, context.t('security.passwordSaved'));
+      setState(() => _gen++);
+    }
+  }
+
+  Future<void> _unlink(String provider) async {
+    final app = AppScope.read(context);
+    final name = context.t('auth.provider.$provider');
+    final ok = await confirmDialog(context, title: context.t('security.unlinkConfirm', {'provider': name}), confirm: context.t('security.unlink'));
+    if (ok != true || !mounted) return;
+    final res = await guarded(context, () => app.api.delete('me/social-accounts/$provider'), success: context.t('security.unlinked', {'provider': name}));
+    if (res != null && mounted) setState(() => _gen++);
+  }
+
   @override
   Widget build(BuildContext context) {
     final api = AppScope.read(context).api;
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.t('security.title')),
-          bottom: TabBar(tabs: [Tab(text: context.t('security.devices')), Tab(text: context.t('security.history'))]),
+          bottom: TabBar(tabs: [
+            Tab(text: context.t('security.signIn')),
+            Tab(text: context.t('security.devices')),
+            Tab(text: context.t('security.history')),
+          ]),
         ),
         body: TabBarView(children: [
+          AsyncBody<Json>(
+            key: ValueKey('me-$_gen'),
+            load: () => api.getObject('me'),
+            builder: (context, me, _) {
+              final linked = me.strings('social_accounts');
+              final hasPassword = me.b('has_password');
+              return ListView(children: [
+                ListTile(
+                  key: const ValueKey('security-password'),
+                  leading: const Icon(Icons.lock_outline_rounded),
+                  title: Text(context.t('security.password')),
+                  subtitle: Text(context.t(hasPassword ? 'security.passwordSet' : 'security.passwordNone')),
+                  trailing: TextButton(
+                    key: const ValueKey('security-password-action'),
+                    onPressed: () => _password(me),
+                    child: Text(context.t(hasPassword ? 'security.changePassword' : 'security.setPassword')),
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(context.t('security.linked'), style: NawyText.h4),
+                ),
+                for (final provider in const ['google', 'apple'])
+                  ListTile(
+                    key: ValueKey('security-linked-$provider'),
+                    leading: Icon(provider == 'apple' ? Icons.apple_rounded : Icons.g_mobiledata_rounded),
+                    title: Text(context.t('auth.provider.$provider')),
+                    subtitle: Text(context.t(linked.contains(provider) ? 'security.linkedYes' : 'security.notLinked')),
+                    trailing: linked.contains(provider)
+                        ? TextButton(key: ValueKey('security-unlink-$provider'), onPressed: () => _unlink(provider), child: Text(context.t('security.unlink')))
+                        : null,
+                  ),
+              ]);
+            },
+          ),
           AsyncBody<List<Json>>(
             key: ValueKey(_gen),
             load: () => api.getList('me/devices').then((r) => r.data),
@@ -366,7 +490,11 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 ListTile(
                   leading: Icon(e.s('outcome') == 'succeeded' ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
                       color: e.s('outcome') == 'succeeded' ? NawyColors.bgSuccess : NawyColors.bgDanger),
-                  title: Text('${context.l10n.status(e.s('outcome'))} · ${e.s('channel') ?? ''}'),
+                  title: Text([
+                    context.l10n.status(e.s('outcome')),
+                    if (e.s('method') != null) context.t('security.method.${e.s('method')}'),
+                    if (e.s('channel') != null) e.s('channel')!,
+                  ].join(' · ')),
                   subtitle: Text([shortDate(context, e.s('created_at'), time: true), e.s('ip_address'), e.s('user_agent')].whereType<String>().join('\n'), maxLines: 3),
                 ),
             ]),
@@ -377,3 +505,83 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
 }
 
+/// Set (no password yet) or change the password: `POST me/password` with
+/// `current_password` when one exists. Other devices are signed out.
+class PasswordSheet extends StatefulWidget {
+  const PasswordSheet({super.key, required this.hasPassword});
+
+  final bool hasPassword;
+
+  @override
+  State<PasswordSheet> createState() => _PasswordSheetState();
+}
+
+class _PasswordSheetState extends State<PasswordSheet> {
+  final _current = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  Map<String, String> _errors = {};
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final local = passwordProblem(_password.text, _confirm.text);
+    if (local != null) {
+      setState(() => _errors = {'password': context.t(local)});
+      return;
+    }
+    final app = AppScope.read(context);
+    try {
+      await app.api.post('me/password', body: {
+        if (widget.hasPassword) 'current_password': _current.text,
+        'password': _password.text,
+        'password_confirmation': _confirm.text,
+      });
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _errors = {...e.fieldErrors, if (e.fieldErrors.isEmpty) 'form': errorMessage(context, e)});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (widget.hasPassword) ...[
+            TextField(
+              key: const ValueKey('password-current'),
+              controller: _current,
+              obscureText: true,
+              autofillHints: const [AutofillHints.password],
+              decoration: InputDecoration(labelText: context.t('security.currentPassword'), errorText: _errors['current_password']),
+            ),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            key: const ValueKey('password-new'),
+            controller: _password,
+            obscureText: true,
+            autofillHints: const [AutofillHints.newPassword],
+            decoration: InputDecoration(labelText: context.t('auth.newPassword'), helperText: context.t('auth.passwordShort'), errorText: _errors['password']),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('password-confirm'),
+            controller: _confirm,
+            obscureText: true,
+            autofillHints: const [AutofillHints.newPassword],
+            decoration: InputDecoration(labelText: context.t('auth.confirmPassword'), errorText: _errors['password_confirmation']),
+          ),
+          if (_errors['form'] != null)
+            Padding(padding: const EdgeInsets.only(top: 8), child: Text(_errors['form']!, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
+          const SizedBox(height: 16),
+          BusyButton(key: const ValueKey('password-save'), label: context.t('common.save'), onPressed: _save),
+        ]),
+      );
+}

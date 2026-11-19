@@ -3,6 +3,15 @@
                  :breadcrumbs="[__('Orders'), $subOrder->number]">
     <x-slot:actions>
         <x-ui.button variant="outline" :href="route('partner.orders.packing-slip', $subOrder->id)" target="_blank">{{ __('Print packing slip') }}</x-ui.button>
+        @if (\App\Domains\Delivery\Models\Shipment::query()->where('sub_order_id', $subOrder->id)->exists())
+            <x-ui.button variant="outline" :href="route('partner.orders.label', $subOrder->id)" target="_blank" data-parcel-label>{{ __('Print parcel label') }}</x-ui.button>
+        @endif
+        @if (\App\Domains\Orders\Support\InvoicePdf::isReady($subOrder->order))
+            <x-ui.button variant="outline" :href="route('partner.orders.invoice-pdf', $subOrder->id)">{{ __('Download invoice (PDF)') }}</x-ui.button>
+        @endif
+        @if (app(\App\Domains\Fulfilment\Support\FbnOrders::class)->isWarehouseFulfilled($subOrder) && $subOrder->status->isBeforeShipping())
+            <x-ui.badge tone="info" data-fbn-order>{{ __('Fulfilled by Nawy — the warehouse ships this order') }}</x-ui.badge>
+        @endif
         @if ($nextStep)
             <form method="POST" action="{{ route('partner.orders.advance', $subOrder->id) }}">
                 @csrf

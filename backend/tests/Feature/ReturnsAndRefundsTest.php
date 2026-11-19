@@ -1,14 +1,17 @@
 <?php
 
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Finance\Enums\WalletBucket;
 use App\Domains\Finance\Support\AccountRef;
 use App\Domains\Finance\Support\Wallets;
+use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Listings\Support\InventoryLedger;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\Order;
 use App\Domains\Orders\Support\AutoCompleteDeliveredOrders;
 use App\Domains\Orders\Support\SubOrderStateMachine;
+use App\Domains\Panels\Support\PanelCountries;
 use App\Domains\Payments\Enums\PaymentMethod;
 use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Payments\Support\Gateways\FakeGateway;
@@ -308,11 +311,30 @@ describe('panels', function () {
         $this->post(onPanel('partner', "returns/{$return->id}/advance"), ['to' => 'received']);
         $this->get(onPanel('partner', "returns/{$return->id}"))->assertOk()->assertSee('Save inspection and refund');
         $this->post(onPanel('partner', "returns/{$return->id}/inspect"), ['items' => [$return->items()->first()->id => ['outcome' => 'good', 'restock' => '1']]])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasNoErrors()
+            // Browser test BT-VEN-001: the flash shows a formatted amount ("Refund AED 160.00."), not the raw column ("160.0000").
+            ->assertSessionHas('status', fn (string $status): bool => (bool) preg_match('/^Inspection saved\. Refund [A-Z]{3} [\d,]+\.\d{2,3}\.$/', $status));
 
         expect($return->refresh()->status)->toBe(ReturnStatus::Completed);
+        // Browser test BT-VEN-010: a completed return has nothing left to do, so no (empty) Actions card.
+        $this->get(onPanel('partner', "returns/{$return->id}"))->assertOk()->assertDontSee('data-return-actions', false);
 
         $this->actingAs($otherUser)->get(onPanel('partner', "returns/{$return->id}"))->assertNotFound();
+    });
+
+    it('offers the Actions card only while there is an action, and only to members who may change returns', function () {
+        [$owner, $vendor] = sellerAccount();
+        [$order, , $token] = deliveredCardOrder(vendor: $vendor);
+        requestReturn($token, $order)->assertCreated();
+        $return = ReturnRequest::query()->firstOrFail();
+        $vendorCountry = app(CountryContext::class)->current();
+        $viewer = User::factory()->create();
+        $viewer->memberships()->create(['role' => MembershipRole::ProductVendor, 'country_id' => $vendorCountry->id, 'tenant_type' => PanelCountries::VENDOR_TENANT, 'tenant_id' => $vendor->id, 'tenant_role' => 'viewer']);
+        app('auth')->forgetGuards();
+
+        $this->actingAs($owner)->get(onPanel('partner', "returns/{$return->id}"))->assertOk()->assertSee('data-return-actions', false)->assertSee('Approve return');
+        $this->actingAs($viewer)->get(onPanel('partner', "returns/{$return->id}"))->assertOk()->assertDontSee('data-return-actions', false)->assertDontSee('Approve return');
+        $this->actingAs($viewer)->post(onPanel('partner', "returns/{$return->id}/approve"))->assertForbidden();
     });
 
     it('needs returns permissions in the admin panel', function () {
@@ -322,9 +344,10 @@ describe('panels', function () {
         app('auth')->forgetGuards();
 
         $this->actingAs(adminAccount('uae', 'marketing'))->get(onPanel('admin', 'returns'))->assertForbidden();
-        $this->actingAs(adminAccount('uae', 'support'))->get(onPanel('admin', "returns/{$return->id}"))->assertOk();
+        // QC-045 (wave 3): Support approves returns (matrix §3.2 = A); Finance only views.
+        $this->actingAs(adminAccount('uae', 'finance'))->get(onPanel('admin', "returns/{$return->id}"))->assertOk();
         $this->post(onPanel('admin', "returns/{$return->id}/approve"))->assertForbidden();
-        $this->actingAs(adminAccount('uae', 'operations'))->post(onPanel('admin', "returns/{$return->id}/approve"))->assertRedirect();
+        $this->actingAs(adminAccount('uae', 'support'))->post(onPanel('admin', "returns/{$return->id}/approve"))->assertRedirect();
 
         expect($return->refresh()->status)->toBe(ReturnStatus::Approved);
     });

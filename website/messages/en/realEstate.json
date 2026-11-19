@@ -51,7 +51,24 @@
     "negotiable": "Negotiable",
     "previous": "Previous",
     "next": "Next",
-    "mapSoon": "Map view is coming soon.",
+    "map": {
+      "toggleLabel": "Results view",
+      "listView": "List",
+      "mapView": "Map",
+      "label": "Map of properties",
+      "showing": "{count, plural, one {# property on the map} other {# properties on the map}}",
+      "withoutLocation": "{count, plural, one {# more has no location set.} other {# more have no location set.}}",
+      "capped": "Showing the first 500 — narrow your filters to see more.",
+      "emptyTitle": "No properties to show on the map",
+      "emptyBody": "None of these listings has a location yet. Switch to the list to see them all, or change your filters.",
+      "pinNoPrice": "Price on request",
+      "featured": "Featured",
+      "viewListing": "View property",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "closePopup": "Close",
+      "keyboardHint": "Tip: use Tab to move between pins and Enter to open one. Arrow keys pan the map, + and − zoom."
+    },
     "detail": {
       "beds": "Beds",
       "baths": "Baths",
@@ -86,16 +103,17 @@
       "tip2": "Never send money in advance.",
       "tip3": "Inspect the property before you sign anything.",
       "tip4": "Nawy never asks for codes or payments in chat.",
-      "sold": "No longer available"
+      "sold": "No longer available",
+      "purpose": "Purpose"
     },
     "viewing": {
       "title": "Request a viewing",
       "preferred": "Preferred time",
       "message": "Message (optional)",
       "send": "Send viewing request",
-      "note": "Free — no payment on Nawy. Your name, email and mobile go only to this agent, who confirms the viewing time. Viewing and lease contracts are agreed with them.",
-      "sent": "Viewing request sent",
-      "sentBody": "The agent will confirm the time with you by phone or email.",
+      "note": "Free — no payment on Nawy. Your name, email and mobile go only to this agent, who contacts you directly. Viewing and lease contracts are agreed with them.",
+      "sent": "Request sent",
+      "sentBody": "The agent has your details and will contact you directly by phone or email.",
       "another": "Request another time",
       "what": "What would you like?",
       "types": {
@@ -151,6 +169,17 @@
       "beds": "{count, plural, one {# bed} other {# beds}}",
       "baths": "{count, plural, one {# bath} other {# baths}}",
       "area": "{value} m²"
+    },
+    "furnishing": {
+      "furnished": "Furnished",
+      "semi": "Semi-furnished",
+      "unfurnished": "Unfurnished"
+    },
+    "rentPeriod": {
+      "yearly": "Yearly",
+      "monthly": "Monthly",
+      "weekly": "Weekly",
+      "daily": "Daily"
     }
   }
 }

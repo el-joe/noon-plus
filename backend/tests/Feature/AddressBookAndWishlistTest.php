@@ -92,7 +92,7 @@ it('places an order to a saved address by address_id, and only to an own address
     $this->withToken($token)->postJson('/api/v1/uae-en/orders', ['payment_method' => 'cod', 'address_id' => $addressId])->assertCreated()
         ->assertJsonPath('data.shipping_address.street', 'Gate 2')
         ->assertJsonPath('data.shipping_address.phone', '+971501234567')
-        ->assertJsonPath('data.shipping_address.address_id', $addressId);
+        ->assertJsonMissingPath('data.shipping_address.address_id');
     expect(Order::query()->sole()->shipping_address['building'])->toBe('Tower 5');
 });
 

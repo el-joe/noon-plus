@@ -1,13 +1,14 @@
-import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'api_client.dart';
 
 /// Browser `fetch` transport for the web build (dart:io has no HttpClient on
 /// the web). Response headers are limited to the ones the API exposes via
-/// CORS (`Retry-After`). Bodies go as bytes so multipart uploads work.
+/// CORS (`Retry-After`, `Content-Disposition`) plus the safelisted `Content-Language` / `Content-Type`. Bodies go as bytes so multipart uploads work.
 class WebHttpTransport implements HttpTransport {
-  static const _exposed = ['retry-after'];
+  static const _exposed = ['retry-after', 'content-language', 'content-type', 'content-disposition'];
 
   @override
   Future<HttpResponseData> send(HttpRequestData request) async {
@@ -17,13 +18,13 @@ class WebHttpTransport implements HttpTransport {
       body: request.body == null ? null : Uint8List.fromList(request.body!).toJS,
     );
     final response = await _fetch(request.uri.toString().toJS, init).toDart;
-    final body = (await response.text().toDart).toDart;
+    final bytes = (await response.arrayBuffer().toDart).toDart.asUint8List();
     final headers = <String, String>{};
     for (final name in _exposed) {
       final value = response.headers.get(name.toJS)?.toDart;
       if (value != null) headers[name] = value;
     }
-    return HttpResponseData(response.status, body, headers);
+    return HttpResponseData(response.status, utf8.decode(bytes, allowMalformed: true), headers, bytes);
   }
 }
 
@@ -39,7 +40,7 @@ extension type _FetchInit._(JSObject _) implements JSObject {
 extension type _FetchResponse._(JSObject _) implements JSObject {
   external int get status;
   external _FetchHeaders get headers;
-  external JSPromise<JSString> text();
+  external JSPromise<JSArrayBuffer> arrayBuffer();
 }
 
 extension type _FetchHeaders._(JSObject _) implements JSObject {

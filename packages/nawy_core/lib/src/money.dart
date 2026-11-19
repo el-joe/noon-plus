@@ -51,6 +51,19 @@ class Money implements Comparable<Money> {
     return Money.parse(amount, currency);
   }
 
+  /// Either shape the API has used for an amount: a Money map
+  /// `{amount, currency}` (current) or a bare decimal string / number in
+  /// [fallbackCurrency] (older answers, e.g. `cod_in_hand` before QA-042).
+  /// Null when [json] is null or unreadable.
+  static Money? lenient(dynamic json, String fallbackCurrency) {
+    if (json is Map) return fromJson(json);
+    if (json is num) return Money.parse(json.toString(), fallbackCurrency);
+    if (json is String && RegExp(r'^\s*-?\d*(\.\d*)?\s*$').hasMatch(json) && RegExp(r'\d').hasMatch(json)) {
+      return Money.parse(json, fallbackCurrency);
+    }
+    return null;
+  }
+
   bool get isZero => minor == BigInt.zero;
   bool get isNegative => minor < BigInt.zero;
 

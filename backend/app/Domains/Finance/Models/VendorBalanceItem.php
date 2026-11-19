@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * One amount on a vendor's next statement: a sub-order settlement (eligible
  * once COD is remitted), a refund clawback after settlement (negative), or a
  * marketer item (WP5): campaign fee, sample commission, marketer commission
- * and its reversal.
+ * and its reversal; FBN storage invoices and removal fees.
  * Picked up once by a payout.
  */
 #[Fillable(['vendor_id', 'type', 'reference_type', 'reference_id', 'description', 'amount', 'is_eligible', 'vendor_payout_id'])]
@@ -50,6 +50,23 @@ class VendorBalanceItem extends Model
     public const TYPE_COUPON_PARTICIPATION = 'coupon_participation';
 
     public const TYPE_COUPON_PARTICIPATION_REFUND = 'coupon_participation_refund';
+
+    /** FBN monthly storage invoice (negative). */
+    public const TYPE_FBN_STORAGE = 'fbn_storage';
+
+    /** FBN removal order fee (negative). */
+    public const TYPE_FBN_REMOVAL = 'fbn_removal';
+
+    /** Vendor subscription invoice deducted from the statement (negative) — FR-FIN-7. */
+    public const TYPE_SUBSCRIPTION = 'subscription';
+
+    /** Packaging supplies order charged at checkout (negative) and given back when rejected (positive) — lifecycle §6.3. */
+    public const TYPE_PACKAGING = 'packaging';
+
+    public const TYPE_PACKAGING_REFUND = 'packaging_refund';
+
+    /** @var array<int, string> FBN charges outside the sub-order settlement. */
+    public const FBN_TYPES = [self::TYPE_FBN_STORAGE, self::TYPE_FBN_REMOVAL];
 
     /**
      * Get the attributes that should be cast.

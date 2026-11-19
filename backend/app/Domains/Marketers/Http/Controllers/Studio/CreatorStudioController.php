@@ -16,6 +16,7 @@ use App\Domains\Campaigns\Support\CampaignWizard;
 use App\Domains\Campaigns\Support\ContentSubmissions;
 use App\Domains\Campaigns\Support\Invitations;
 use App\Domains\Campaigns\Support\ReferralCodes;
+use App\Domains\Campaigns\Support\ReferralQr;
 use App\Domains\Campaigns\Support\Samples;
 use App\Domains\Contracts\Enums\ContractKind;
 use App\Domains\Contracts\Enums\SignatureMethod;
@@ -37,6 +38,7 @@ use App\Shared\Money\MoneyFactory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Creator Studio (marketer., Figma 90:2452, 90:2785, 101:9581, 101:10009,
@@ -191,6 +193,18 @@ class CreatorStudioController extends Controller
                     'orders' => MarketerConversion::query()->where('invitation_id', $invitation->id)->distinct('order_id')->count('order_id'),
                 ]),
         ]);
+    }
+
+    /**
+     * D16: the QR code of one of the marketer's referral links (SVG or PNG
+     * download; `inline=1` shows the SVG preview on the Links page).
+     */
+    public function linkQr(Request $request, int $invitation, ReferralCodes $codes, ReferralQr $qr): Response
+    {
+        $row = $this->workspace->marketer()->invitations()->where('status', InvitationStatus::Accepted)->whereNotNull('referral_code')->findOrFail($invitation);
+        $format = $request->validate(['format' => ['nullable', 'in:svg,png']])['format'] ?? 'svg';
+
+        return $qr->response($codes->share($row->referral_code, $this->countryContext->current())['qr_payload'], $row->referral_code, $format, ! $request->boolean('inline'));
     }
 
     public function wallet(Withdrawals $withdrawals): View

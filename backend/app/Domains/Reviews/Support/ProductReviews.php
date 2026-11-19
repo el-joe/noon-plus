@@ -5,7 +5,7 @@ namespace App\Domains\Reviews\Support;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Models\OrderItem;
-use App\Domains\Reviews\Enums\ModerationStatus;
+use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Models\ProductReview;
 use App\Domains\Reviews\Models\ProductReviewPhoto;
 use App\Models\User;
@@ -25,7 +25,7 @@ class ProductReviews
 {
     public const MAX_PHOTOS = 5;
 
-    public function __construct(private StateMachine $machine) {}
+    public function __construct(private StateMachine $machine, private ReviewAutoFlag $autoFlag) {}
 
     /**
      * The customer's delivered order items in the current country.
@@ -54,9 +54,10 @@ class ProductReviews
         }
 
         $stored = [];
+        $flagReason = $this->autoFlag->reason($data['title'] ?? null, $data['body'] ?? null);
 
         try {
-            return DB::connection($item->getConnectionName())->transaction(function () use ($customer, $item, $data, $photos, &$stored): ProductReview {
+            return DB::connection($item->getConnectionName())->transaction(function () use ($customer, $item, $data, $photos, $flagReason, &$stored): ProductReview {
                 $review = ProductReview::query()->create([
                     'product_id' => $item->listing->variant->product_id,
                     'vendor_id' => $item->subOrder->vendor_id,
@@ -67,7 +68,8 @@ class ProductReviews
                     'title' => $data['title'] ?? null,
                     'body' => $data['body'] ?? null,
                     'locale' => app()->getLocale() === 'ar' ? 'ar' : 'en',
-                    'status' => ModerationStatus::Pending,
+                    'status' => $flagReason === null ? ReviewStatus::Pending : ReviewStatus::AutoFlagged,
+                    'flag_reason' => $flagReason,
                 ]);
 
                 foreach (array_values(array_slice($photos, 0, self::MAX_PHOTOS)) as $index => $photo) {
@@ -75,7 +77,7 @@ class ProductReviews
                     $review->photos()->create(['path' => $path, 'sort_order' => $index]);
                 }
 
-                $this->machine->created($review, ActorType::Customer, $customer->id);
+                $this->machine->created($review, ActorType::Customer, $customer->id, $flagReason);
 
                 return $review;
             });
@@ -91,7 +93,7 @@ class ProductReviews
      */
     public function vote(ProductReview $review, int $userId, bool $helpful): ProductReview
     {
-        if ($review->status !== ModerationStatus::Approved) {
+        if (! $review->status->isPublic()) {
             throw new TransitionRefused(__('This review is not published.'));
         }
 

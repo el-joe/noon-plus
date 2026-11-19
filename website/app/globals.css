@@ -22,6 +22,8 @@
   /* Semantic colour (Figma "Color" collection) */
   --color-brand: #f9bb25;            /* color/bg-brand */
   --color-brand-subtle: #fff8e6;     /* color/bg-brand-subtle */
+  --color-brand-hover: #e9a20b;      /* color/bg-brand-hover */
+  --color-border-focus: #e9a20b;     /* color/border-focus */
   --color-brand-text: #9c5f09;       /* color/text-brand */
   --color-ink: #0d1526;              /* color/text-primary, bg-inverse, text-on-brand */
   --color-secondary: #565a64;        /* color/text-secondary */
@@ -37,6 +39,7 @@
   --color-success-subtle: #ecfdf3;   /* color/bg-success-subtle */
   --color-danger: #f04438;           /* color/bg-danger */
   --color-danger-text: #b42318;      /* color/text-danger */
+  --color-danger-subtle: #fef3f2;    /* color/bg-danger-subtle */
   --color-warning-subtle: #fff6ed;   /* color/bg-warning-subtle */
   --color-warning-text: #c4320a;
   --color-info-subtle: #eff6ff;      /* color/bg-info-subtle */
@@ -47,6 +50,7 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 24px;
 
   /* Effects */
   --shadow-xs: 0 1px 2px 0 rgb(13 21 38 / 0.06);
@@ -72,6 +76,12 @@
   --text-h2--line-height: 32px;
   --text-h1: 32px;
   --text-h1--line-height: 40px;
+  --text-display: 40px;
+  --text-display--line-height: 48px;
+  --text-price: 16px;
+  --text-price--line-height: 24px;
+  --text-price-lg: 24px;
+  --text-price-lg--line-height: 32px;
 
   /* Page width of the 1440 desktop frames (32px gutters). */
   --container-page: 1376px;
@@ -88,6 +98,26 @@ body {
 
 html[dir="rtl"] body {
   font-family: var(--font-arabic);
+}
+
+/*
+ * QC-066: Figma ar/* text styles (Cairo needs taller lines than Inter).
+ * Tailwind's text-* utilities read these variables, so overriding them on the
+ * RTL root switches every text style at once.
+ */
+html[dir="rtl"] {
+  --text-caption--line-height: 16px;
+  --text-body-sm--line-height: 18px;
+  --text-label--line-height: 18px;
+  --text-body--line-height: 23px;
+  --text-body-lg--line-height: 27px;
+  --text-h4--line-height: 28px;
+  --text-h3--line-height: 32px;
+  --text-h2--line-height: 37px;
+  --text-h1--line-height: 48px;
+  --text-display--line-height: 60px;
+  --text-price--line-height: 27px;
+  --text-price-lg--line-height: 37px;
 }
 
 .scrollbar-none {
@@ -111,3 +141,6 @@ html[dir="rtl"] body {
 .prose-cms ul { list-style: disc; padding-inline-start: 20px; }
 .prose-cms ol { list-style: decimal; padding-inline-start: 20px; }
 .prose-cms a { color: var(--color-link); text-decoration: underline; }
+
+/* QC-058 (Figma 25:605): checkout uses a minimal "Secure checkout" header and no store footer. */
+body:has([data-chrome="checkout"]) [data-store-chrome] { display: none; }

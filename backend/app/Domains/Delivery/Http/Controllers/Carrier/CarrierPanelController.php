@@ -72,6 +72,8 @@ class CarrierPanelController extends Controller
             'codInHand' => (string) CodCollection::query()->whereIn('agent_user_id', $agentUserIds)->whereNull('cod_settlement_id')->sum('amount'),
             'openClaims' => CarrierClaim::query()->where('carrier_id', $carrier->id)->whereIn('status', [ClaimStatus::Submitted, ClaimStatus::UnderReview])->count(),
             'score' => $this->scoreFor($carrier, $scorecards),
+            // QC-062 (Figma 106:15992): SLA by zone, last 30 days.
+            'slaByZone' => app(CarrierBoard::class)->slaByZone($carrier),
         ]);
     }
 
@@ -88,6 +90,9 @@ class CarrierPanelController extends Controller
                 ->selectRaw('agent_user_id, sum(amount) as total')->groupBy('agent_user_id')->pluck('total', 'agent_user_id'),
             'open' => DeliveryAssignment::query()->where('carrier_id', $carrier->id)->whereIn('status', AssignmentStatus::open())->with(['agent', 'subOrder.order'])->orderBy('sla_due_at')->limit(50)->get(),
             'exceptions' => Shipment::query()->where('carrier_id', $carrier->id)->where('status', ShipmentStatus::Failed)->count(),
+            // QC-062 (Figma 90:3664): "Unassigned & exceptions" — parcels waiting for a driver and failed / returning ones.
+            'attention' => $this->pickupQuery($carrier)->with('subOrder.order')->orderBy('updated_at')->limit(25)->get()
+                ->concat(app(CarrierBoard::class)->exceptions($carrier)->with('subOrder.order')->orderBy('updated_at')->limit(25)->get()),
         ]);
     }
 
@@ -123,7 +128,7 @@ class CarrierPanelController extends Controller
         return view('panels.carrier.shipments', [
             'shipments' => Shipment::query()->where('carrier_id', $carrier->id)
                 ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-                ->with(['subOrder.order', 'assignments' => fn ($query) => $query->latest('id')->with('agent')])->latest('id')->paginate(30)->withQueryString(),
+                ->with(['subOrder.order', 'assignments' => fn ($query) => $query->reorder('id', 'desc')->with('agent')])->latest('id')->paginate(30)->withQueryString(),
             'filters' => $filters,
             'statuses' => ShipmentStatus::cases(),
         ]);
@@ -161,7 +166,7 @@ class CarrierPanelController extends Controller
 
         return view('panels.carrier.exceptions', [
             'shipments' => app(CarrierBoard::class)->exceptions($carrier)
-                ->with(['subOrder.order', 'assignments' => fn ($query) => $query->latest('id')->with('agent')])->orderBy('updated_at')->get(),
+                ->with(['subOrder.order', 'assignments' => fn ($query) => $query->reorder('id', 'desc')->with('agent')])->orderBy('updated_at')->get(),
             'maxAttempts' => $settings->maxAttempts(),
         ]);
     }

@@ -69,6 +69,8 @@ export const productCard = z.object({
   sponsored: z.boolean().optional().default(false),
   label: z.string().nullable().optional(),
   ad_token: z.string().nullable().optional(),
+  /** Merchandising badges (wave 5a, QC-057): bestseller · new · top_rated. */
+  badges: z.array(z.object({ key: z.string(), label: z.string() })).catch([]).optional(),
 });
 export type ProductCard = z.infer<typeof productCard>;
 
@@ -83,6 +85,10 @@ export const facets = z.object({
   price: z.object({ min: nullableMoney, max: nullableMoney }),
   ratings: z.array(z.object({ min: z.number(), count: z.number() })),
   attributes: z.array(z.object({ key: z.string(), values: z.array(z.object({ value: z.string(), count: z.number() })) })),
+  /** QC-027: Fulfilled by (fbm / fbn), Condition (new / refurbished) and the Deals count. */
+  fulfilment: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
+  conditions: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
+  deals: z.number().default(0),
 });
 export type Facets = z.infer<typeof facets>;
 
@@ -145,6 +151,7 @@ export const offer = z.object({
     .nullable(),
   delivery: deliveryEstimate.nullable(),
   fulfilment: z.string().nullable(),
+  fulfilled_by_nawy: z.boolean().optional(),
   condition: z.string().nullable(),
   in_stock: z.number(),
 });
@@ -184,6 +191,9 @@ export const productDetail = z.object({
   other_offers: z.array(offer),
   from_price: nullableMoney,
   warranty_plans: z.array(warrantyPlan),
+  /** Wave 5a (QC-057): model number and merchandising badges. */
+  model_number: z.string().nullable().optional(),
+  badges: z.array(z.object({ key: z.string(), label: z.string() })).catch([]).optional(),
 });
 export type ProductDetail = z.infer<typeof productDetail>;
 export type MeasurementField = z.infer<typeof measurementField>;
@@ -216,6 +226,8 @@ export const review = z.object({
   helpful_count: z.number(),
   voted_helpful: z.boolean(),
   seller: z.string().nullable().optional(),
+  /** QC-012: the store's reply, once Nawy published it. */
+  seller_reply: z.object({ body: z.string(), created_at: z.string().nullable() }).nullable().optional(),
   created_at: z.string(),
   status: z.string().optional(),
   rejection_reason: z.string().nullable().optional(),
@@ -344,8 +356,15 @@ export const cart = z.object({
   }),
   warnings: z.array(z.unknown()),
   hold_minutes: z.number(),
+  /** G-A5: "spend X more for free delivery" (null when the market has no threshold). */
+  free_delivery: z
+    .object({ threshold: money, remaining: money, progress_percent: z.number(), qualified: z.boolean() })
+    .nullable()
+    .optional()
+    .catch(null),
 });
 export type Cart = z.infer<typeof cart>;
+export type FreeDelivery = NonNullable<Cart["free_delivery"]>;
 
 // PaymentMethodController@index
 export const paymentMethod = z.object({
@@ -371,7 +390,7 @@ export const payment = z.object({
 });
 
 // PaymentController@show / @verifyPayment (non-order payments, G-W31)
-export const PAYMENT_PURPOSES = ["order", "gift_card", "membership_invoice", "classified_package"] as const;
+export const PAYMENT_PURPOSES = ["order", "gift_card", "membership_invoice", "classified_package", "travel_promotion"] as const;
 export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
 export const paymentStatus = z.object({
   payment,
@@ -386,6 +405,9 @@ export const paymentStatus = z.object({
       membership: z.object({ status: z.string().nullable(), plan: z.string().nullable() }).nullable().optional(),
       applied_until: z.string().nullable().optional(),
       payment_status: z.string().nullable().optional(),
+      /** D14 `travel_promotion`: the paid promotion window. */
+      starts_at: z.string().nullable().optional(),
+      ends_at: z.string().nullable().optional(),
     })
     .nullable(),
 });
@@ -414,14 +436,32 @@ export const order = z.object({
       number: z.string(),
       status: z.string(),
       seller: z.string().nullable(),
+      /** Owner decision 2026-11-19: "nawy" when the parcel ships from the Nawy (FBN) warehouse. */
+      fulfilled_by: z.string().nullable().optional(),
       total: nullableMoney,
       shipping: nullableMoney,
       method: z.string().nullable(),
       delivery: z.object({ from: z.string().nullable(), by: z.string().nullable() }),
       delivery_code: z.string().nullable(),
+      /** Wave 5a (QC-026): when it was delivered, the last day to start a return, and the buttons to show. */
+      delivered_at: z.string().nullable().optional(),
+      return_until: z.string().nullable().optional(),
+      actions: z
+        .object({
+          track: z.boolean(),
+          invoice: z.boolean(),
+          cancel: z.boolean(),
+          return: z.boolean(),
+          review: z.boolean(),
+          buy_again: z.boolean(),
+          dispute: z.boolean(),
+        })
+        .partial()
+        .optional(),
       items: z.array(
         z.object({
           id: z.number(),
+          listing_id: z.number().nullable().optional(),
           sku: z.string().nullable(),
           title: z.string(),
           product_slug: z.string().nullable().optional(),
@@ -444,6 +484,8 @@ export const order = z.object({
       building: z.string().nullable().optional(),
     })
     .nullable(),
+  /** Wave 5a: the printable tax invoice (`orders/{n}/invoice`) can be opened. */
+  invoice_available: z.boolean().optional(),
 });
 export type Order = z.infer<typeof order>;
 
@@ -509,6 +551,8 @@ export type Device = z.infer<typeof device>;
 
 export const loginEvent = z.object({
   channel: z.string().nullable(),
+  /** D9: email_code | password | google | apple. */
+  method: z.string().nullable().optional(),
   outcome: z.string().nullable(),
   ip_address: z.string().nullable(),
   user_agent: z.string().nullable(),
@@ -527,11 +571,19 @@ export const me = z.object({
   avatar_url: z.string().nullable().optional(),
   marketing: z.object({ email: z.boolean(), sms: z.boolean(), push: z.boolean(), whatsapp: z.boolean() }).partial().optional(),
   created_at: z.string().nullable().optional(),
+  /** D9: the customer has chosen a password (sign-in by password possible). */
+  has_password: z.boolean().optional(),
+  /** An old Nawy phone-only account (placeholder email): it must add and verify an email before anything else. */
+  requires_email: z.boolean().optional(),
+  /** D9: linked providers, e.g. ["google"]. */
+  social_accounts: z.array(z.string()).optional(),
 });
 export type Me = z.infer<typeof me>;
 
-// EmailCodeAuthController@verify (token stripped by the BFF proxy)
+// Every sign-in answer (email code, password, reset, social exchange); the token is stripped by the BFF proxy.
 export const signIn = z.object({ user: me });
+// PasswordAuthController@reset: `user` only when signed in (device_name sent).
+export const passwordReset = z.object({ reset: z.boolean(), user: me.optional() });
 
 // Footer::get
 export const footer = z.object({
@@ -594,6 +646,9 @@ export type FlashSale = z.infer<typeof flashSale>;
 export const adPlacement = z.object({
   slot: z.string(),
   image: z.string().nullable(),
+  /** Video creatives (wave 3): `image` is null and `video` is the file URL. */
+  video: z.string().nullable().optional(),
+  creative_type: z.string().nullable().optional(),
   headline: z.string().nullable(),
   link_url: z.string().nullable(),
   sponsored: z.boolean(),

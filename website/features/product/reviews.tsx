@@ -2,17 +2,18 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { BadgeCheck, MessageSquare, ThumbsUp } from "lucide-react";
+import { BadgeCheck, Flag, MessageSquare, Store, ThumbsUp } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/field";
+import { Field, Select, Textarea } from "@/components/ui/field";
+import { Modal } from "@/components/layout/modal";
 import { Alert, Skeleton } from "@/components/ui/misc";
 import { Stars } from "@/components/ui/rating";
 import * as api from "@/lib/api/endpoints";
 import type { Review, ReviewPage, ReviewSummary } from "@/lib/api/schemas";
 import { formatDay } from "@/lib/format";
-import { useLoginRedirect, useSession } from "@/lib/hooks";
+import { useErrorMessage, useLoginRedirect, useSession } from "@/lib/hooks";
 import { useMarket } from "@/lib/market-context";
 import { WriteReviewModal } from "./write-review";
 
@@ -189,6 +190,16 @@ function ReviewItem({ review, locale, slug }: { review: Review; locale: "en" | "
         {review.seller ? <span>· {t("soldBy", { seller: review.seller })}</span> : null}
       </p>
       {review.body ? <p className="whitespace-pre-line text-body">{review.body}</p> : null}
+      {review.seller_reply ? (
+        <div className="ms-4 flex flex-col gap-1 rounded-md border-s-2 border-brand bg-subtle p-3">
+          <p className="flex flex-wrap items-center gap-x-2 text-body-sm font-semibold">
+            <Store className="size-3.5" />
+            {review.seller ? t("sellerReplyFrom", { seller: review.seller }) : t("sellerReply")}
+            {review.seller_reply.created_at ? <span className="font-normal text-secondary">{formatDay(review.seller_reply.created_at, locale)}</span> : null}
+          </p>
+          <p className="whitespace-pre-line text-body-sm">{review.seller_reply.body}</p>
+        </div>
+      ) : null}
       {review.photos.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {review.photos.map((photo) => (
@@ -210,6 +221,75 @@ function ReviewItem({ review, locale, slug }: { review: Review; locale: "en" | "
         {t("helpful", { count: state.count })}
       </button>
       {vote.isError ? <p className="text-body-sm text-danger-text">{t("voteError")}</p> : null}
+      <ReportReview reviewId={review.id} />
     </li>
+  );
+}
+
+/** QC-012: "Report" a published review (spam, offensive, fake…); it stays public until a moderator decides. */
+function ReportReview({ reviewId }: { reviewId: number }) {
+  const t = useTranslations("reviews");
+  const market = useMarket();
+  const toLogin = useLoginRedirect();
+  const { isSignedIn } = useSession();
+  const message = useErrorMessage();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<api.ReviewReportReason>("spam");
+  const [note, setNote] = useState("");
+  const [done, setDone] = useState(false);
+  const report = useMutation({
+    mutationFn: async () => api.reportReview(market.slug, reviewId, reason, note.trim()),
+    onSuccess: () => {
+      setDone(true);
+      setOpen(false);
+    },
+  });
+
+  if (done) return <p className="text-body-sm text-secondary">{t("reported")}</p>;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => (isSignedIn ? setOpen(true) : toLogin())}
+        className="inline-flex items-center gap-1 self-start text-body-sm text-secondary hover:text-ink hover:underline"
+      >
+        <Flag className="size-3.5" />
+        {t("report")}
+      </button>
+      {open ? (
+        <Modal title={t("reportTitle")} onClose={() => setOpen(false)}>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              report.mutate();
+            }}
+          >
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-1 text-body-sm font-medium">{t("reportReason")}</legend>
+              {api.REVIEW_REPORT_REASONS.map((r) => (
+                <label key={r} className="flex items-center gap-2 text-body">
+                  <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
+                  {t(`reportReasons.${r}`)}
+                </label>
+              ))}
+            </fieldset>
+            <Field label={t("reportNote")}>
+              <Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} />
+            </Field>
+            {report.isError ? <Alert tone="danger">{message(report.error)}</Alert> : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {t("reportCancel")}
+              </Button>
+              <Button type="submit" disabled={report.isPending}>
+                {t("reportSend")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+    </>
   );
 }

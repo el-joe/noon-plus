@@ -20,6 +20,7 @@ class OfferResource extends JsonResource
         Listing $resource,
         private ?FlashSaleSubmission $flashDeal = null,
         private ?DeliveryEstimate $delivery = null,
+        private ?int $sellableQuantity = null,
     ) {
         parent::__construct($resource);
     }
@@ -30,6 +31,7 @@ class OfferResource extends JsonResource
     public function toArray(Request $request): array
     {
         $regularPrice = $this->effectivePrice();
+        $inStock = $this->sellableQuantity ?? (int) $this->available_quantity;
 
         return [
             'listing_id' => $this->id,
@@ -45,13 +47,14 @@ class OfferResource extends JsonResource
             'flash_sale' => $this->flashDeal === null ? null : [
                 'event' => $this->flashDeal->event->display_name ?? $this->flashDeal->event->name,
                 'ends_at' => $this->flashDeal->event->ends_at->toIso8601String(),
-                'remaining' => $this->flashDeal->remainingQuantity(),
+                'remaining' => min($this->flashDeal->remainingQuantity(), $inStock),
                 'max_per_customer' => $this->flashDeal->event->max_qty_per_customer,
             ],
             'delivery' => $this->delivery?->toArray(),
             'fulfilment' => $this->fulfilment,
+            'fulfilled_by_nawy' => $this->fulfilment === 'fbn',
             'condition' => $this->condition,
-            'in_stock' => (int) $this->available_quantity,
+            'in_stock' => $inStock,
         ];
     }
 }

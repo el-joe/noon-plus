@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
+import '../data/location.dart';
 import '../data/models.dart';
+import '../ui/run_step.dart';
 import 'cant_deliver.dart';
 import 'code_match.dart';
 import 'history.dart';
@@ -23,6 +25,14 @@ class StopDetailScreen extends StatefulWidget {
 class _StopDetailScreenState extends State<StopDetailScreen> {
   final _key = GlobalKey<AsyncBodyState<Assignment>>();
 
+  /// Loads the stop and tells the GPS tracker whether it is on the road.
+  Future<Assignment> _load() async {
+    final tracker = DutyScope.read(context);
+    final a = await DeliveryApi(context.api).assignment(widget.number);
+    tracker?.noteStop(a);
+    return a;
+  }
+
   Future<void> _push(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     _key.currentState?.reload();
@@ -40,7 +50,7 @@ class _StopDetailScreenState extends State<StopDetailScreen> {
         if (!ok && mounted) showSnack(context, context.t('stop.mapsFailed'));
         return;
       case StopAction.arrive:
-        await runAction(context, () => api.arrive(a.number), success: context.t('stop.arrivedDone'));
+        await runStep(context, () => api.arrive(a.number), success: context.t('stop.arrivedDone'));
         _key.currentState?.reload();
         return;
       case StopAction.deliver:
@@ -65,7 +75,7 @@ class _StopDetailScreenState extends State<StopDetailScreen> {
         ),
         body: AsyncBody<Assignment>(
           key: _key,
-          load: () => DeliveryApi(context.api).assignment(widget.number),
+          load: _load,
           builder: (context, a, reload) {
             final locale = context.l10n.locale;
             final actions = actionsFor(a);
@@ -82,7 +92,7 @@ class _StopDetailScreenState extends State<StopDetailScreen> {
                     if (a.landmark != null) Text(context.t('stop.note', {'note': a.landmark}), style: NawyText.bodySm),
                     if (a.customerPhone != null) ...[
                       const SizedBox(height: 8),
-                      Text(a.customerPhone!, style: NawyText.bodyMedium, textDirection: TextDirection.ltr),
+                      PhoneLink(a.customerPhone!, key: const Key('call-customer')),
                     ],
                     const SizedBox(height: 8),
                     Text(context.t('stop.meta', {'order': a.orderNumber, 'attempt': a.attempt}), style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary)),
@@ -110,6 +120,24 @@ class _StopDetailScreenState extends State<StopDetailScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(context.t('stop.collectCash'), style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary)),
                     Text(a.codAmount!.format(locale: locale), style: NawyText.h2),
+                  ]),
+                ),
+              ],
+              if (a.isCancelled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  key: const Key('cancelled-banner'),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: NawyColors.bgDangerSubtle, borderRadius: BorderRadius.circular(NawyRadius.card)),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.block, color: NawyColors.textDanger),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(context.t('stop.cancelled'), style: NawyText.h4.copyWith(color: NawyColors.textDanger)),
+                        Text(context.t('stop.cancelledHint'), style: NawyText.bodySm),
+                      ]),
+                    ),
                   ]),
                 ),
               ],

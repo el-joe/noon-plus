@@ -134,7 +134,8 @@ class AccountController extends Controller
                 return false;
             }
 
-            $user->forceFill(['email' => $email, 'email_verified_at' => now()])->save();
+            // A legacy phone-only account replaces its placeholder address here; email is its login from now on.
+            $user->forceFill(['email' => $email, 'email_verified_at' => now(), 'requires_email' => false])->save();
 
             return true;
         });
@@ -156,10 +157,13 @@ class AccountController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'email_verified' => $user->email_verified_at !== null,
+            'requires_email' => (bool) $user->requires_email,
             'phone' => $user->phone,
             'locale' => $user->preferred_locale ?? 'en',
             'avatar_url' => PublicUrl::of($user->avatar_path, self::AVATAR_DISK),
             'marketing' => $this->marketing($user),
+            'has_password' => $user->password_set_at !== null,
+            'social_accounts' => $user->socialAccounts()->pluck('provider')->values()->all(),
             'created_at' => $user->created_at?->toIso8601String(),
         ];
     }

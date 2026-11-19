@@ -3,6 +3,7 @@ import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
 import '../data/models.dart';
+import '../ui/run_step.dart';
 
 /// Figma "11 Accept/decline": a new assignment offer. Declining needs a reason.
 class OfferScreen extends StatelessWidget {
@@ -34,7 +35,7 @@ class OfferScreen extends StatelessWidget {
         FilledButton(
           key: const Key('offer-accept'),
           onPressed: () async {
-            final ok = await runAction(context, () => api.accept(a.number), success: context.t('offer.accepted'));
+            final ok = await runStep(context, () => api.accept(a.number), success: context.t('offer.accepted'), onRefused: () => Navigator.maybePop(context));
             if (ok != null && context.mounted) Navigator.pop(context, ok);
           },
           child: Text(context.t('action.accept')),
@@ -46,7 +47,7 @@ class OfferScreen extends StatelessWidget {
           onPressed: () async {
             final reason = await askReason(context, title: context.t('offer.declineTitle'), minLength: 3);
             if (reason == null || !context.mounted) return;
-            final ok = await runAction(context, () => api.decline(a.number, reason), success: context.t('offer.declined'));
+            final ok = await runStep(context, () => api.decline(a.number, reason), success: context.t('offer.declined'), onRefused: () => Navigator.maybePop(context));
             if (ok != null && context.mounted) Navigator.pop(context, ok);
           },
           child: Text(context.t('action.decline')),

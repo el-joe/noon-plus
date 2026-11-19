@@ -66,7 +66,7 @@ class AgentAssignments
      */
     public function start(DeliveryAssignment $assignment, int $agentUserId): DeliveryAssignment
     {
-        $this->guardSubOrderOpen($assignment);
+        $this->guardOpen($assignment);
 
         DB::connection($assignment->getConnectionName())->transaction(function () use ($assignment, $agentUserId): void {
             $this->machine->move($assignment, AssignmentStatus::PickedUp, ActorType::Agent, $agentUserId, null, ['picked_up_at' => now()]);
@@ -118,6 +118,8 @@ class AgentAssignments
      */
     public function attachProof(DeliveryAssignment $assignment, ?UploadedFile $photo = null, ?UploadedFile $signature = null, ?string $signatureData = null): DeliveryAssignment
     {
+        $this->guardOpen($assignment);
+
         if ($assignment->status !== AssignmentStatus::PickedUp) {
             throw new TransitionRefused(__('Proof can be added while the delivery is in progress.'));
         }
@@ -159,11 +161,12 @@ class AgentAssignments
             throw new TransitionRefused(__('Ask the customer to read their code aloud and tap "Codes match" only when it matches.'));
         }
 
+        $this->guardOpen($assignment);
+
         if ($assignment->status !== AssignmentStatus::PickedUp) {
             throw new TransitionRefused(__('This delivery is not in progress.'));
         }
 
-        $this->guardSubOrderOpen($assignment);
         $this->guardProof($assignment);
 
         DB::connection($assignment->getConnectionName())->transaction(function () use ($assignment, $agentUserId): void {
@@ -235,15 +238,30 @@ class AgentAssignments
     }
 
     /**
-     * A cancelled (or returned / refunded) sub-order is never started or
-     * delivered (QA-005).
+     * A cancelled assignment, or one whose sub-order is cancelled or already
+     * closed (completed / returned / refunded), is never started, given
+     * proof or delivered (QA-005, RT-001, RT-011). The sub-order status is
+     * read through the model so the enum cast is compared as an enum.
      */
+    public function guardOpen(DeliveryAssignment $assignment): void
+    {
+        if ($assignment->status === AssignmentStatus::Cancelled) {
+            throw new TransitionRefused(__('This delivery was cancelled. Return the parcel to the origin.'));
+        }
+
+        $this->guardSubOrderOpen($assignment);
+    }
+
     private function guardSubOrderOpen(DeliveryAssignment $assignment): void
     {
-        $status = $assignment->subOrder()->value('status');
+        $status = $assignment->subOrder()->first(['id', 'status'])?->status;
 
-        if (in_array($status, [SubOrderStatus::Cancelled->value, SubOrderStatus::Returned->value, SubOrderStatus::Refunded->value], true)) {
+        if ($status === SubOrderStatus::Cancelled) {
             throw new TransitionRefused(__('This order was cancelled. Return the parcel to the origin.'));
+        }
+
+        if (in_array($status, [SubOrderStatus::Completed, SubOrderStatus::Returned, SubOrderStatus::Refunded], true)) {
+            throw new TransitionRefused(__('This order is already closed.'));
         }
     }
 

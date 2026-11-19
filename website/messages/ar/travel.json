@@ -31,6 +31,7 @@
     "nights": "{count, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
     "byAgency": "من {agency}",
     "soldOut": "نفدت المقاعد",
+    "related": "رحلات قد تعجبك",
     "empty": "لا توجد رحلات مطابقة لبحثك بعد.",
     "emptyBody": "جرّب وجهة أو نوع رحلة أو شهرًا آخر.",
     "comingSoon": "تضيف وكالات السفر باقاتها الآن. عُد قريبًا.",
@@ -45,7 +46,7 @@
       "notIncluded": "غير مشمول",
       "itinerary": "برنامج الرحلة",
       "day": "اليوم {day}",
-      "policy": "الإلغاء والدفع",
+      "policy": "سياسة الإلغاء",
       "refundTier": "استرداد {percent}% عند الإلغاء قبل المغادرة بـ {days} يومًا أو أكثر",
       "noPaymentPolicy": "لا دفع على ناوي: ترسل طلب الحجز، وتؤكد الوكالة مقاعدك وتدفع لها مباشرة.",
       "chooseDeparture": "اختر موعد المغادرة",
@@ -57,7 +58,11 @@
       "requestToBook": "اطلب الحجز",
       "askAgency": "اسأل الوكالة",
       "noDepartures": "لا توجد مواعيد مغادرة قادمة — اسأل الوكالة عن التواريخ.",
-      "departsReturns": "{from} ← {to}"
+      "departsReturns": "{from} ← {to}",
+      "adults": "البالغون",
+      "children": "الأطفال",
+      "childPrice": "{price} لكل طفل",
+      "noChildPrice": "لا يوجد سعر للأطفال في هذه الرحلة"
     },
     "roomType": {
       "single": "فردية",
@@ -65,7 +70,8 @@
       "twin": "سريران منفصلان",
       "triple": "ثلاثية",
       "quad": "رباعية",
-      "family": "عائلية"
+      "family": "عائلية",
+      "child": "طفل"
     },
     "contact": {
       "name": "الاسم الكامل",
@@ -121,7 +127,11 @@
       "checkFields": "{count, plural, one {راجع حقلًا واحدًا} two {راجع حقلين} few {راجع # حقول} many {راجع # حقلًا} other {راجع # حقل}}",
       "checkFieldsHint": "صحّح الحقول المحددة ثم أرسل مجددًا.",
       "noSeats": "لا توجد مقاعد كافية في موعد المغادرة هذا.",
-      "unavailable": "هذه الرحلة غير متاحة للحجز حاليًا."
+      "unavailable": "هذه الرحلة غير متاحة للحجز حاليًا.",
+      "fewerChildren": "تقليل الأطفال",
+      "moreChildren": "زيادة الأطفال",
+      "adultsChildren": "{adults, plural, one {بالغ واحد} two {بالغان} few {# بالغين} many {# بالغًا} other {# بالغ}}، {children, plural, one {طفل واحد} two {طفلان} few {# أطفال} many {# طفلًا} other {# طفل}}",
+      "childLine": "{count} × طفل · {price}"
     },
     "sent": {
       "title": "أُرسل طلب الحجز",
@@ -222,6 +232,11 @@
       "email": "البريد الإلكتروني",
       "send": "أعد إرسال رابط حجزي",
       "sent": "إذا كانت لدينا حجوزات للبريد {email}، فالروابط في طريقها إليك. تفقّد بريدك."
+    },
+    "stats": {
+      "rating": "{rating}",
+      "agencyTrips": "{count, plural, one {رحلة واحدة لهذه الوكالة} two {رحلتان لهذه الوكالة} few {# رحلات لهذه الوكالة} many {# رحلة لهذه الوكالة} other {# رحلة لهذه الوكالة}}",
+      "travellers": "{count, plural, one {مسافر واحد} two {مسافران} few {# مسافرين} many {# مسافرًا} other {# مسافر}}"
     }
   }
 }

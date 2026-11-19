@@ -12,6 +12,7 @@ class Routes {
   static const reviews = '/product/reviews';
   static const questions = '/product/questions';
   static const writeReview = '/reviews/new';
+  static const myReviews = '/reviews/mine';
   static const flashSale = '/flash-sale';
   static const page = '/page';
   static const cart = '/cart';
@@ -46,10 +47,20 @@ class Routes {
   static const souqSent = '/souq/sent';
   static const postAd = '/souq/post';
   static const myAds = '/souq/mine';
+  static const adPhotos = '/souq/photos';
   static const viewingRequests = '/souq/requests';
   static const property = '/property';
   static const live = '/live';
   static const liveWatch = '/live/watch';
+  // Wave 5b.
+  static const support = '/support';
+  static const supportNew = '/support/new';
+  static const supportTicket = '/support/ticket';
+  static const cards = '/cards';
+  static const seller = '/seller';
+  static const followedStores = '/followed-stores';
+  static const compare = '/compare';
+  static const staticPage = '/legal';
 
   /// Screens that need a signed-in customer (API `auth:sanctum`).
   static const authRequired = <String>{
@@ -69,9 +80,16 @@ class Routes {
     security,
     giftCards,
     writeReview,
+    myReviews,
     postAd,
     myAds,
+    adPhotos,
     viewingRequests,
+    support,
+    supportNew,
+    supportTicket,
+    cards,
+    followedStores,
   };
 
   /// Reachable before a market is chosen.

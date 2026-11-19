@@ -1,0 +1,719 @@
+{
+ "title": "Travel agency panel — browser test report",
+ "area": "Travel Partner panel (travel-agency) and storefront travel",
+ "date": "2026-11-19",
+ "summary": "Playwright browser test of every Travel Partner page (11 of 11 sidebar items, plus Notifications and Sign-in history) and the agency's full trip lifecycle on data created by the run: package with two departures and room prices, contract upload, review and approval, capacity change, guest and signed-in booking requests (no payment, D8) confirmed and rejected, a traveller inquiry, a Sponsored promotion paid through the fake card gateway with failed, pending and captured outcomes (D14) and the promoted trip leading website search with the Sponsored label (EN/AR). Team roles, change requests, support, Arabic RTL, 2FA sign-in and password-reset mail were also covered. 14 tests, all passing on the final run. Two bugs were found and fixed: the sidebar showed pages a team role cannot open, and read-only roles saw action buttons that the server refuses.",
+ "environment": [
+  "Storefront http://localhost:3000 (next start, production build)",
+  "API + panels http://localhost:8000; panel host travel-agency.nawy.test:8000 (Chromium host-resolver-rules)",
+  "Laravel dev DB, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake",
+  "Playwright 1.65.1, project 'areas', Desktop Chrome, 2 workers"
+ ],
+ "accounts": [
+  {
+   "role": "Travel agency owner",
+   "login": "e2e-travel@nawy.test (E2eSeeder, email 2FA)"
+  },
+  {
+   "role": "Finance team member",
+   "login": "e2e-trv-finance-<run>@nawy.test (invited during the run)"
+  },
+  {
+   "role": "Customer",
+   "login": "e2e-customer@nawy.test (saved session)"
+  },
+  {
+   "role": "Guest traveller",
+   "login": "e2e-trv-guest-<run>@nawy.test (no account)"
+  },
+  {
+   "role": "Admin (approval only)",
+   "login": "e2e-admin@nawy.test"
+  }
+ ],
+ "specs": [
+  "e2e/specs/areas/travel/agency-account.spec.ts",
+  "e2e/specs/areas/travel/agency-trips.spec.ts",
+  "e2e/specs/areas/travel/helpers.ts"
+ ],
+ "totals": {
+  "passed": 14,
+  "failed": 0,
+  "skipped": 0
+ },
+ "flows": [
+  {
+   "id": "TRV-01",
+   "name": "Every Travel Partner page opens",
+   "goal": "All 11 sidebar items of PanelNavigation 'travel_agency' plus Notifications and Sign-in history render without errors.",
+   "preconditions": "Seeded e2e agency owner (e2e-travel), saved session.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Open Dashboard",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-1.png"
+    },
+    {
+     "action": "Open Packages & trips",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-2.png"
+    },
+    {
+     "action": "Open Departures & capacity",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-3.png"
+    },
+    {
+     "action": "Open Bookings",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-4.png"
+    },
+    {
+     "action": "Open Inquiries",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-5.png"
+    },
+    {
+     "action": "Open Promotions",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-6.png"
+    },
+    {
+     "action": "Open Promote a trip",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-7.png"
+    },
+    {
+     "action": "Open Booking reports",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-8.png"
+    },
+    {
+     "action": "Open Change requests",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-9.png"
+    },
+    {
+     "action": "Open Team & permissions",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-10.png"
+    },
+    {
+     "action": "Open Support",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-11.png"
+    },
+    {
+     "action": "Open Notifications (top bar)",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-12.png"
+    },
+    {
+     "action": "Open Account security / sign-in history (top bar)",
+     "expected": "HTTP 200, no server error, no raw translation keys, no console errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-01-13.png"
+    },
+    {
+     "action": "Read dashboard stats",
+     "expected": "'Confirmed value (paid to you directly)'; no commission anywhere (D11)",
+     "result": "pass",
+     "note": ""
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-02",
+   "name": "Create a trip with departures, room types and prices",
+   "goal": "Agency drafts a package, adds two departures with per-room prices, edits it and uploads the trip contract (D11: no commission).",
+   "preconditions": "Signed in as owner. Run-unique title 'E2E Trip <run>'.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Open Packages & trips, click New package",
+     "expected": "Package editor opens",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-02-1.png"
+    },
+    {
+     "action": "Check the editor for commission",
+     "expected": "No commission field or text (D11)",
+     "result": "pass",
+     "note": ""
+    },
+    {
+     "action": "Fill titles EN/AR, type Holiday, Salalah/Oman, 4 nights, description, itinerary, inclusions, exclusions, 2 cancellation tiers; Save",
+     "expected": "'Draft saved. Add departures…', editor URL /packages/{id}",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-02-2.png"
+    },
+    {
+     "action": "Add departure +40 days, 20 seats, Single 3200 / Double 2600 / Triple 2300 / Child 1200",
+     "expected": "'Departure added', row shows the room prices",
+     "result": "pass",
+     "note": ""
+    },
+    {
+     "action": "Add departure +70 days, 12 seats, Double 2800",
+     "expected": "Second departure listed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-02-3.png"
+    },
+    {
+     "action": "Edit nights to 5 and description, upload trip contract PDF, Save",
+     "expected": "'Package saved', nights 5, contract 'on file'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-02-4.png"
+    },
+    {
+     "action": "Add a departure whose return is before departure",
+     "expected": "Validation error, still 2 departures",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-02-5.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-03",
+   "name": "Submit for review, approval, live on the website",
+   "goal": "Draft goes to Nawy review; once approved it is Active and its page is public.",
+   "preconditions": "TRV-02 package with contract and departures.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Click Submit for review",
+     "expected": "'Submitted for review'",
+     "result": "pass",
+     "note": "Without a contract the panel refuses: 'Upload the trip contract file.' (business rule, observed on first run)",
+     "screenshot": "../shots/travel-agency-panel/TRV-03-1.png"
+    },
+    {
+     "action": "Admin panel → Travel packages → Approve (admin area only used to continue)",
+     "expected": "Package leaves the review queue",
+     "result": "pass",
+     "note": ""
+    },
+    {
+     "action": "Packages & trips list",
+     "expected": "Status Active",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-03-2.png"
+    },
+    {
+     "action": "Open /uae-en/travel/{slug} on the storefront",
+     "expected": "Title and Salalah shown",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-03-3.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-04",
+   "name": "Departures & capacity",
+   "goal": "Agency resizes a departure.",
+   "preconditions": "Live trip from TRV-03.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Open Departures & capacity",
+     "expected": "Both departures of the trip, room prices, status On sale",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-04-1.png"
+    },
+    {
+     "action": "Change capacity of the Double-2800 departure to 16, Save",
+     "expected": "'Capacity updated', value 16",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-04-2.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-05",
+   "name": "Booking requests reach the agency (D8 no payment)",
+   "goal": "Guest and signed-in customer send booking requests on the website; both appear in the agency's Bookings.",
+   "preconditions": "Live trip; guest uses a unique email; signed-in uses the e2e customer.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Guest: /travel/{slug}/book, name, email, phone, tick 'agency confirms my booking and I pay them directly'",
+     "expected": "No card/payment step on the form",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-05-1.png"
+    },
+    {
+     "action": "Send booking request",
+     "expected": "Redirect to /travel/bookings/TB-…/sent",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-05-2.png"
+    },
+    {
+     "action": "Signed-in customer sends a request on the same trip",
+     "expected": "Redirect to …/sent with a TB number",
+     "result": "pass",
+     "note": ""
+    },
+    {
+     "action": "Panel → Bookings → Requests tab",
+     "expected": "Both TB numbers listed with trip title, status Requested, guest email shown",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-05-3.png"
+    },
+    {
+     "action": "Dashboard",
+     "expected": "'Requests to answer' stat present",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-05-4.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-06",
+   "name": "Confirm one request, reject the other",
+   "goal": "Agency confirms the guest request and rejects the customer request with a reason; the shoppers see the outcome.",
+   "preconditions": "TRV-05 requests.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Confirm the guest request",
+     "expected": "'Booking confirmed; the customer was emailed.', status Confirmed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-1.png"
+    },
+    {
+     "action": "Reject the customer request with reason 'Sold out for these dates, sorry'",
+     "expected": "'Booking request rejected; the seats are free again.', status Rejected",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-2.png"
+    },
+    {
+     "action": "Rejected tab",
+     "expected": "Customer request listed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-3.png"
+    },
+    {
+     "action": "Guest (same browser) opens /travel/bookings/{number}",
+     "expected": "'Confirmed by the agency'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-4.png"
+    },
+    {
+     "action": "Customer opens /travel/bookings/{number}",
+     "expected": "'Not available — the agency declined'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-5.png"
+    },
+    {
+     "action": "Booking reports",
+     "expected": "Page renders without errors",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-06-6.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-07",
+   "name": "Traveller question → Inquiries",
+   "goal": "Ask the agency from the trip page; agency moves the inquiry to Contacted.",
+   "preconditions": "Live trip.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Trip page → Ask the agency, fill name, email, phone, message",
+     "expected": "Modal form filled",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-07-1.png"
+    },
+    {
+     "action": "Send question",
+     "expected": "'Your question was sent to …'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-07-2.png"
+    },
+    {
+     "action": "Panel → Inquiries",
+     "expected": "Inquiry listed with status New",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-07-3.png"
+    },
+    {
+     "action": "Click Contacted",
+     "expected": "'Inquiry updated', status Contacted",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-07-4.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-08",
+   "name": "Sponsored promotion paid by card (D14) — failed, pending, active",
+   "goal": "Listing stays free; the agency pays Nawy for a Sponsored placement through the (fake) gateway; the return page states the outcome.",
+   "preconditions": "Live trip. Fake gateway page intercepted (outcome scripted with FakeGateway::willReport). Earlier browser-test promotions of throwaway trips cancelled first (admin cancel) so the rotating slots are free.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "Open Promotions",
+     "expected": "'Listing trips is free. Pay only to show a trip first…'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-1.png"
+    },
+    {
+     "action": "Promote a trip: choose the run's trip and the 7-day option (AED 150, VAT incl.)",
+     "expected": "Form shows 'no commission' note",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-2.png"
+    },
+    {
+     "action": "Pay by card, gateway declines",
+     "expected": "Back on Promotions: 'The payment did not go through…', row Pending payment with Pay by card",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-3.png"
+    },
+    {
+     "action": "Pay by card again, gateway has not answered yet",
+     "expected": "'…is pending payment confirmation…'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-4.png"
+    },
+    {
+     "action": "Pay by card again, gateway captures",
+     "expected": "'Payment received. Your promotion for … is now active until …', row Active with window",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-5.png"
+    },
+    {
+     "action": "Open Receipt",
+     "expected": "Tax receipt with VAT and Total paid",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-08-6.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-09",
+   "name": "Promoted trip first with Sponsored label on the website",
+   "goal": "D14 placement visible to shoppers (EN and AR).",
+   "preconditions": "TRV-08 active promotion.",
+   "spec": "e2e/specs/areas/travel/agency-trips.spec.ts",
+   "steps": [
+    {
+     "action": "/uae-en/travel/search",
+     "expected": "Run's trip in the leading sponsored block with 'Sponsored'; no sponsored card after an organic one",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-09-1.png"
+    },
+    {
+     "action": "Trip page",
+     "expected": "'Sponsored' next to the title",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-09-2.png"
+    },
+    {
+     "action": "/uae-ar/travel/search",
+     "expected": "Arabic label 'مُموَّل'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-09-3.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-10",
+   "name": "Arabic (RTL) panel",
+   "goal": "Language switch to Arabic renders RTL.",
+   "preconditions": "Owner session.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Bookings → language العربية",
+     "expected": "html lang=ar dir=rtl",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-10-1.png"
+    },
+    {
+     "action": "Promote a trip page in Arabic",
+     "expected": "dir=rtl",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-10-2.png"
+    },
+    {
+     "action": "Switch back to English",
+     "expected": "dir=ltr",
+     "result": "pass",
+     "note": ""
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-11",
+   "name": "Team: invite a limited (Finance) member",
+   "goal": "Owner invites a Finance member; invitee accepts via emailed link and gets only Finance pages.",
+   "preconditions": "Run-unique invitee email; mail read from the Laravel log.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Team & permissions",
+     "expected": "Owner listed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-1.png"
+    },
+    {
+     "action": "Invite name/email, role Finance",
+     "expected": "Pending invitation listed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-2.png"
+    },
+    {
+     "action": "Open the emailed link, set password",
+     "expected": "'Join E2E Travel Agency … as Finance'",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-3.png"
+    },
+    {
+     "action": "Sign in as invitee (password + 2FA if asked)",
+     "expected": "Sidebar: Dashboard, Bookings, Promotions, Promote a trip, Booking reports, Support only; no 'New package'",
+     "result": "pass",
+     "note": "Failed before fix BT-TRV-001 (sidebar showed every page)",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-4.png"
+    },
+    {
+     "action": "Open /packages and /team directly",
+     "expected": "403",
+     "result": "pass",
+     "note": ""
+    },
+    {
+     "action": "Bookings (Requests)",
+     "expected": "No Confirm/Reject buttons (read only)",
+     "result": "pass",
+     "note": "Failed before fix BT-TRV-002",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-5.png"
+    },
+    {
+     "action": "Promote a trip",
+     "expected": "Read-only notice, no buy form",
+     "result": "pass",
+     "note": "Fixed with BT-TRV-002",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-7.png"
+    },
+    {
+     "action": "Owner reloads Team",
+     "expected": "New member listed",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-11-6.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-12",
+   "name": "Change request for a locked section",
+   "goal": "Owner asks Nawy to change the business address, then cancels it.",
+   "preconditions": "Owner session.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Open Change requests",
+     "expected": "Sections Store name, Legal details, Address, Bank details",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-12-1.png"
+    },
+    {
+     "action": "Address → Ask for a change, fill building/street/area/city and note",
+     "expected": "Form filled",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-12-2.png"
+    },
+    {
+     "action": "Send request",
+     "expected": "Row Pending",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-12-3.png"
+    },
+    {
+     "action": "Cancel",
+     "expected": "Row Cancelled",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-12-4.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-13",
+   "name": "Support ticket",
+   "goal": "Agency opens a ticket and replies.",
+   "preconditions": "Owner session.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Support: category, subject, message, send",
+     "expected": "Ticket created",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-13-1.png"
+    },
+    {
+     "action": "Open the ticket",
+     "expected": "Ticket thread",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-13-2.png"
+    },
+    {
+     "action": "Reply",
+     "expected": "Reply shown in the thread",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-13-3.png"
+    }
+   ],
+   "result": "pass"
+  },
+  {
+   "id": "TRV-14",
+   "name": "Sign-in with email 2FA and password reset mail",
+   "goal": "Panel login with emailed code; forgot-password sends a working reset link.",
+   "preconditions": "Signed-out browser.",
+   "spec": "e2e/specs/areas/travel/agency-account.spec.ts",
+   "steps": [
+    {
+     "action": "Open /login",
+     "expected": "Login form",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-14-1.png"
+    },
+    {
+     "action": "Email + password, then 6-digit code from the mail log",
+     "expected": "Dashboard with sidebar",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-14-2.png"
+    },
+    {
+     "action": "Forgot password with the agency email",
+     "expected": "Confirmation shown",
+     "result": "pass",
+     "note": "",
+     "screenshot": "../shots/travel-agency-panel/TRV-14-3.png"
+    },
+    {
+     "action": "Open the reset link from the mail",
+     "expected": "Reset form with password fields",
+     "result": "pass",
+     "note": "Not submitted, so the shared e2e password stays as seeded",
+     "screenshot": "../shots/travel-agency-panel/TRV-14-4.png"
+    }
+   ],
+   "result": "pass"
+  }
+ ],
+ "issues": [
+  {
+   "id": "BT-TRV-001",
+   "severity": "major",
+   "area": "All panels (seen on Travel Partner, also Seller Center)",
+   "description": "The sidebar only hid items whose route needs a `can:` permission and ignored team-role `tenant.can:` middleware, so a Finance member saw Packages, Departures, Inquiries, Change requests and Team & permissions, which all return 403.",
+   "status": "fixed",
+   "fix": "PanelNavigation::allowed() also checks `tenant.can:{panel},{group}` (read) through TenantPermissions. Regression test in tests/Feature/QaWave1TenantPermissionsTest.php ('the sidebar hides pages the team role cannot open')."
+  },
+  {
+   "id": "BT-TRV-002",
+   "severity": "minor",
+   "area": "Travel Partner: Bookings, Inquiries, Promotions, Promote a trip, Dashboard",
+   "description": "Read-only roles (Finance/Viewer) were shown Confirm/Reject/Cancel, inquiry status, Pay by card, Promote a trip and New package controls that the server refuses with 403.",
+   "status": "fixed",
+   "fix": "The views show those controls only when TenantPermissions allows a write; Promote a trip shows a read-only notice instead of the buy form (Arabic string added). Covered by the same Pest test and by TRV-11."
+  }
+ ],
+ "notes": [
+  "Sidebar coverage: 11 of 11 'travel_agency' navigation items, plus Notifications and Account security from the top bar.",
+  "No Documents, Ads, Settings or Staff page exists in the Travel Partner panel (PanelNavigation and routes): staff is 'Team & permissions' and profile changes go through 'Change requests'. Paid placement is 'Promotions' (D14); there is no separate Ads page.",
+  "D11: no commission field or text in the package editor or dashboard; the promote page states listing is free with no commission.",
+  "D8: booking requests have no payment step; the agency confirms and is paid directly by the customer.",
+  "Promotion slots are capped (travel.promotion_slots = 3, rotating). The spec cancels earlier browser-test promotions of throwaway trips before buying, otherwise repeated runs fill the slots and the new trip may be out of rotation (expected behaviour, not a bug).",
+  "The fake gateway redirect is intercepted by fetching the 'Pay by card' POST without following redirects (Playwright cannot route a browser-followed redirect), scripting the outcome with FakeGateway::willReport, then going to the panel return URL.",
+  "Password reset was not completed so the shared seeded password stays unchanged.",
+  "Booking modifications (customer change requests on a booking) were not exercised: no storefront flow created one in this run.",
+  "Each run leaves test data: a trip 'E2E Trip <run>' (active), two bookings, an inquiry, a paid promotion, a Finance member, a support ticket and a cancelled change request."
+ ]
+}

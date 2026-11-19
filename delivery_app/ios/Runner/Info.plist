@@ -2,12 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Nawy Delivery uses the camera to scan parcel labels at pickup, to take proof-of-delivery photos and to photograph your documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nawy Delivery opens your photos only when you choose a proof-of-delivery photo or a photo of a document.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Nawy Delivery shares your location while you are online so dispatch can offer you the nearest parcels, and while you carry a parcel so dispatch and the customer can follow the delivery.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>While you carry a parcel, Nawy Delivery keeps sharing your location with dispatch and the customer when the app is in the background or the phone is locked. It stops when the delivery is finished.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Delivery App</string>
+	<string>Nawy Delivery</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +36,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>delivery_app</string>
+	<string>Nawy Delivery</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

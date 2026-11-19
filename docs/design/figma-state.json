@@ -54,7 +54,11 @@
     "templates-store-campaign-brand",
     "timezone-components",
     "account-all-pages",
-    "wpd1-booking-requests"
+    "wpd1-booking-requests",
+    "d12-souq-requests-records-only",
+    "d14-travel-paid-placement",
+    "wp11-data-migration-admin",
+    "finance-reporting-platform-panels"
   ],
   "pages": {
     "Cover": "0:1",
@@ -72,9 +76,9 @@
     "Web · Mobile": "15:9",
     "Page builder · Components": "37:2",
     "Apps · Customer & delivery": "80:2",
-    "App · Customer v2 (Noon structure)": "94:11699",
     "Web · States & extras": "95:4089",
-    "Panel layouts": "96:1691"
+    "Panel layouts": "96:1691",
+    "App · Customer v2": "94:11699"
   },
   "nodes": {
     "foundationsSpecimen": "2:144",
@@ -178,7 +182,8 @@
     "App / Status bar": "80:3",
     "App / Top bar": "80:7",
     "App / Tab bar": "80:91",
-    "Booking status (chip, 7 states)": "145:6927"
+    "Booking status (chip, 7 states)": "145:6927",
+    "App / Ops tab bar": "163:16085"
   },
   "shells": {
     "Admin": "12:2",
@@ -231,14 +236,12 @@
     "Cart desktop": "25:275",
     "Checkout desktop": "25:605",
     "Home mobile web": "26:2",
-    "Home v2 desktop (Noon structure, 21 blocks)": "30:1208",
     "Login": "28:2",
     "OTP": "28:107",
     "Register": "28:196",
     "Account overview": "33:134",
     "Account orders": "33:658",
     "Order detail & tracking": "34:1283",
-    "Category v2 (Noon category template)": "40:4438",
     "Template / Category with sub-categories": "47:4471",
     "Template / Store landing": "47:5448",
     "Template / Campaign": "47:6618",
@@ -298,7 +301,9 @@
     "Mobile web cart": "85:485",
     "Mobile web checkout": "85:549",
     "Mobile web account": "85:596",
-    "Mobile web tracking": "85:680"
+    "Mobile web tracking": "85:680",
+    "Home v2 desktop (reference structure, 21 blocks)": "30:1208",
+    "Category v2 (reference category template)": "40:4438"
   },
   "imageHashes": {
     "product-earbuds": "e569659f8cb4ebcfe5e0ea77bd3ffa47b50c02e4",
@@ -430,7 +435,14 @@
       "14 Notifications": "110:701",
       "15 Event history": "110:787",
       "16 Profile & GPS": "110:862",
-      "17 Offline": "110:943"
+      "17 Offline": "110:943",
+      "18 Documents": "203:2225",
+      "19 Upload document": "203:2428",
+      "20 Payslips": "205:2393",
+      "21 Payslip detail": "205:2568",
+      "22 Wallet (balances & withdrawals)": "205:2639",
+      "23 Withdraw to bank": "205:2785",
+      "24 Location permission (Allow all the time)": "203:2587"
     },
     "opsMinimal": {
       "Vendor": "82:957",
@@ -525,7 +537,11 @@
       "57 My bookings": "152:2866",
       "58 Booking status": "152:2974",
       "59 Souq viewing/reserve request": "153:2795",
-      "60 Souq request sent": "153:2881"
+      "60 Souq request sent": "153:2881",
+      "61 Sign in with password (D9)": "165:14626",
+      "62 Reset password (D9)": "165:14688",
+      "64 Travel trip detail (D14)": "181:3087",
+      "65 Property map view": "208:3212"
     }
   },
   "panelLayouts": {
@@ -561,13 +577,29 @@
     "Broker special requests": "104:22251",
     "Broker properties": "104:22573",
     "Travel package editor": "105:15807",
-    "Travel bookings & documents": "105:16303",
     "Shipping overview": "106:15992",
     "Shipping shipments & pickups": "106:16424",
     "Shipping COD reconciliation": "107:18628",
     "Shipping claims & scorecard": "107:19067",
     "Delivery earnings": "108:8009",
-    "Delivery COD settlements": "108:8465"
+    "Delivery COD settlements": "108:8465",
+    "Travel booking requests (D8)": "105:16303",
+    "Marketplace viewing & reserve requests (D12)": "178:8542",
+    "Broker viewing & reserve requests (D12)": "178:8953",
+    "Travel Partner promotions (D14)": "184:8855",
+    "Travel Partner promote a trip (D14)": "185:9046",
+    "Travel Partner promotion receipt (D14)": "185:9580",
+    "Admin travel promotions (D14)": "186:9346",
+    "Admin data migration · quarantine queue": "198:9762",
+    "Admin data migration · quarantine entry": "198:10124",
+    "Admin inventory & fulfilment overview (FBN)": "199:10440",
+    "Admin inventory receiving · inbound detail (FBN)": "199:10911",
+    "Seller inventory & warehouses · FBN stock": "199:11382",
+    "Seller new inbound plan (FBN)": "199:11708",
+    "Delivery earnings · payslips & wallet": "206:11622",
+    "Admin agent withdrawals": "207:11926",
+    "Shipping agent withdrawals": "207:12730",
+    "Parcel label A6 (print)": "209:12482"
   },
   "webExtras": {
     "Seller storefront": "95:4090",
@@ -616,7 +648,8 @@
     "Cookie consent": "107:17754",
     "Affiliate referral PDP": "107:18117",
     "Classified viewing/reserve request form (D8)": "151:10194",
-    "Classified viewing/reserve request sent (D8)": "151:10399"
+    "Classified viewing/reserve request sent (D8)": "151:10399",
+    "Property search map view": "207:24656"
   },
   "wpd1": {
     "decision": "D8 — travel and classified bookings take no payment on Nawy",
@@ -650,6 +683,316 @@
       "Rejected": "145:6915",
       "Cancelled": "145:6919",
       "Hold expired": "145:6923"
+    },
+    "rtlSiblings": {
+      "152:2650": "166:2882",
+      "152:2811": "166:3026",
+      "152:2866": "166:3073",
+      "152:2974": "166:3169",
+      "153:2795": "166:3236",
+      "153:2881": "166:3312",
+      "69:6370": "168:6823",
+      "96:4554": "169:10432",
+      "98:10830": "169:10723",
+      "151:10194": "169:11200",
+      "151:10399": "169:11387",
+      "49:2757": "170:7214"
     }
+  },
+  "wave4c": {
+    "date": "2026-11-17",
+    "rows": [
+      "QC-021",
+      "QC-022",
+      "QC-025 (design)",
+      "QC-055",
+      "QC-061 (design)",
+      "QC-063 (design)",
+      "QC-078 (design/content)"
+    ],
+    "changedFrames": {
+      "90:3098": "Travel Partner dashboard: request KPIs (requests, confirmed, rejected, seats held), Refunds/Earnings removed, FINANCE→INSIGHTS, requests-needing-action list (QC-021)",
+      "90:3414": "Travel departures layout: Refunds/Earnings removed from sidebar",
+      "105:16303": "Travel Partner bookings layout reworked to Booking requests (D8): status chips from 145:6927, no Paid/passport/refund",
+      "105:15807": "Travel package editor: sidebar cleanup, docs row → 'Booking mode: Request only · no payment'",
+      "12:1392": "Travel Partner shell: Refunds/Earnings removed",
+      "13:648": "Admin payment gateways template: PayPal row 13:984 removed (O4)",
+      "17:137": "Web footer component: PayPal badge removed; Tabby 161:14200 + Tamara 161:14202 added; booleans 'Show Thawani (Oman only)', 'Show Tabby', 'Show Tamara' set per country on all 126 instances",
+      "25:605": "Checkout: PayPal option → Tabby (25:705) + Tamara (162:1110)",
+      "25:516": "Cart payment copy without PayPal",
+      "68:896": "Payment failed (Oman): PayPal option → Card via Stripe",
+      "82:672": "Delivery stop detail CTA 'Deliver · match customer code' (QC-055); 82:707 renamed '05 Match delivery code'; 110:1010 copy",
+      "28:2": "Web login (D9): email code first → password (Forgot password?) → Google → Apple; divider 164:12087",
+      "84:2": "Web login AR (D9) same order; divider 164:12136",
+      "52:7780": "Account security: Linked accounts card 164:12091 (Google unlink / Link Apple ID), password note 164:12123, login history with method (+164:12122)",
+      "99:6414": "App2 41 Security: Google (Unlink) + Apple (Link) rows, login history with sign-in method",
+      "100:15953": "App2 43 Welcome: 'Sign in with a password instead' link 165:14625",
+      "59:4007": "Broker profile: 'Pay safely on Nawy' → 'Request viewings on Nawy' / 'No payment on Nawy · you pay the broker directly' (D8)",
+      "55:1477": "Classified ad detail: 'Request a viewing or reserve' trigger 164:29559 opens 151:10194 (QC-061)",
+      "96:763": "App2 search grid: silicone case + screen protector use product-smartphone image",
+      "96:918": "App2 search list: silicone case image fixed",
+      "77:650": "Contract signature box: Signature pad fills width (min 240)",
+      "33:134": "Account overview: passport upload reminder replaced (D8)",
+      "51:5222": "Account notifications: passport upload notice replaced (D8)",
+      "82:1023": "Ops travel app: request wording, no passports / paid",
+      "30:1208": "Home v2: 'Noon structure' removed; banner_stack → banner_grid (30:1499); live_media_floating labelled global setting (31:2490) (QC-063)",
+      "37:2 page": "Page builder reference labels 'Noon:' → 'Ref:' (52 texts)",
+      "94:11699 page": "Renamed 'App · Customer v2'",
+      "My bookings rename": "Account nav item + breadcrumb 'Trip bookings' → 'My bookings' on Web · Account (22 instances), Web · States & extras (10 + breadcrumb), mobile web 85:632, app 81:350, AR app 84:715"
+    },
+    "newNodes": {
+      "163:16085": "App / Ops tab bar component set (Active=1..5, Tab N label / Tab N icon); variants 163:15930,163:15945,163:15980,163:16015,163:16050; replaces 13 detached copies (instances 163:16086,163:16135,163:16184,163:16233,163:16282,163:16328,163:16374,163:16420,163:16466,163:16521,163:16576,163:16631,163:16674)",
+      "165:14626": "App2 61 Sign in with password (D9)",
+      "165:14688": "App2 62 Reset password (D9)",
+      "166:2882": "App2 55 AR (RTL)",
+      "166:3026": "App2 56 AR (RTL)",
+      "166:3073": "App2 57 AR (RTL)",
+      "166:3169": "App2 58 AR (RTL)",
+      "166:3236": "App2 59 AR (RTL)",
+      "166:3312": "App2 60 AR (RTL)",
+      "168:6823": "Web travel request form AR (RTL), sibling of 69:6370",
+      "169:10432": "Web request sent AR (RTL), sibling of 96:4554",
+      "169:10723": "Web booking status AR (RTL), sibling of 98:10830",
+      "169:11200": "Souq viewing/reserve request modal AR (RTL), sibling of 151:10194",
+      "169:11387": "Souq request sent AR (RTL), sibling of 151:10399",
+      "170:7214": "Web My bookings AR (RTL), sibling of 49:2757",
+      "164:29559": "Ad detail request trigger button",
+      "164:12091": "Account security Linked accounts card"
+    },
+    "imageFills": {
+      "I96:840;94:12018": "product-smartphone",
+      "I96:1020;94:12044": "product-smartphone",
+      "I96:892;94:11966": "product-smartphone",
+      "sponsored brand thumbnails (96:776, 96:931, 96:1059, 96:1285)": "product-earbuds / product-smartwatch / product-smartphone"
+    }
+  },
+  "d12": {
+    "decision": "D12 — Open Souq viewing / reserve requests are records only (no status, no seller confirm/reject/schedule, no status emails or SMS)",
+    "date": "2026-11-18",
+    "changedFrames": {
+      "153:2881": "App 60 Souq request sent: Status row (153:2900) removed; 'The seller will contact you directly by phone or email.'; steps 1-2 rewritten; CTA 'View my requests'",
+      "166:3312": "App 60 AR: status row (166:3326) removed, same copy in Arabic, CTA 'عرض طلباتي'",
+      "153:2795": "App 59 Souq request: 'The seller contacts you directly by phone or email to agree a time…' (153:2869)",
+      "166:3236": "App 59 AR: same copy (166:3269)",
+      "151:10194": "Web request form: seller-contacts-you copy (151:10381); footer no longer says 'cancel before the seller confirms' / guest email (151:10398)",
+      "169:11200": "Web request form AR: 169:11243, 169:11248",
+      "151:10399": "Web request sent modal: Booking status chip (151:10533) removed, 'Status' -> 'Next step' + seller-contacts-you copy, steps 1-2 rewritten, 'Account › Inquiries › Requests' hint, CTA 'View my requests'",
+      "169:11387": "Web request sent modal AR: chip (169:11417) removed, same copy",
+      "70:6945": "Property viewing form copy (70:6974): agent contacts you directly; no 'confirms the viewing time'",
+      "49:2757": "Web My bookings: Souq viewing/reserve rows (150:7223, 150:7253) and 'Viewings & reserves' tab (150:7129) removed; subtitle points to Inquiries › Requests; now trips only (status chips stay for D8 travel)",
+      "170:7214": "Web My bookings AR: rows 170:7303, 170:7319 and tab 170:7261 removed; subtitle updated",
+      "152:2866": "App 57 My bookings: Viewing row (152:2904) + Viewings chip (152:2880) removed; note 174:4096 points to My requests",
+      "166:3073": "App 57 AR: same (removed 166:3100, 166:3084; note 174:4097)",
+      "99:5826": "App 29 Account tab: new row 'My requests' 178:12481 (Inbox icon)"
+    },
+    "newFrames": {
+      "176:7544": "Web Account › Inquiries › Requests — Sent (EN)",
+      "176:7932": "Web Account › Inquiries › Requests — On my ads (EN, customer name/phone/email)",
+      "176:8295": "Web Account › Inquiries › Requests — Sent (AR RTL)",
+      "176:8732": "Web Account › Inquiries › Requests — On my ads (AR RTL)",
+      "177:3047": "App 63 My requests — Sent (EN)",
+      "177:3331": "App 63 My requests — On my ads (EN)",
+      "177:3189": "App 63 My requests — Sent (AR RTL)",
+      "177:3453": "App 63 My requests — On my ads (AR RTL)",
+      "178:8542": "Panel layout: Seller Center › Marketplace — Viewing & reserve requests (read-only table, partner.marketplace.requests)",
+      "178:8953": "Panel layout: Creator Studio › Broker — Viewing & reserve requests (read-only table, marketer.broker.requests)"
+    },
+    "pages": {
+      "Web · Account": "15:6",
+      "App · Customer v2": "94:11699",
+      "Web · States & extras": "95:4089",
+      "Web · Verticals": "15:7",
+      "Panel layouts": "96:1691"
+    },
+    "notes": [
+      "Travel (D8) frames untouched: Booking status set 145:6927, 69:6370, 96:4188, 96:4554, 98:10830, app 55-58 keep their statuses.",
+      "Broker leads pipeline 104:21867 keeps its own lead states (separate module per D12).",
+      "Type badge (Viewing / Reserve) uses Badge 6:112 without dot; it is a type, not a status."
+    ]
+  },
+  "d14": {
+    "decision": "D14 — travel listings are free; agencies pay by card for a promotion that shows a trip first, labelled Sponsored / مُموَّل",
+    "date": "2026-11-18",
+    "components": {
+      "179:32006": "Travel / Sponsored badge (set, page Web components) — Lang=EN 179:32000, Lang=AR 179:32003",
+      "179:32027": "Promotion status (set, built from Badge 6:112) — Pending payment 179:32007, Active 179:32011, Expired 179:32015, Cancelled 179:32019, Refunded 179:32023"
+    },
+    "changedFrames": {
+      "69:5767": "Web travel home: Sponsored badge on cards 69:5903, 69:5914 (Umrah) and 69:5949 (Holidays) — badges 180:7051, 180:7054, 180:7057; tagline 69:5837 explains paid placements",
+      "96:3770": "Web travel destination list (Georgia): Sponsored badge on the first two packages (180:18149, 180:18152); note 180:18155 'Sponsored trips are paid placements and show first'",
+      "69:6093": "Web trip detail: Sponsored badge 180:7060 first in the header badge row 69:6182; new 'You may also like' section 180:7063 (4 related trips, promoted first: 180:7070, 180:7080, 180:7091, 180:7100)",
+      "100:16273": "App 48 Home — Travel: Sponsored badge on cards 100:16380, 100:16384 (181:3081, 181:3084)",
+      "113:1340": "Ops app / Travel 02 Requests — body redrawn as D8 booking requests (mirrors travel_agency_app lib/screens/bookings.dart): top bar 'Booking requests'; status filter badges All / Requested (selected) / Confirmed / Rejected / Cancelled / Completed (row 113:1382); cards 194:2304, 194:2331 (Requested: trip + status chip, number · departs date · party, contact name, phone link, room lines, 'Estimate …', Reject outline (danger label) + Confirm primary) and 194:2352 (Confirmed, no actions). Old Reply / Send offer inquiry cards 113:1392, 113:1414, 113:1436 deleted."
+    },
+    "newFrames": {
+      "181:3087": "App2 / 64 Travel — Trip detail: header with Sponsored badge, departures, included, 'You may also like' rail (promoted first), Request to book footer",
+      "184:8855": "Panel layout: Travel Partner › Promotions list (status chips, trip, option, amount, window, Pay by card for unpaid, Receipt link, payment-confirmed return alert)",
+      "185:9046": "Panel layout: Travel Partner › Promote a trip (1 trip, 2 option with price incl. VAT, 3 pay by card + price/VAT summary; 'Where it shows' preview)",
+      "185:9580": "Panel layout: Travel Partner › Promotion receipt TP-AE-000124 (tax receipt: billed to, paid on, trip, option, payment ref + method, net / VAT / total; refunded-line example)",
+      "186:9346": "Panel layout: Admin › Growth › Travel promotions (KPIs, slot cap + on/off switch, add option form, options table with inline edit row, promotions list with filter, impressions, Cancel / Refund); new sidebar item 186:10049",
+      "187:2072": "Ops app / Travel 03 Promote — travel_agency_app Promote tab: intro, 'Promote a trip ↗' (opens buy_url in browser), promotion cards with status chips; tab bar Dashboard / Requests / Departures / Promote / More",
+      "187:2189": "Ops app / Travel 04 Promote — empty state",
+      "191:1114": "Website payment return kind=travel_promotion — paid, promotion active: 'Payment received' + 'Your promotion is now active until 25 Nov.' (payment.travelPromotion.active) + meta line, no button (page Web · Product & checkout, row y=4627). Design note 191:1449 removed 2026-11-18.",
+      "191:1450": "Website payment return kind=travel_promotion — pending payment confirmation: 'We’re waiting for the payment provider' + 'Your promotion is pending payment confirmation. It goes live as soon as the gateway confirms the payment.' (payment.travelPromotion.pending), Travel Partner hint, 'Check again'. Design note 191:1792 removed 2026-11-18.",
+      "191:1793": "Website payment return kind=travel_promotion — failed, promotion not active: 'The payment did not go through, so your promotion is not active. You can try again from Promotions in the Travel Partner panel.' (payment.travelPromotion.failed), no retry link, Travel Partner hint, note 191:2130 kept"
+    },
+    "rtlSiblings": {
+      "69:5767": "182:7064",
+      "69:6093": "182:7545",
+      "100:16273": "182:11108",
+      "181:3087": "182:11244"
+    },
+    "pages": {
+      "Web components": "15:3",
+      "Web · Verticals": "15:7",
+      "Web · States & extras": "95:4089",
+      "App · Customer v2": "94:11699",
+      "Panel layouts": "96:1691",
+      "Apps · Customer & delivery": "80:2"
+    },
+    "notes": [
+      "Sponsored badge sits top-right on the card image (EN) / top-left (AR) so it never pushes card text; on trip headers it is the first chip.",
+      "Examples use UAE (AED, 2 decimals, VAT 5%): options 7 / 14 / 30 days at AED 350.00 / 600.00 / 1,100.00 incl. VAT. Panel times in UAE time; admin in Oman time.",
+      "Customer bookings stay payment-free (D8); no commission (D11).",
+      "Not drawn: AR sibling of the destination list 96:3770, page-builder travel_packages_carousel block variant with the badge, website /checkout/payment?kind=travel_promotion neutral message.",
+      "Travel app first tab: code aligned to design — travel_agency_app nav.dashboard = 'Dashboard' / AR 'لوحة التحكم' (same AR word as the panels' 'Dashboard' in backend/lang/ar.json; no AR travel-app frame exists).",
+      "Searched all pages for 'Send offer' / 'send quote' in travel context: only 113:1340 had it (fixed). Classifieds Wanted ads 98:11480 'I have this — send offer' is classifieds, not travel — left as is.",
+      "Payment return for a promotion lands in the Travel Partner panel (PaymentController::toStorefront → travel_agency.promotions.return), whose flash now states Active until / starts on (queued) / pending payment confirmation / paid but not active / not paid. The website /checkout/payment?kind=travel_promotion fallback shows the same state from the API subject (website/messages payment.travelPromotion.*); frames 191:1114 / 191:1450 / 191:1793 use that wording."
+    ]
+  },
+  "cleanup1": {
+    "date": "2026-11-18",
+    "decisions": [
+      "D8",
+      "D11",
+      "D12",
+      "D14"
+    ],
+    "changedFrames": {
+      "97:1720": "Admin › Marketer fee settings: removed Travel › Packages (4%) and Travel › Umrah rule rows (97:2234, 97:2251) and the Travel row of the coverage matrix (97:2347); new Info alert 188:9756 'Travel has no marketer fees' (D11)",
+      "105:15807": "Travel Partner › Package editor: 'Nawy commission 12% (Travel › Packages)' row now 'Listing fee · Free · no commission (D11)' (105:16282, 105:16283)",
+      "101:9581": "Creator Studio › Invitations: travel-agency campaign card 101:9917 (5% per booking) replaced by a fashion brand invitation 'Eid modest edit' (D11: no marketer campaigns for travel)",
+      "113:1224": "Ops app / Travel 01 — now 'Departures' (top bar title), tab bar Dashboard / Requests / Departures / Promote / More, Active=3; no back arrow",
+      "113:1340": "Ops app / Travel 02 — now 'Requests', same tab bar Active=2; no back arrow",
+      "82:1023": "Ops app (minimal) / Travel agency — Ops tab bar instance added (189:53406, Active=1 Dashboard); body 716→652; no back arrow; clipped request line fixed (82:1044)",
+      "187:2072": "Ops app / Travel 03 Promote — back arrow hidden",
+      "187:2189": "Ops app / Travel 04 Promote empty — back arrow hidden",
+      "12:938": "Shell / Marketplace — new sidebar item 'Viewing requests' 191:3818 (eye icon 3:102) under BUYERS after Inquiries",
+      "12:1149": "Shell / Broker — new sidebar item 'Viewing requests' 191:3829 under LEADS after Inquiries",
+      "178:8542": "Seller Center › Marketplace layout — sidebar item, breadcrumb, page title shortened to 'Viewing requests'",
+      "178:8953": "Creator Studio › Broker layout — sidebar item, breadcrumb, page title shortened to 'Viewing requests'",
+      "176:7544, 176:7932, 176:8295, 176:8732": "Web Inquiries › Requests caption 'Viewing requests · newest first' / 'طلبات المعاينة · الأحدث أولاً'",
+      "50:2352": "Web Account › Classified inquiries now the 'Chats' tab of Chats (3) / Requests (5) (same Tab 6:165 instances as 176:7544); old Open / Closed tabs became an All / Open / Closed segmented filter (toggle row 191:36719)"
+    },
+    "components": {
+      "80:7": "App / Top bar — new boolean property 'Show back' (Show back#189:0, default true) bound to the ‹ layer; set false on root-tab screens"
+    },
+    "newFrames": {
+      "190:11125": "Travel / Destination — /uae-ar/travel/destinations/georgia — AR (RTL) sibling of 96:3770 (page Web · States & extras, AR row y=15424); Sponsored AR badges 190:11176, 190:11189; UAE footer badges",
+      "190:13438": "Page builder › Group H: Spec / travel_packages_carousel — sponsored (D14), component 'Block / travel_packages_carousel — sponsored' 190:13445 (first two cards promoted with Travel / Sponsored badge 190:13475, 190:13478)",
+      "191:1114": "Website payment return kind=travel_promotion — paid: 'Payment received' + 'Your trip promotion is paid…' + meta line, no button (page Web · Product & checkout, row y=4627)",
+      "191:1450": "Website payment return kind=travel_promotion — pending provider: 'We’re waiting for the payment provider', Travel Partner hint, 'Check again'",
+      "191:1793": "Website payment return kind=travel_promotion — failed: no retry link, Travel Partner hint"
+    },
+    "pages": {
+      "Panel layouts": "96:1691",
+      "Apps · Customer & delivery": "80:2",
+      "Web · States & extras": "95:4089",
+      "Page builder · Components": "37:2",
+      "Web · Product & checkout": "15:5",
+      "Panel shells": "2:142",
+      "Web · Account": "15:6"
+    },
+    "notes": [
+      "Searched every page for travel commission / marketer-campaign fees; only 97:1720, 105:15807 and 101:9917 showed them. 185:9564 ('no commission') and portal affiliate copy are fine.",
+      "Travel app tab labels follow the Promote frames (Dashboard / Requests / Departures / Promote / More). App code shell uses nav.dashboard = 'Summary' in EN (AR 'الملخص'); the design keeps 'Dashboard' as asked — align one of the two.",
+      "113:1340 body still shows the older inquiry cards (Reply / Send offer); the code Requests screen is booking requests with Confirm / Reject. Not redrawn in this pass.",
+      "Payment-return copy follows website/messages/en.json (payment.paidTitle, paidBody.travel_promotion, pendingTitle, travelPartnerHint, failedBodyOther). The code does not show the promotion's Active / Pending state on this page; a design note under each card says where that shows (panel)."
+    ]
+  },
+  "deliveryMoney1": {
+    "date": "2026-11-19",
+    "newFrames": {
+      "203:2225": "Delivery app / 18 Documents (full scroll) — banner '2 required documents missing'; National ID Pending review, Driving licence Approved + 'Expires in 12 days', Vehicle registration Missing, Vehicle insurance Expired, Good conduct certificate (optional) Rejected with reason; Upload / Replace / Re-upload",
+      "203:2428": "Delivery app / 19 Upload document — selected-file box, Take photo / Choose photo / Choose file (PDF), 'PDF, JPG or PNG · up to 10 MB', Valid until date field, 'Send for review' (documents.send)",
+      "205:2393": "Delivery app / 20 Payslips — period, stops, failed attempts, total AED",
+      "205:2568": "Delivery app / 21 Payslip detail (full scroll) — per-stop rate, lines per delivery, total, Download PDF",
+      "205:2639": "Delivery app / 22 Wallet — balances & withdrawals (full scroll) — Available / Requested / Paid out, Withdraw, history chips Pending / Approved / Paid / Rejected / Cancelled",
+      "205:2785": "Delivery app / 23 Withdraw to bank — amount, account holder, bank name, IBAN, minimum note, paid-by-carrier note",
+      "203:2587": "Delivery app / 24 Location permission — 'Allow all the time' rationale for background GPS during an active delivery (gps.* copy)",
+      "206:11622": "Panel layout: Delivery agent › Earnings · payslips & wallet (payslip table with PDF links, balances, withdraw form, withdrawal history)",
+      "207:11926": "Panel layout: Admin › Agent withdrawals (number, agent, carrier, amount, IBAN last4, requested, status; Approve / Mark paid with bank reference / Reject with reason; four-eyes alert)",
+      "207:12730": "Panel layout: Shipping (carrier) › Agent withdrawals — same queue scoped to the carrier's drivers (no carrier column); new sidebar item 207:13296 'Agent withdrawals' under COMMERCIAL",
+      "207:24656": "Web: Real estate › Property search — map view (desktop): list/map toggle, price pins, popup card with View property, OSM attribution 207:24809",
+      "208:3212": "App2 / 65 Property — map view: price pins, Search this area, list/map toggle, bottom summary card, OSM attribution",
+      "209:12482": "Print: Nawy parcel label A6 (105 × 148 mm at 96 dpi, 397 × 559) — Code 39 barcode 209:12490 of SH-NW-AE-1000123-1.I (same table as InboundLabels::CODE39, 1 px narrow / 3 px wide), ship-to, from, COD amount, sub-order number"
+    },
+    "section": {
+      "203:2224": "Section / Delivery app — documents, payslips & wallet (page Apps · Customer & delivery, row y=10080)"
+    },
+    "pages": {
+      "Apps · Customer & delivery": "80:2",
+      "Panel layouts": "96:1691",
+      "Web · States & extras": "95:4089",
+      "App · Customer v2": "94:11699"
+    },
+    "soonFindings": {
+      "97:7854, 97:7862, 97:7885, 97:7893, 97:7901, 97:7909": "'Articles coming soon' on empty collection cards (Release Notes, Manage Campaigns, Billing & Payment, Account Management, Advertising Resources, FAQs) in Portal / Ads Knowledge Hub — Home 97:7671",
+      "98:8876, 98:8881, 98:8886": "'Articles coming soon' on empty category cards (Listings & Catalog, Account Management, FAQs) in Portal / Seller Help Center — Home 98:8666",
+      "59:3348": "'● LIVE SOON' badge (Next live 59:3346) in Creators / Boutique 59:3228 — a scheduled-live label, not a placeholder"
+    },
+    "notes": [
+      "EN only: the delivery app and the panel layouts have no AR siblings; the real-estate map view is desktop only like its sibling Classifieds map view 98:11315 (no mobile-web sibling).",
+      "Copy follows delivery_app/lib/l10n/strings.dart (documents.*, payslips.*, wallet.*, gps.*). Upload submit is 'Send for review' (documents.send).",
+      "backend/resources/views/panels/delivery/earnings.blade.php still says 'payslips and wallet withdrawals are coming' — 206:11622 is the target design.",
+      "Unchanged: the 'Soon' frames listed in soonFindings."
+    ]
+  },
+  "financeReportingPlatform1": {
+    "date": "2026-11-19",
+    "page": "96:1691 Panel layouts",
+    "section": {
+      "213:12482": "Section label — finance, reporting & platform (y 15200)"
+    },
+    "newFrames": {
+      "213:12483": "Admin › Countries & gateways › Exchange rates — current rate per currency → USD with PayPal status per country, add-rate form (Oman time), audited history (admin.countries.exchange-rates)",
+      "214:12795": "Admin › Countries & gateways › Domains — mapped hosts (storefront / panel alias / portal, redirect, DNS, TLS), add-domain form, DNS + TLS steps (admin.countries.domains)",
+      "214:13512": "Admin › Finance › Acquisition commissions — totals per status, monthly table, compute a month, four-eyes note (admin.finance.acquisition-commissions)",
+      "214:14210": "Admin › Finance › Acquisition commission rules — rate in monthly sales band, date range, acquirer (admin.finance.acquisition-rules)",
+      "215:13801": "Admin › My acquisition commissions — signed-in admin / account manager (admin.finance.my-acquisition-commissions)",
+      "215:14428": "Admin › Finance › Vendor subscription plans — plans per country, add plan (admin.finance.subscription-plans)",
+      "215:15102": "Admin › Finance › Vendor subscription detail — past-due alert, invoices with PDF / deduct, change plan / cancel, history (admin.finance.subscriptions.show)",
+      "216:14815": "Admin › Cross-country reports — filters, GMV bars per currency, sales by country, last ETL run (admin.reports.cross-country)",
+      "216:15531": "Admin › Growth › Celebrity monthly report — month picker, influencers ranked by earnings (admin.marketers.celebrity-reports)",
+      "216:16141": "Admin › Celebrity monthly report detail — KPIs, earnings, top products, conversions & obligations (admin.marketers.celebrity-reports.show)",
+      "217:15715": "Admin › Catalog › Product request PR-AE-000018 — queue, approve-and-create form, reject, duplicate check (admin.product-requests.show)",
+      "217:16347": "Admin › Users & vendors › Change request CR-AE-000009 — current vs requested bank details, bank-verified approval (admin.change-requests.show)",
+      "217:16935": "Admin › Inventory & fulfilment › Packaging orders — list with approve / ship / deliver, ship form (admin.packaging.orders)",
+      "218:16599": "Seller Center › Finance › Subscription — past-due banner, plan stats, manage (pay by / change plan / cancel), invoices with pay / deduct / PDF (partner.subscription)",
+      "218:17234": "Seller Center › Product requests — request form + my requests (partner.product-requests; same view marketer.product-requests)",
+      "218:17824": "Seller Center › Packaging supplies — catalogue with quantities, delivery + total, my orders (partner.packaging)",
+      "218:18395": "Seller Center › Change requests — locked sections with 'Ask for a change', my requests (partner.change-requests; same view travel_agency.change-requests)",
+      "219:17426": "Creator Studio › Earnings › Monthly reports — months, KPIs, top products, obligations (marketer.reports / marketer.reports.show)",
+      "219:18018": "Creator Studio › Flash-sale invites — accept / decline with event bonus (marketer.flash-sales)"
+    }
+  },
+  "opsFollowUps1": {
+    "date": "2026-11-19",
+    "pages": {
+      "80:2": "Apps · Customer & delivery (row y 11400, label 223:3372)",
+      "96:1691": "Panel layouts (y 20000)"
+    },
+    "newFrames": {
+      "223:2581": "Ops app / Vendor 05 Documents — Settings › Documents: missing banner, Approved + 'Expires in 12 days', Missing, Pending review + Download, Rejected with reason + Re-upload; pattern note: the same shared nawy_core PartnerDocumentsScreen in the Creator, Supervisor and Travel Partner apps (ops/{role}/documents)",
+      "223:2720": "Ops app / Vendor 06 Upload document — Take photo / Choose photo / Choose file (PDF), 'up to 5 MB', Valid until, Send for review",
+      "223:2817": "Ops app / Vendor 07 FBN — Enrolment tab: filter All · FBN · Fulfilled by you, Enrol in FBN / Leave FBN per listing, warehouse units, refusal hint (ops/vendor/fbn/listings)",
+      "223:2958": "Ops app / Vendor 08 FBN — Inbound plan: Download carton labels (PDF) + 'Saved to …' snackbar (ops/vendor/fbn/inbound/{id}/labels.pdf); replaces the 'print in Seller Center' hint",
+      "223:3085": "Ops app / Travel 05 Promote a trip — in-app purchase: trip, promotion option with price incl. VAT, Pay by card in an in-app tab, return nawytravel://promotions/return",
+      "223:3234": "Ops app / Travel 06 Promotion payment result — active, pending (auto re-check + Check again), failed (Try again), paid but closed (contact support)",
+      "224:17803": "Layout / Admin — Application review sidebar: Acquisition card (acquirer select, referral code, Save acquirer), Decision with optional acquirer, and 'Your referral link' card for My acquisition commissions (FR-FIN-6)"
+    },
+    "kept": [
+      "Help centre empty state 'Articles coming soon' and the 'LIVE SOON' scheduled badge are legitimate labels (left as they are)"
+    ]
   }
 }

@@ -8,7 +8,11 @@ use App\Domains\Marketers\Http\Middleware\ResolveMarketerWorkspace;
 use App\Domains\Panels\Http\Controllers\AdminDashboardController;
 use App\Domains\Panels\Http\Controllers\PanelCountryController;
 use App\Domains\Panels\Http\Controllers\PanelDashboardController;
+use App\Domains\Panels\Http\Controllers\PanelLocaleController;
 use App\Domains\Panels\Http\Controllers\PanelLoginController;
+use App\Domains\Panels\Http\Controllers\PanelNotificationController;
+use App\Domains\Panels\Http\Controllers\PanelPasswordResetController;
+use App\Domains\Panels\Http\Controllers\PanelSecurityController;
 use App\Domains\Panels\Http\Controllers\PasswordSetupController;
 use App\Domains\Panels\Http\Controllers\SellerDashboardController;
 use App\Domains\Panels\Http\Controllers\TeamInvitationController;
@@ -22,9 +26,8 @@ use App\Domains\Travel\Http\Controllers\Panel\TravelPartnerController;
 use App\Domains\Travel\Http\Middleware\ResolveTravelAgency;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// QC-076 / QC-067: no stock Laravel page; the API host sends visitors to the storefront.
+Route::get('/', fn () => redirect()->away((string) config('nawy.payments.storefront_url')));
 
 /*
 | Business panels — {host}.{base} (MASTER_PLAN §5). Every panel shares the
@@ -43,6 +46,9 @@ foreach (Panel::all() as $panel) {
                     ->whereNumber('invitation')->middleware(['signed', 'throttle:10,1'])->name('invitations.respond.store');
             }
 
+            // QC-028: language switch (signed in: saved on the account; sign-in pages: session).
+            Route::post('locale', PanelLocaleController::class)->defaults('panel', $panel->key)->middleware('throttle:30,1')->name('locale');
+
             // QA-002 / QA-003: signed links mailed to the account or the invitee.
             Route::get('password/setup/{user}', [PasswordSetupController::class, 'show'])->whereNumber('user')->defaults('panel', $panel->key)->middleware('signed')->name('password.setup');
             Route::post('password/setup/{user}', [PasswordSetupController::class, 'store'])->whereNumber('user')->defaults('panel', $panel->key)->middleware(['signed', 'throttle:10,1'])->name('password.setup.store');
@@ -54,6 +60,12 @@ foreach (Panel::all() as $panel) {
                 Route::post('login', [PanelLoginController::class, 'store'])->defaults('panel', $panel->key)->middleware('throttle:panel-login')->name('login.store');
                 Route::get('two-factor', [TwoFactorChallengeController::class, 'show'])->defaults('panel', $panel->key)->name('two-factor');
                 Route::post('two-factor', [TwoFactorChallengeController::class, 'store'])->defaults('panel', $panel->key)->middleware('throttle:6,1')->name('two-factor.store');
+
+                // QC-006: forgot / reset password (two-step sign-in still applies afterwards).
+                Route::get('forgot-password', [PanelPasswordResetController::class, 'create'])->defaults('panel', $panel->key)->name('password.request');
+                Route::post('forgot-password', [PanelPasswordResetController::class, 'store'])->defaults('panel', $panel->key)->middleware('throttle:panel-password-reset')->name('password.email');
+                Route::get('reset-password/{token}', [PanelPasswordResetController::class, 'edit'])->defaults('panel', $panel->key)->name('password.reset');
+                Route::post('reset-password', [PanelPasswordResetController::class, 'update'])->defaults('panel', $panel->key)->middleware('throttle:password-reset-submit')->name('password.update');
             });
 
             $middleware = ['auth', EnsurePanelMembership::class.':'.$panel->key, ResolvePanelCountry::class.':'.$panel->key];
@@ -84,6 +96,12 @@ foreach (Panel::all() as $panel) {
                     ->name('dashboard');
                 Route::post('country', PanelCountryController::class)->defaults('panel', $panel->key)->name('country');
                 Route::post('logout', [PanelLoginController::class, 'destroy'])->defaults('panel', $panel->key)->name('logout');
+
+                // QC-041: notification bell; QC-044: the panel user's own sign-in history.
+                Route::get('notifications', [PanelNotificationController::class, 'index'])->defaults('panel', $panel->key)->name('notifications');
+                Route::post('notifications/read-all', [PanelNotificationController::class, 'readAll'])->defaults('panel', $panel->key)->name('notifications.read-all');
+                Route::post('notifications/{notification}/read', [PanelNotificationController::class, 'read'])->whereNumber('notification')->defaults('panel', $panel->key)->name('notifications.read');
+                Route::get('account/security', PanelSecurityController::class)->defaults('panel', $panel->key)->name('security');
 
                 if (is_file($routes = base_path("routes/panels/{$panel->key}.php"))) {
                     require $routes;

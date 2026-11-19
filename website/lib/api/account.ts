@@ -50,8 +50,9 @@ export const markAllNotificationsRead = (market: string, ids?: number[]) =>
  * paths are followed; viewing / reserve notifications open the requests tab.
  */
 export function notificationHref(n: Pick<Notification, "link" | "type">, marketSlug: string): string | null {
-  const link = n.link;
-  if (!link || !link.startsWith("/") || link.startsWith("//")) return null;
+  // QC-012: `review.published` (was `review.approved`), `review.hidden`, `review.rejected`.
+  const link = n.link ?? (n.type.startsWith("review.") ? "/account/reviews" : null);
+  if (!link || !link.startsWith("/") || link.startsWith("//") || link.includes("\\")) return null;
   const path = (n.type.startsWith("viewing.") || n.type.startsWith("reserve.")) && link === "/account/inquiries" ? "/account/inquiries?tab=requests" : link;
   return `/${marketSlug}${path}`;
 }

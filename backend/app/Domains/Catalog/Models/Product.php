@@ -2,6 +2,7 @@
 
 namespace App\Domains\Catalog\Models;
 
+use App\Domains\Catalog\Support\SearchText;
 use App\Shared\Audit\LogsCountryActivity;
 use App\Shared\Database\UsesCountryDatabase;
 use Database\Factories\ProductFactory;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[UseFactory(ProductFactory::class)]
 #[Fillable([
-    'category_id', 'brand_id', 'slug', 'title_en', 'title_ar', 'description_en', 'description_ar',
+    'category_id', 'brand_id', 'slug', 'title_en', 'title_ar', 'model_number', 'description_en', 'description_ar',
     'highlights', 'highlights_ar', 'specifications', 'specifications_ar', 'status', 'fulfilment_mode', 'lead_days', 'size_guide_template_id',
     'rating_average', 'rating_count',
 ])]
@@ -26,6 +27,14 @@ class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
     use HasFactory, LogsCountryActivity, UsesCountryDatabase;
+
+    /**
+     * Keep the search index (`search_text`) in step with the product (QC-015).
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn (Product $product) => SearchText::refresh($product->id));
+    }
 
     /**
      * Get the attributes that should be cast.

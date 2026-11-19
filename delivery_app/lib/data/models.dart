@@ -1,5 +1,10 @@
 import 'package:nawy_core/nawy_core.dart';
 
+/// `cod_in_hand` of `GET delivery/me`: a Money object `{amount, currency}`
+/// since wave 5a (QA-042); older APIs sent a bare decimal string in the
+/// market currency. Both are read; anything else is zero.
+Money codInHandOf(Json me, String currency) => Money.lenient(me['cod_in_hand'], currency) ?? Money.zero(currency);
+
 /// One delivery assignment as `GET delivery/assignments/{number}` returns it
 /// (backend `AgentAssignmentResource`, ADR 15: the code is shown to the agent
 /// only while the assignment is open).
@@ -13,6 +18,9 @@ class Assignment {
   int get attempt => json.i('attempt') ?? 1;
   String? get deliveryCode => json.s('delivery_code');
   String get shipmentNumber => json.str('shipment_number');
+
+  /// The parcel label payload (`<shipment number>.<check>`, Code 39).
+  String? get barcode => json.s('barcode');
   String get orderNumber => json.str('order_number');
   String? get paymentMethod => json.s('payment_method');
   Money? get codAmount => Money.fromJson(json['cod_amount']);
@@ -34,6 +42,16 @@ class Assignment {
   DateTime? get arrivedAt => at('arrived_at');
 
   bool get isOpen => const {'assigned', 'accepted', 'picked_up'}.contains(status);
+
+  /// On the road with the parcel (picked up, out for delivery, arrived):
+  /// the location is shared even with the app in the background. Backend
+  /// `AssignmentStatus::PickedUp`; arriving only records `arrived_at`.
+  bool get isInProgress => status == 'picked_up';
+
+  /// The sub-order was cancelled (QA-005): nothing more to do on this stop.
+  /// Before pickup the shipment is cancelled; after pickup it is returning
+  /// to origin.
+  bool get isCancelled => status == 'cancelled';
 
   /// Single address line for maps and lists ("Building 4, Apt 905, Marina, Dubai").
   String get addressLine {
@@ -84,10 +102,13 @@ bool proofSatisfied({required String proofType, required bool hasPhoto, required
 /// The "Codes match" confirmation sent to `POST …/confirm`. The agent never
 /// types or sends the code itself (ADR 15) — only `codes_match`.
 class ConfirmRequest {
-  const ConfirmRequest({this.signatureDataUrl, this.photo});
+  const ConfirmRequest({this.signatureDataUrl, this.photo, this.photoType = 'image/jpeg'});
 
   final String? signatureDataUrl;
   final List<int>? photo;
+
+  /// Content type of [photo] (sniffed by the picker; the camera gives JPEG).
+  final String photoType;
 
   bool get isMultipart => photo != null;
 
@@ -95,7 +116,7 @@ class ConfirmRequest {
 
   Map<String, String> get fields => {'codes_match': '1', 'signature_data': ?signatureDataUrl};
 
-  List<FilePart> get files => [if (photo != null) FilePart(field: 'photo', filename: 'proof.jpg', bytes: photo!, contentType: 'image/jpeg')];
+  List<FilePart> get files => [if (photo != null) FilePart(field: 'photo', filename: 'proof.${extensionFor(photoType) ?? 'jpg'}', bytes: photo!, contentType: photoType)];
 }
 
 /// Cash-on-delivery maths (no floats; [Money] minor units, half-up).
@@ -120,3 +141,121 @@ class CodMath {
   static Money toCollect(Iterable<Assignment> stops, String currency) =>
       stops.where((s) => s.isOpen && s.codAmount?.currency == currency).fold(Money.zero(currency), (sum, s) => sum + s.codAmount!);
 }
+
+/// Stops that were open at the last load ([before]) and are gone now: the
+/// candidates for a "cancelled" notice (the API drops cancelled
+/// assignments from the open list).
+Set<String> vanishedStops(Set<String> before, Iterable<Assignment> now) => before.difference({for (final a in now) a.number});
+
+/// Remembers the open stops between loads and finds the ones that were
+/// cancelled since (QA-005), so the list can tell the agent.
+class CancelledWatch {
+  Set<String>? _known;
+
+  /// Cancelled stops among those that left [open] since the last call.
+  Future<List<Assignment>> check(Future<List<Assignment>> Function(Set<String> numbers) cancelledAmong, List<Assignment> open) async {
+    final before = _known;
+    _known = {for (final a in open) a.number};
+    if (before == null) return const [];
+    final gone = vanishedStops(before, open);
+    return gone.isEmpty ? const [] : cancelledAmong(gone);
+  }
+}
+
+/// Normalises a scanned or typed parcel code (`nw-ae 1028810-1` →
+/// `NW-AE1028810-1`, `*SH-NW-AE-1-1.X*` → `SH-NW-AE-1-1.X`): trims,
+/// upper-cases, drops spaces and the Code 39 start/stop `*`.
+String normaliseParcelCode(String raw) => raw.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '').replaceAll(RegExp(r'^\*+|\*+$'), '');
+
+/// Code 39 characters in value order (index = value) for the mod 43 check.
+const code39Charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. \$/+%';
+
+/// The Code 39 mod 43 check character of [value] (sum of the character
+/// values mod 43). Null when [value] has a character Code 39 can't encode.
+String? parcelCheckChar(String value) {
+  var sum = 0;
+  for (final ch in value.split('')) {
+    final v = code39Charset.indexOf(ch);
+    if (v < 0) return null;
+    sum += v;
+  }
+  return code39Charset[sum % 43];
+}
+
+/// A parcel label payload: `<shipment number>.<check>` (backend parcel
+/// label, Code 39), or a number typed by hand.
+class ParcelBarcode {
+  const ParcelBarcode._(this.code, this.base, {required this.labelled, required this.checkValid});
+
+  /// The normalised code as read.
+  final String code;
+
+  /// The shipment number of a label, else the whole code.
+  final String base;
+
+  /// Read from a label (`base.check`), not typed by hand.
+  final bool labelled;
+
+  /// The check character matches [base] (always true when not [labelled]).
+  final bool checkValid;
+}
+
+/// Splits a scanned label into the shipment number and its check
+/// character. The check is the last character after the last `.`; a check
+/// character that is itself `.` (value 37) gives `…..`, and a space (value
+/// 38) is lost to trimming, so a code ending in `.` is a valid label when
+/// the check of the rest is a space.
+ParcelBarcode parseParcelBarcode(String raw) {
+  final code = normaliseParcelCode(raw);
+  if (!code.contains('.')) return ParcelBarcode._(code, code, labelled: false, checkValid: true);
+  if (code.endsWith('.')) {
+    final base = code.substring(0, code.length - 1);
+    // `base..` (check `.`) or `base.` + a trimmed space.
+    if (base.endsWith('.') && base.length > 1 && parcelCheckChar(base.substring(0, base.length - 1)) == '.') {
+      return ParcelBarcode._(code, base.substring(0, base.length - 1), labelled: true, checkValid: true);
+    }
+    return ParcelBarcode._(code, base, labelled: true, checkValid: base.isNotEmpty && parcelCheckChar(base) == ' ');
+  }
+  final dot = code.lastIndexOf('.');
+  final base = code.substring(0, dot);
+  final check = code.substring(dot + 1);
+  return ParcelBarcode._(code, base, labelled: true, checkValid: base.isNotEmpty && check.length == 1 && parcelCheckChar(base) == check);
+}
+
+/// The outcome of checking a scanned or typed code against a stop.
+enum ParcelMatch {
+  /// This stop's parcel.
+  match,
+
+  /// A label whose check character is wrong: misread, scan again.
+  badLabel,
+
+  /// A valid label of another shipment.
+  otherParcel,
+
+  /// A typed code that is none of this stop's numbers.
+  noMatch,
+
+  /// Nothing entered.
+  empty,
+}
+
+/// Checks [code] (Figma "12 Pickup scan") against this stop. A label
+/// (`<shipment>.<check>`) must have a valid check character and this stop's
+/// shipment number; a code typed by hand may be the shipment, assignment or
+/// order number.
+ParcelMatch matchParcelCode(Assignment a, String code) {
+  final parsed = parseParcelBarcode(code);
+  if (parsed.code.isEmpty) return ParcelMatch.empty;
+  if (parsed.labelled) {
+    if (!parsed.checkValid) return ParcelMatch.badLabel;
+    // The label carries the shipment (AWB) number; the API sends the full
+    // payload as `barcode`. Without it, fall back to the shown number.
+    final expected = (a.barcode ?? '').isNotEmpty ? parseParcelBarcode(a.barcode!).base : normaliseParcelCode(a.shipmentNumber);
+    return parsed.base == expected ? ParcelMatch.match : ParcelMatch.otherParcel;
+  }
+  return {a.shipmentNumber, a.number, a.orderNumber, if ((a.barcode ?? '').isNotEmpty) parseParcelBarcode(a.barcode!).base}.where((n) => n.isNotEmpty).map(normaliseParcelCode).contains(parsed.code) ? ParcelMatch.match : ParcelMatch.noMatch;
+}
+
+/// Whether [code] is this stop's parcel ([matchParcelCode]).
+bool pickupCodeMatches(Assignment a, String code) => matchParcelCode(a, code) == ParcelMatch.match;

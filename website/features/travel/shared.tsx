@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { MapPin, Moon, Plane } from "lucide-react";
 import Link from "next/link";
+import { AdLabel } from "@/components/ui/misc";
 import type { ApiError } from "@/lib/api/client";
 import type { TravelPackageCard } from "@/lib/api/travel";
 import type { Money } from "@/lib/api/schemas";
@@ -30,6 +31,14 @@ export function timesMoney(price: Money | null | undefined, count: number): Mone
   return { amount: (Number(price.amount) * count).toFixed(decimals), currency: price.currency };
 }
 
+/** Sum of two estimates in the same currency (display only; the agency quotes the total). */
+export function addMoney(a: Money | null, b: Money | null): Money | null {
+  if (!a) return b;
+  if (!b) return a;
+  const decimals = Math.max(a.amount.split(".")[1]?.length ?? 2, b.amount.split(".")[1]?.length ?? 2);
+  return { amount: (Number(a.amount) + Number(b.amount)).toFixed(decimals), currency: a.currency };
+}
+
 /** Trip picture: the package cover (`image.url` / `cover_url`), or the neutral placeholder when none. */
 export function TripImage({ className, label, src }: { className?: string; label?: string | null; src?: string | null }) {
   if (src) {
@@ -43,17 +52,32 @@ export function TripImage({ className, label, src }: { className?: string; label
   );
 }
 
-/** Trip card (Figma Travel home 69:5767 package card). */
+/**
+ * D14 "Sponsored" label of a promoted trip: the server-localized `label`, or
+ * `common.sponsored` when the API sent none. Nothing for organic trips.
+ */
+export function TripSponsoredLabel({ pkg, market, className }: { pkg: Pick<TravelPackageCard, "sponsored" | "label">; market: Market; className?: string }) {
+  if (!pkg.sponsored) return null;
+  const label = pkg.label?.trim() || getT(market.locale)("common.sponsored");
+  return (
+    <AdLabel className={className}>
+      <span data-testid="trip-sponsored">{label}</span>
+    </AdLabel>
+  );
+}
+
+/** Trip card (Figma Travel home 69:5767 package card); promoted trips carry the Sponsored label (D14). */
 export function TripCard({ pkg, market }: { pkg: TravelPackageCard; market: Market }) {
   const t = getT(market.locale);
   const soldOut = pkg.status === "sold_out";
   const type = isTripType(pkg.trip_type) ? t(`travel.types.${pkg.trip_type}`) : pkg.trip_type;
   return (
-    <Link href={`/${market.slug}/travel/${encodeURIComponent(pkg.slug)}`} className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface hover:shadow-sm">
+    <Link href={`/${market.slug}/travel/${encodeURIComponent(pkg.slug)}`} data-testid="trip-card" className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface hover:shadow-sm">
       <div className="relative aspect-[16/10] w-full overflow-hidden">
         <TripImage className="size-full" label={pkg.image?.alt ?? pkg.title} src={pkg.image?.url ?? pkg.cover_url} />
         {type ? <span className="absolute start-2 top-2 rounded-xs bg-brand px-1.5 py-0.5 text-caption font-medium text-ink">{type}</span> : null}
         {soldOut ? <span className="absolute end-2 top-2 rounded-xs bg-ink px-1.5 py-0.5 text-caption font-medium text-white">{t("travel.soldOut")}</span> : null}
+        <TripSponsoredLabel pkg={pkg} market={market} className="absolute bottom-2 start-2 bg-surface/90" />
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <h3 className="line-clamp-2 text-body font-semibold">{pkg.title}</h3>
@@ -98,7 +122,7 @@ export function fieldErrorsOf(error: unknown): Record<string, string> {
   return out;
 }
 
-export const ROOM_TYPES = ["single", "double", "twin", "triple", "quad", "family"] as const;
+export const ROOM_TYPES = ["single", "double", "twin", "triple", "quad", "family", "child"] as const;
 type RoomTypeKey = (typeof ROOM_TYPES)[number];
 
 /** Room type label: known types are translated, others shown as entered by the agency. */

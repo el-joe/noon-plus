@@ -9,7 +9,7 @@ namespace App\Domains\Campaigns\Enums;
 enum CampaignOrigin: string
 {
     case Vendor = 'vendor';                  // A
-    case TravelAgency = 'travel_agency';     // B
+    case TravelAgency = 'travel_agency';     // B — closed by owner decision D11 (travel runs no campaigns)
     case Platform = 'platform';              // C
     case MarketerRequest = 'marketer_request'; // D
     case Peer = 'peer';                      // E

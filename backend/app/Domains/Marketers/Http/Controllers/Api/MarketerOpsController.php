@@ -9,6 +9,7 @@ use App\Domains\Campaigns\Models\CampaignInvitation;
 use App\Domains\Campaigns\Models\MarketerConversion;
 use App\Domains\Campaigns\Models\ReferralClick;
 use App\Domains\Campaigns\Support\ReferralCodes;
+use App\Domains\Campaigns\Support\ReferralQr;
 use App\Domains\Catalog\Http\Resources\MoneyResource;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Marketers\Models\MarketerProfile;
@@ -18,6 +19,7 @@ use App\Shared\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Marketer ops app (Sanctum `ops:marketer`): the Creator Studio overview,
@@ -94,10 +96,24 @@ class MarketerOpsController extends Controller
                     'campaign' => (string) $invitation->campaign?->title,
                     'code' => $invitation->referral_code,
                     'url' => $this->share($invitation->referral_code),
+                    'qr_url' => route('api.v1.ops.marketer.links.qr', ['market' => $request->attributes->get('market'), 'invitation' => $invitation->id]),
                     'clicks' => ReferralClick::query()->where('invitation_id', $invitation->id)->count(),
                     'conversions' => MarketerConversion::query()->where('invitation_id', $invitation->id)->distinct('order_id')->count('order_id'),
                 ])->values()->all(),
         ]);
+    }
+
+    /**
+     * D16: the QR code of one of the marketer's referral links (accepted
+     * invitations only), `format=svg` (default) or `png`, as a download.
+     */
+    public function linkQr(Request $request, int $invitation, ReferralQr $qr): Response
+    {
+        $row = $this->accepted($this->marketer($request))->first(fn (CampaignInvitation $candidate): bool => $candidate->id === $invitation && filled($candidate->referral_code));
+        abort_if($row === null, 404);
+        $format = $request->validate(['format' => ['nullable', 'in:svg,png']])['format'] ?? 'svg';
+
+        return $qr->response($this->codes->share($row->referral_code, $this->countryContext->current())['qr_payload'], $row->referral_code, $format);
     }
 
     /**
@@ -149,7 +165,7 @@ class MarketerOpsController extends Controller
         $number = fn (mixed $value): string => str_contains((string) $value, '.') ? rtrim(rtrim((string) $value, '0'), '.') : (string) $value;
 
         return match (true) {
-            $invitation->influencer_fixed !== null && (float) $invitation->influencer_fixed > 0 => MoneyResource::of((string) $invitation->influencer_fixed, $invitation->campaign?->currency)['amount'].' '.($invitation->campaign?->currency ?? '').' '.__('fixed'),
+            $invitation->influencer_fixed !== null && bccomp((string) $invitation->influencer_fixed, '0', 4) > 0 => MoneyResource::of((string) $invitation->influencer_fixed, $invitation->campaign?->currency)['amount'].' '.($invitation->campaign?->currency ?? '').' '.__('fixed'),
             $invitation->effective_type === 'broker' => $number($rates['broker_fixed'] ?? 0).' + '.$number($rates['broker_percent'] ?? 0).'%',
             isset($rates['affiliate_percent']) => $number($rates['affiliate_percent']).'%',
             default => null,

@@ -30,9 +30,10 @@ it('QC-001: the seller replies in Seller Center and the admin reviews, escalates
     $this->actingAs($seller)->post(onPanel('partner', "disputes/{$dispute->id}/reply"), ['body' => 'We can replace it.'])->assertRedirect();
     expect($dispute->refresh()->status)->toBe(DisputeStatus::SellerResponded);
 
-    $support = adminAccount('uae', 'support');
-    $this->actingAs($support)->get(onPanel('admin', "disputes/{$dispute->id}"))->assertOk()->assertSee('We can replace it.');
-    $this->actingAs($support)->post(onPanel('admin', "disputes/{$dispute->id}/review"))->assertForbidden();
+    // QC-045 (wave 3): Support now holds approve rights here (matrix §3.2), so the view-only check uses Finance.
+    $finance = adminAccount('uae', 'finance');
+    $this->actingAs($finance)->get(onPanel('admin', "disputes/{$dispute->id}"))->assertOk()->assertSee('We can replace it.');
+    $this->actingAs($finance)->post(onPanel('admin', "disputes/{$dispute->id}/review"))->assertForbidden();
 
     $admin = adminAccount();
     $this->actingAs($admin)->post(onPanel('admin', "disputes/{$dispute->id}/review"))->assertRedirect();

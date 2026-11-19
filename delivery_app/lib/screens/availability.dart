@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
+import '../data/location.dart';
 
 /// Figma "13 Availability": go online / offline. The backend refuses going
 /// offline while a parcel is being carried (owner review W10).
@@ -12,7 +13,11 @@ class AvailabilityScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(context.t('availability.title'))),
         body: AsyncBody<Json>(
-          load: () => DeliveryApi(context.api).me(),
+          load: () async {
+            final me = await DeliveryApi(context.api).me();
+            if (context.mounted) DutyScope.read(context)?.setOnDuty(me.b('available'));
+            return me;
+          },
           builder: (context, me, reload) {
             final available = me.b('available');
             return ListView(padding: const EdgeInsets.all(NawySpace.gutter), children: [

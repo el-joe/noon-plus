@@ -1,8 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
+import 'package:nawy_core/device.dart' show AttachmentPicker, PhoneLink, PickedMedia, UploadRules, rejectionMessages;
 
 import '../../core/api/api_client.dart';
 import '../../core/json.dart';
 import '../../core/money.dart';
+import '../../core/platform/platform_bridge.dart';
 import '../../features/page_builder/vertical_cards.dart';
 import '../../l10n/l10n.dart';
 import '../../routing/guards.dart';
@@ -11,6 +16,7 @@ import '../../ui/theme.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/paged_list.dart';
 import '../../ui/widgets/states.dart';
+import 'listing_map.dart';
 
 /// Flatten the classified category tree with depth (post-ad picker).
 List<(Json, int)> flattenCategories(List<Json> tree, [int depth = 0]) => [
@@ -25,8 +31,78 @@ String specValue(dynamic v) {
   return '$v';
 }
 
+/// Photo limits of a classified category (`GET classifieds/categories` and
+/// `…/{slug}/attributes`): `max_photos` per ad and `photo_max_kb` per photo,
+/// both inherited by the API, which enforces them on
+/// `POST classifieds/ads/{n}/photos`. Falls back to 20 / 8192 (the
+/// `classified.max_photos` / `classified.photo_max_kb` defaults).
+class AdPhotoLimits {
+  const AdPhotoLimits({this.maxPhotos = defaultMaxPhotos, this.photoMaxKb = defaultPhotoMaxKb});
+
+  /// The attributes answer wins over the category node; missing or
+  /// non-positive values use the defaults.
+  factory AdPhotoLimits.of(Json? attributes, [Json? category]) {
+    int? pick(String key) {
+      for (final source in [attributes, category]) {
+        final v = source?.i(key);
+        if (v != null && v > 0) return v;
+      }
+      return null;
+    }
+
+    return AdPhotoLimits(maxPhotos: pick('max_photos') ?? defaultMaxPhotos, photoMaxKb: pick('photo_max_kb') ?? defaultPhotoMaxKb);
+  }
+
+  static const defaultMaxPhotos = 20;
+  static const defaultPhotoMaxKb = 8192;
+
+  final int maxPhotos;
+  final int photoMaxKb;
+
+  /// Rules for the photos still to add next to [uploaded] ones.
+  UploadRules rules({int uploaded = 0}) => UploadRules.adPhotos(maxCount: math.max(0, maxPhotos - uploaded), maxKb: photoMaxKb);
+}
+
+/// Submits a draft ad for review (`POST classifieds/ads/{n}/submit`); when
+/// its category needs the seller agreement, asks the user to accept it and
+/// signs it. Returns the ad's number and status.
+Future<Json> submitAd(BuildContext context, ApiClient api, String number) async {
+  final submitted = asJson((await api.post('classifieds/ads/${enc(number)}/submit')).data);
+  final contract = submitted.m('contract');
+  if (contract != null && context.mounted) {
+    final signed = await signAdContract(context, api, number, contract);
+    if (signed != null) return {...submitted, ...signed};
+  }
+  return submitted;
+}
+
+/// The seller-agreement click-wrap of an ad (`POST classifieds/ads/{n}/contract`
+/// with the account name); null when the user cancels.
+Future<Json?> signAdContract(BuildContext context, ApiClient api, String number, Json contract) async {
+  final name = AppScope.read(context).user?.s('name') ?? '';
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(contract.str('title')),
+      content: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(ctx.t('souq.contractHint')),
+          if (contract.s('text') != null) ...[const SizedBox(height: 12), Text(contract.str('text'), style: NawyText.bodySm)],
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(ctx.t('common.cancel'))),
+        TextButton(key: const ValueKey('ad-contract-accept'), onPressed: () => Navigator.of(ctx).pop(true), child: Text(ctx.t('contracts.accept'))),
+      ],
+    ),
+  );
+  if (ok != true) return null;
+  return asJson((await api.post('classifieds/ads/${enc(number)}/contract', body: {'full_name': name})).data);
+}
+
 /// Figma "47 Souq" / "49 Property": Open Souq classifieds (or the property
-/// vertical) — categories, search, sort, ads (`GET classifieds/ads`).
+/// vertical) — categories, search, sort, ads (`GET classifieds/ads`), and a
+/// map of the ads with a location (`GET classifieds/map`, FR-CLS-5).
 class SouqHome extends StatefulWidget {
   const SouqHome({super.key, this.embedded = false, this.vertical, this.args = const {}});
 
@@ -43,6 +119,7 @@ class _SouqHomeState extends State<SouqHome> {
   late String? _category = widget.args['category'] as String?;
   String _sort = 'recommended';
   late String? _purpose = widget.args['purpose'] as String?;
+  late bool _map = widget.args['view'] == 'map';
   final _search = TextEditingController();
 
   bool get _property => widget.vertical == 'property';
@@ -56,6 +133,12 @@ class _SouqHomeState extends State<SouqHome> {
   @override
   Widget build(BuildContext context) {
     final api = AppScope.read(context).api;
+    final filters = <String, dynamic>{
+      'q': _q,
+      'category': _category,
+      'vertical': widget.vertical,
+      if (_purpose != null) 'attr[purpose]': _purpose,
+    };
     final body = Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -74,6 +157,12 @@ class _SouqHomeState extends State<SouqHome> {
             icon: const Icon(Icons.swap_vert_rounded),
             onSelected: (v) => setState(() => _sort = v),
             itemBuilder: (ctx) => [for (final s in const ['recommended', 'newest', 'price_asc', 'price_desc']) CheckedPopupMenuItem(value: s, checked: _sort == s, child: Text(ctx.t('sort.$s')))],
+          ),
+          IconButton(
+            key: const ValueKey('souq-view-toggle'),
+            tooltip: context.t(_map ? 'souq.listView' : 'souq.mapView'),
+            onPressed: () => setState(() => _map = !_map),
+            icon: Icon(_map ? Icons.view_list_rounded : Icons.map_outlined),
           ),
         ]),
       ),
@@ -102,27 +191,26 @@ class _SouqHomeState extends State<SouqHome> {
         },
       ),
       Expanded(
-        child: PagedList(
-          key: ValueKey('$_q-$_category-$_sort-$_purpose-${widget.vertical}'),
-          load: (page) => api.getList('classifieds/ads', query: {
-            'q': _q,
-            'category': _category,
-            'sort': _sort == 'recommended' ? null : _sort,
-            'vertical': widget.vertical,
-            if (_purpose != null) 'attr[purpose]': _purpose,
-            'page': page,
-          }),
-          header: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.of(context).pushNamed(Routes.postAd), icon: const Icon(Icons.add_rounded), label: Text(context.t('souq.postAd')))),
-              const SizedBox(width: 8),
-              Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.of(context).pushNamed(Routes.myAds), icon: const Icon(Icons.campaign_outlined), label: Text(context.t('souq.myAds')))),
-            ]),
-          ),
-          empty: EmptyView(icon: _property ? Icons.apartment_rounded : Icons.storefront_outlined, title: context.t('souq.empty')),
-          itemBuilder: (context, ad) => Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12), child: AdCard(ad: ad, horizontal: true)),
-        ),
+        child: _map
+            ? ListingsMapView(key: ValueKey('map-$_q-$_category-$_purpose-${widget.vertical}'), query: filters, onShowList: () => setState(() => _map = false))
+            : PagedList(
+                key: ValueKey('$_q-$_category-$_sort-$_purpose-${widget.vertical}'),
+                load: (page) => api.getList('classifieds/ads', query: {
+                  ...filters,
+                  'sort': _sort == 'recommended' ? null : _sort,
+                  'page': page,
+                }),
+                header: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(children: [
+                    Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.of(context).pushNamed(Routes.postAd), icon: const Icon(Icons.add_rounded), label: Text(context.t('souq.postAd')))),
+                    const SizedBox(width: 8),
+                    Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.of(context).pushNamed(Routes.myAds), icon: const Icon(Icons.campaign_outlined), label: Text(context.t('souq.myAds')))),
+                  ]),
+                ),
+                empty: EmptyView(icon: _property ? Icons.apartment_rounded : Icons.storefront_outlined, title: context.t('souq.empty')),
+                itemBuilder: (context, ad) => Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12), child: AdCard(ad: ad, horizontal: true)),
+              ),
       ),
     ]);
     if (widget.embedded) return body;
@@ -263,13 +351,15 @@ class _AdDetailScreenState extends State<AdDetailScreen> {
                       if (seller.s('member_since') != null) Text(context.t('souq.memberSince', {'date': shortDate(context, seller.s('member_since'))}), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
                       if (seller.b('has_phone'))
                         TextButton.icon(
+                          key: const ValueKey('ad-phone'),
+                          // P12: once revealed, the number opens the dialler.
                           onPressed: _phone != null
-                              ? null
+                              ? () => PlatformBridge.callPhone(_phone)
                               : () async {
                                   final res = await guarded(context, () => AppScope.read(context).api.post('classifieds/ads/${enc(widget.number)}/phone'));
                                   if (res != null && mounted) setState(() => _phone = asJson(res.data).s('phone'));
                                 },
-                          icon: const Icon(Icons.phone_outlined),
+                          icon: Icon(_phone != null ? Icons.call_rounded : Icons.phone_outlined),
                           label: Text(_phone ?? context.t('souq.showPhone'), textDirection: _phone != null ? TextDirection.ltr : null),
                         ),
                     ]),
@@ -422,7 +512,8 @@ class _SouqRequestScreenState extends State<SouqRequestScreen> {
   }
 }
 
-/// Figma "60 Souq request sent".
+/// Figma "60 Souq request sent". Owner decision D12: the request is a
+/// record only, so the customer sees "Request sent" and no status.
 class SouqSentScreen extends StatelessWidget {
   const SouqSentScreen({super.key, required this.request, required this.ad});
 
@@ -438,8 +529,10 @@ class SouqSentScreen extends StatelessWidget {
           Text(context.t('souq.sentTitle'), textAlign: TextAlign.center, style: NawyText.h2),
           const SizedBox(height: 8),
           Text(context.t('souq.sentHint', {'title': ad.str('title')}), textAlign: TextAlign.center, style: NawyText.body.copyWith(color: NawyColors.textSecondary)),
-          const SizedBox(height: 16),
-          SectionCard(margin: EdgeInsets.zero, child: InfoRow(context.t('travel.status'), context.l10n.status(request.s('status')))),
+          if (request['id'] != null) ...[
+            const SizedBox(height: 8),
+            Text(context.t('souq.reference', {'id': '${request['id']}'}), textAlign: TextAlign.center, style: NawyText.caption),
+          ],
           const SizedBox(height: 24),
           if (AppScope.of(context).signedIn)
             FilledButton(onPressed: () => Navigator.of(context).pushReplacementNamed(Routes.viewingRequests), child: Text(context.t('souq.myRequests'))),
@@ -448,31 +541,81 @@ class SouqSentScreen extends StatelessWidget {
       );
 }
 
-/// My viewing / reserve requests (`GET me/viewing-requests`).
-class ViewingRequestsScreen extends StatelessWidget {
+/// Viewing / reserve requests as plain records (owner decision D12: no
+/// status, no actions). "Sent" lists the customer's own requests
+/// (`GET me/viewing-requests`); "On my ads" lists the requests received on
+/// the user's own ads with the customer's contact details
+/// (`GET classifieds/mine/requests`), to contact them outside Nawy.
+class ViewingRequestsScreen extends StatefulWidget {
   const ViewingRequestsScreen({super.key});
+
+  @override
+  State<ViewingRequestsScreen> createState() => _ViewingRequestsScreenState();
+}
+
+class _ViewingRequestsScreenState extends State<ViewingRequestsScreen> {
+  bool _received = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(context.t('souq.myRequests'))),
-        body: PagedList(
-          load: (page) => AppScope.read(context).api.getList('me/viewing-requests', query: {'page': page}),
-          empty: EmptyView(icon: Icons.event_available_outlined, title: context.t('souq.noRequests')),
-          itemBuilder: (context, r) => InkWell(
-            onTap: r.m('ad') == null ? null : () => Navigator.of(context).pushNamed(Routes.souqAd, arguments: {'number': r.m('ad')!.str('number')}),
-            child: SectionCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [Expanded(child: Text(r.m('ad')?.str('title') ?? '', style: NawyText.bodyMedium)), Pill.status(context, r.s('status'))]),
-                Text('${context.t('souq.request.${r.str('type', 'viewing')}')} · ${shortDate(context, r.s('scheduled_at') ?? r.s('preferred_at'), time: true)}', style: NawyText.caption),
-                if (r.s('note') != null) Text(r.str('note'), style: NawyText.bodySm),
-              ]),
+        body: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Wrap(spacing: 8, children: [
+              ChoiceChip(key: const ValueKey('requests-sent'), label: Text(context.t('souq.requestsSent')), selected: !_received, onSelected: (_) => setState(() => _received = false)),
+              ChoiceChip(key: const ValueKey('requests-received'), label: Text(context.t('souq.requestsReceived')), selected: _received, onSelected: (_) => setState(() => _received = true)),
+            ]),
+          ),
+          if (_received)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(context.t('souq.requestsReceivedHint'), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+            ),
+          Expanded(
+            child: PagedList(
+              key: ValueKey(_received),
+              load: (page) => AppScope.read(context).api.getList(_received ? 'classifieds/mine/requests' : 'me/viewing-requests', query: {'page': page}),
+              empty: EmptyView(icon: Icons.event_available_outlined, title: context.t(_received ? 'souq.noRequestsReceived' : 'souq.noRequests')),
+              itemBuilder: (context, r) => _RequestRecord(r),
             ),
           ),
-        ),
+        ]),
       );
 }
 
-/// My ads (`GET classifieds/mine`) with pause/resume/renew/archive/sold.
+class _RequestRecord extends StatelessWidget {
+  const _RequestRecord(this.r);
+
+  final Json r;
+
+  @override
+  Widget build(BuildContext context) {
+    final contact = r.m('contact');
+    return InkWell(
+      onTap: r.m('ad') == null ? null : () => Navigator.of(context).pushNamed(Routes.souqAd, arguments: {'number': r.m('ad')!.str('number')}),
+      child: SectionCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(r.m('ad')?.str('title') ?? '', style: NawyText.bodyMedium),
+          Text(context.t('souq.request.${r.str('type', 'viewing')}'), style: NawyText.caption),
+          if (r.s('created_at') != null) Text(context.t('souq.requestSentOn', {'date': shortDate(context, r.s('created_at'))}), style: NawyText.caption),
+          Text('${context.t('souq.preferredTime')}: ${shortDate(context, r.s('preferred_at'), time: true)}', style: NawyText.caption),
+          if (r.s('note') != null) Text(r.str('note'), style: NawyText.bodySm),
+          if (contact != null) ...[
+            const SizedBox(height: 6),
+            Text(contact.str('name'), style: NawyText.bodyMedium),
+            SelectableText(contact.str('email'), style: NawyText.bodySm),
+            if (contact.s('phone') != null) PhoneLink(contact.str('phone'), t: context.t, style: NawyText.bodySm),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+/// My ads (`GET classifieds/mine`) with pause/resume/renew/archive/sold;
+/// drafts get their photos managed and are submitted from here, and an ad
+/// waiting for the seller agreement can sign it.
 class MyAdsScreen extends StatefulWidget {
   const MyAdsScreen({super.key});
 
@@ -505,6 +648,15 @@ class _MyAdsScreenState extends State<MyAdsScreen> {
       await guarded(context, () => api.post('classifieds/ads/$n/sold', body: {'final_price': value}));
     } else if (action == 'duplicate') {
       await guarded(context, () => api.post('classifieds/ads/$n/duplicate'), success: context.t('souq.duplicated'));
+    } else if (action == 'photos') {
+      await Navigator.of(context).pushNamed(Routes.adPhotos, arguments: {'number': ad.str('number'), 'category': ad.s('category')});
+    } else if (action == 'submit') {
+      await guarded(context, () => submitAd(context, api, ad.str('number')), success: context.t('souq.submitted'));
+    } else if (action == 'contract') {
+      final res = await guarded(context, () => api.getObject('classifieds/ads/$n/contract'));
+      final contract = res?.m('contract');
+      if (contract == null || !mounted) return;
+      await guarded(context, () => signAdContract(context, api, ad.str('number'), contract));
     } else {
       await guarded(context, () => api.post('classifieds/ads/$n/$action'));
     }
@@ -522,6 +674,8 @@ class _MyAdsScreenState extends State<MyAdsScreen> {
           itemBuilder: (context, ad) {
             final status = ad.str('status');
             final actions = <String>[
+              if (status == 'draft') ...['photos', 'submit'],
+              if (status == 'pending_contract') ...['contract', 'photos'],
               if (status == 'active') ...['pause', 'sold'],
               if (status == 'paused') 'resume',
               if (status == 'expired') 'renew',
@@ -537,6 +691,7 @@ class _MyAdsScreenState extends State<MyAdsScreen> {
                   const Spacer(),
                   if (actions.isNotEmpty)
                     PopupMenuButton<String>(
+                      key: ValueKey('my-ad-actions-${ad.str('number')}'),
                       tooltip: context.t('common.more'),
                       onSelected: (a) => _action(ad, a),
                       itemBuilder: (ctx) => [for (final a in actions) PopupMenuItem(value: a, child: Text(ctx.t('souq.action.$a')))],
@@ -549,10 +704,145 @@ class _MyAdsScreenState extends State<MyAdsScreen> {
       );
 }
 
+/// Photos of a draft ad (the API takes media changes while the ad is a
+/// draft or waits for the seller agreement): the uploaded ones with remove
+/// (`DELETE classifieds/ads/{n}/media/{id}`) and new ones within the
+/// category's `max_photos` / `photo_max_kb` (`POST …/photos`, one each).
+class AdPhotosScreen extends StatefulWidget {
+  const AdPhotosScreen({super.key, required this.number, this.category});
+
+  final String number;
+
+  /// Category slug (from the ad card) for the photo limits.
+  final String? category;
+
+  @override
+  State<AdPhotosScreen> createState() => _AdPhotosScreenState();
+}
+
+class _AdPhotosScreenState extends State<AdPhotosScreen> {
+  int _gen = 0;
+  List<PickedMedia> _photos = const [];
+  String? _progress;
+  String? _error;
+
+  Future<(Json, AdPhotoLimits)> _load() async {
+    final api = AppScope.read(context).api;
+    final ad = await api.getObject('classifieds/ads/${enc(widget.number)}');
+    final slug = widget.category ?? ad.s('category');
+    Json? attributes;
+    if (slug != null) {
+      try {
+        attributes = await api.getObject('classifieds/categories/${enc(slug)}/attributes');
+      } on ApiException {
+        attributes = null; // The defaults still apply; the API enforces the real limits.
+      }
+    }
+    return (ad, AdPhotoLimits.of(attributes));
+  }
+
+  Future<void> _upload(AdPhotoLimits limits, int uploaded) async {
+    final api = AppScope.read(context).api;
+    final rules = limits.rules(uploaded: uploaded);
+    final check = rules.check(const [], _photos);
+    if (check.rejected.isNotEmpty) {
+      setState(() => _error = rejectionMessages(check.rejected, rules, context.t).join('\n'));
+      return;
+    }
+    final failed = <PickedMedia>[];
+    final reasons = <String>{};
+    for (final (i, photo) in _photos.indexed) {
+      setState(() => _progress = context.t('souq.photosUploading', {'n': i + 1, 'total': _photos.length}));
+      try {
+        await api.multipart('classifieds/ads/${enc(widget.number)}/photos', files: [photo.part('photo')]);
+      } on ApiException catch (e) {
+        failed.add(photo);
+        reasons.add(e.message);
+      }
+      if (!mounted) return;
+    }
+    setState(() {
+      _progress = null;
+      _photos = failed;
+      _error = failed.isEmpty ? null : [context.t('souq.photosNotAdded', {'n': failed.length}), ...reasons].join('\n');
+      _gen++;
+    });
+    if (failed.isEmpty) showToast(context, context.t('souq.photosAdded'));
+  }
+
+  Future<void> _remove(Json media) async {
+    final ok = await guarded(context, () => AppScope.read(context).api.delete('classifieds/ads/${enc(widget.number)}/media/${media.i('id')}'));
+    if (ok != null && mounted) setState(() => _gen++);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(context.t('souq.managePhotos'))),
+        body: AsyncBody<(Json, AdPhotoLimits)>(
+          key: ValueKey(_gen),
+          load: _load,
+          builder: (context, data, _) {
+            final (ad, limits) = data;
+            final existing = ad.l('media').where((m) => m.s('type') == 'photo').toList();
+            final editable = const {'draft', 'pending_contract'}.contains(ad.s('status'));
+            return ListView(padding: const EdgeInsets.all(16), children: [
+              Text(ad.str('title'), style: NawyText.h4),
+              const SizedBox(height: 4),
+              Text(context.t('souq.photosOf', {'n': existing.length, 'max': limits.maxPhotos}), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+              const SizedBox(height: 12),
+              if (existing.isNotEmpty)
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final m in existing)
+                    Stack(clipBehavior: Clip.none, children: [
+                      SizedBox(width: 88, height: 88, child: NetImage(m.s('url'), radius: NawyRadius.sm)),
+                      if (editable)
+                        PositionedDirectional(
+                          top: -8,
+                          end: -8,
+                          child: IconButton(
+                            key: ValueKey('ad-media-remove-${m.i('id')}'),
+                            tooltip: context.t('media.remove'),
+                            onPressed: () => _remove(m),
+                            icon: const CircleAvatar(radius: 11, backgroundColor: NawyColors.bgInverse, child: Icon(Icons.close, size: 13, color: NawyColors.textInverse)),
+                          ),
+                        ),
+                    ]),
+                ]),
+              const SizedBox(height: 16),
+              if (!editable)
+                Text(context.t('souq.photosLocked'), style: NawyText.bodySm.copyWith(color: NawyColors.textSecondary))
+              else ...[
+                Text(context.t('souq.addPhotos'), style: NawyText.label),
+                const SizedBox(height: 8),
+                AttachmentPicker(
+                  key: const ValueKey('ad-photos-picker'),
+                  files: _photos,
+                  rules: limits.rules(uploaded: existing.length),
+                  t: context.t,
+                  enabled: _progress == null,
+                  onChanged: (files) => setState(() {
+                    _photos = files;
+                    _error = null;
+                  }),
+                ),
+                if (_progress != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_progress!, style: NawyText.bodySm)),
+                if (_error != null)
+                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, key: const ValueKey('ad-photos-error'), style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
+                const SizedBox(height: 16),
+                BusyButton(key: const ValueKey('ad-photos-upload'), label: context.t('souq.uploadPhotos'), onPressed: _photos.isEmpty ? null : () => _upload(limits, existing.length)),
+              ],
+            ]);
+          },
+        ),
+      );
+}
+
 /// Figma app "17 Post ad": category → details (attributes) → submit, with
-/// the seller contract click-wrap when the category needs one. Photo upload
-/// needs an image picker package (owner-review WP10); ads can get photos on
-/// the web.
+/// the seller contract click-wrap when the category needs one. Photos come
+/// from the camera / gallery (image_picker, D16), within the category's
+/// `max_photos` / `photo_max_kb`, and are uploaded one by one after the ad
+/// is created, before it is submitted for review. When a photo fails the ad
+/// stays a draft and the failed photos stay here to retry or remove.
 class PostAdScreen extends StatefulWidget {
   const PostAdScreen({super.key});
 
@@ -573,8 +863,46 @@ class _PostAdScreenState extends State<PostAdScreen> {
   final _area = TextEditingController();
   bool _negotiable = false;
   String _kind = 'offer';
+  LatLng? _location;
+  List<PickedMedia> _photos = const [];
+  String? _progress;
   Map<String, String> _errors = {};
   Json? _result;
+
+  /// The draft once `POST classifieds/ads` created it (a retry updates it).
+  String? _number;
+
+  /// Photos already uploaded to [_number].
+  int _uploaded = 0;
+
+  AdPhotoLimits get _limits => AdPhotoLimits.of(_attributes, _category);
+
+  UploadRules get _photoRules => _limits.rules(uploaded: _uploaded);
+
+  /// One `photo` per call to `classifieds/ads/{number}/photos` (D16 / P7).
+  /// The uploaded photos leave [_photos]; the failed ones stay. Returns the
+  /// API's reasons for the failures.
+  Future<Set<String>> _uploadPhotos(ApiClient api, String number) async {
+    final failed = <PickedMedia>[];
+    final reasons = <String>{};
+    for (final (i, photo) in _photos.indexed) {
+      if (mounted) setState(() => _progress = context.t('souq.photosUploading', {'n': i + 1, 'total': _photos.length}));
+      try {
+        await api.multipart('classifieds/ads/${enc(number)}/photos', files: [photo.part('photo')]);
+        _uploaded++;
+      } on ApiException catch (e) {
+        failed.add(photo);
+        reasons.add(e.message);
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _progress = null;
+        _photos = failed;
+      });
+    }
+    return reasons;
+  }
 
   @override
   void dispose() {
@@ -587,52 +915,62 @@ class _PostAdScreenState extends State<PostAdScreen> {
   Future<void> _pickCategory(Json c) async {
     final attrs = await guarded(context, () => AppScope.read(context).api.getObject('classifieds/categories/${enc(c.str('slug'))}/attributes'));
     if (attrs == null || !mounted) return;
+    // Photos picked under another category must fit this one's limits.
+    final rules = AdPhotoLimits.of(attrs, c).rules();
+    final check = rules.check(const [], _photos);
     setState(() {
       _category = c;
       _attributes = attrs;
+      _photos = check.accepted;
       _step = 1;
     });
+    if (check.rejected.isNotEmpty) showToast(context, rejectionMessages(check.rejected, rules, context.t).join('\n'), error: true);
   }
 
   Future<void> _submit() async {
     final api = AppScope.read(context).api;
+    final rules = _photoRules;
+    final check = rules.check(const [], _photos);
+    if (check.rejected.isNotEmpty) {
+      setState(() => _errors = {'photos': rejectionMessages(check.rejected, rules, context.t).join('\n')});
+      return;
+    }
     final specs = <String, dynamic>{
       for (final e in _specs.entries)
         if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
       for (final e in _choices.entries)
         if (e.value != null) e.key: e.value,
     };
+    final body = {
+      'category_id': _category!.i('id'),
+      'kind': _kind,
+      'title': _title.text.trim(),
+      'description': _description.text.trim(),
+      'price': _price.text.trim().isEmpty ? null : _price.text.trim(),
+      'is_negotiable': _negotiable,
+      'city': _city.text.trim(),
+      'area': _area.text.trim(),
+      'latitude': _location?.latitude,
+      'longitude': _location?.longitude,
+      'specs': specs,
+    };
     try {
-      final created = asJson((await api.post('classifieds/ads', body: {
-        'category_id': _category!.i('id'),
-        'kind': _kind,
-        'title': _title.text.trim(),
-        'description': _description.text.trim(),
-        'price': _price.text.trim().isEmpty ? null : _price.text.trim(),
-        'is_negotiable': _negotiable,
-        'city': _city.text.trim(),
-        'area': _area.text.trim(),
-        'specs': specs,
-      }))
-          .data);
-      final number = created.str('number');
-      final submitted = asJson((await api.post('classifieds/ads/${enc(number)}/submit')).data);
-      final contract = submitted.m('contract');
-      if (contract != null && mounted) {
-        final name = AppScope.read(context).user?.s('name') ?? '';
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(contract.str('title')),
-            content: Text(ctx.t('souq.contractHint')),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(ctx.t('common.cancel'))),
-              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(ctx.t('contracts.accept'))),
-            ],
-          ),
-        );
-        if (ok == true) await api.post('classifieds/ads/${enc(number)}/contract', body: {'full_name': name});
+      if (_number == null) {
+        final created = asJson((await api.post('classifieds/ads', body: body)).data);
+        _number = created.str('number');
+      } else {
+        await api.put('classifieds/ads/${enc(_number!)}', body: body);
       }
+      final number = _number!;
+      if (_photos.isNotEmpty) {
+        final reasons = await _uploadPhotos(api, number);
+        if (_photos.isNotEmpty) {
+          if (mounted) setState(() => _errors = {'photos': [context.t('souq.photosFailed', {'n': _photos.length}), ...reasons].join('\n')});
+          return;
+        }
+      }
+      if (!mounted) return;
+      final submitted = await submitAd(context, api, number);
       if (mounted) setState(() => _result = {...submitted, 'number': number});
     } on ApiException catch (e) {
       setState(() => _errors = {...e.fieldErrors, if (e.fieldErrors.isEmpty) 'form': e.message});
@@ -672,10 +1010,12 @@ class _PostAdScreenState extends State<PostAdScreen> {
 
   Widget _detailsStep(BuildContext context) {
     final attrs = _attributes?.l('attributes') ?? const <Json>[];
+    final limits = _limits;
     return ListView(padding: const EdgeInsets.all(16), children: [
       Row(children: [
         Expanded(child: Text(_category!.str('name'), style: NawyText.h4)),
-        TextButton(onPressed: () => setState(() => _step = 0), child: Text(context.t('common.change'))),
+        // The draft keeps its category once created.
+        if (_number == null) TextButton(onPressed: () => setState(() => _step = 0), child: Text(context.t('common.change'))),
       ]),
       Wrap(spacing: 8, children: [
         for (final k in const ['offer', 'wanted']) ChoiceChip(label: Text(context.t('souq.kind.$k')), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
@@ -696,6 +1036,29 @@ class _PostAdScreenState extends State<PostAdScreen> {
         const SizedBox(width: 8),
         Expanded(child: TextField(controller: _area, decoration: InputDecoration(labelText: context.t('address.area'), errorText: _errors['area']))),
       ]),
+      // Shown on the map view (FR-CLS-5) when set.
+      ListTile(
+        key: const ValueKey('post-ad-location'),
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.place_outlined),
+        title: Text(context.t('souq.location')),
+        subtitle: Text(
+          _location == null ? context.t('souq.locationNone') : '${_location!.latitude.toStringAsFixed(5)}, ${_location!.longitude.toStringAsFixed(5)}',
+          textDirection: _location == null ? null : TextDirection.ltr,
+          style: NawyText.caption.copyWith(color: _errors['latitude'] != null ? NawyColors.textDanger : NawyColors.textSecondary),
+        ),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (_location != null) IconButton(key: const ValueKey('post-ad-location-clear'), tooltip: context.t('media.remove'), onPressed: () => setState(() => _location = null), icon: const Icon(Icons.close_rounded)),
+          TextButton(
+            key: const ValueKey('post-ad-location-set'),
+            onPressed: () async {
+              final picked = await Navigator.of(context).push<LatLng>(MaterialPageRoute(builder: (_) => LocationPickerScreen(initial: _location)));
+              if (picked != null && mounted) setState(() => _location = picked);
+            },
+            child: Text(context.t(_location == null ? 'souq.locationSet' : 'common.change')),
+          ),
+        ]),
+      ),
       for (final a in attrs) ...[
         const SizedBox(height: 10),
         if (a.l('options').isNotEmpty || a['options'] is List && (a['options'] as List).isNotEmpty)
@@ -723,11 +1086,27 @@ class _PostAdScreenState extends State<PostAdScreen> {
           ),
       ],
       const SizedBox(height: 12),
-      Text(context.t('souq.photosOnWeb'), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+      Text(context.t('souq.photos'), style: NawyText.label),
+      Text(context.t('souq.photosHint'), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+      if (_uploaded > 0) Text(context.t('souq.photosOf', {'n': _uploaded, 'max': limits.maxPhotos}), style: NawyText.caption.copyWith(color: NawyColors.textSecondary)),
+      const SizedBox(height: 8),
+      AttachmentPicker(
+        key: const ValueKey('post-ad-photos'),
+        files: _photos,
+        rules: _photoRules,
+        t: context.t,
+        enabled: _progress == null,
+        onChanged: (files) => setState(() {
+          _photos = files;
+          _errors.remove('photos');
+        }),
+      ),
+      if (_progress != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_progress!, key: const ValueKey('post-ad-progress'), style: NawyText.bodySm)),
+      if (_errors['photos'] != null)
+        Padding(padding: const EdgeInsets.only(top: 8), child: Text(_errors['photos']!, key: const ValueKey('post-ad-photos-error'), style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
       if (_errors['form'] != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_errors['form']!, style: NawyText.bodySm.copyWith(color: NawyColors.textDanger))),
       const SizedBox(height: 16),
-      BusyButton(key: const ValueKey('post-ad-submit'), label: context.t('souq.submit'), onPressed: _submit),
+      BusyButton(key: const ValueKey('post-ad-submit'), label: context.t(_number != null && _photos.isNotEmpty ? 'souq.retryPhotos' : 'souq.submit'), onPressed: _submit),
     ]);
   }
 }
-

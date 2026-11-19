@@ -4,8 +4,8 @@ namespace App\Domains\Documents\Enums;
 
 /**
  * Onboarding document / product certification (lifecycle catalogue §1.4,
- * §7.2): pending → approved | rejected; approved → expired; a new upload
- * starts again as pending.
+ * §7.2): pending → approved | rejected; approved → expired; rejected /
+ * expired → pending when the owner uploads a new file (QC-037).
  */
 enum DocumentStatus: string
 {
@@ -22,7 +22,7 @@ enum DocumentStatus: string
         return match ($this) {
             self::Pending => [self::Approved, self::Rejected],
             self::Approved => [self::Expired],
-            self::Rejected, self::Expired => [],
+            self::Rejected, self::Expired => [self::Pending],
         };
     }
 }

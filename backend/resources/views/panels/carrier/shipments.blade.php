@@ -6,7 +6,7 @@
         <x-ui.table :headers="[__('Shipment'), __('Destination'), __('Driver'), __('Attempts'), __('Status')]" :rows="$shipments->isNotEmpty()" :empty="__('No shipments yet.')">
             @foreach ($shipments as $shipment)
                 <tr class="border-t border-line" data-shipment="{{ $shipment->id }}">
-                    <td class="px-5 py-3 font-medium">{{ $shipment->number }}</td>
+                    <td class="px-5 py-3 font-medium">{{ $shipment->number }}<br><a class="text-xs text-fg-link underline" href="{{ route('carrier.shipments.label', $shipment->id) }}" target="_blank">{{ __('Label') }}</a> · <a class="text-xs text-fg-link underline" href="{{ route('carrier.shipments.label-pdf', $shipment->id) }}">PDF</a></td>
                     <td class="px-5 py-3 text-xs">{{ $shipment->subOrder->order->shipping_address['city'] ?? '—' }} · {{ $shipment->subOrder->order->shipping_address['area'] ?? '' }}</td>
                     <td class="px-5 py-3">{{ $shipment->assignments->first()?->agent?->name ?? '—' }}</td>
                     <td class="px-5 py-3">{{ $shipment->attempts }}</td>

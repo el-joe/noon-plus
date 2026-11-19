@@ -3,6 +3,7 @@
 namespace App\Shared\Http;
 
 use App\Domains\Countries\Support\CountryContext;
+use App\Domains\Countries\Support\DomainMap;
 
 /**
  * Links into the customer website (`NAWY_STOREFRONT_URL`, config
@@ -38,8 +39,12 @@ class StorefrontLinks
         return $country->marketSlug(in_array($locale, $country->locales ?? [], true) ? $locale : ($country->default_locale ?: 'en'));
     }
 
+    /**
+     * QC-044: the current country's primary storefront domain when one is
+     * mapped (Admin → Countries → Domains), else NAWY_STOREFRONT_URL.
+     */
     public function base(): string
     {
-        return rtrim((string) config('nawy.payments.storefront_url'), '/');
+        return app(DomainMap::class)->storefrontBase($this->countryContext->has() ? $this->countryContext->current() : null, app()->getLocale());
     }
 }

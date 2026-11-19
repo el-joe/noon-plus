@@ -1,7 +1,9 @@
 <x-layouts.panel :title="__('Dashboard')" :subtitle="$agency->store_name" :breadcrumbs="[__('Travel Partner'), __('Dashboard')]">
-    <x-slot:actions>
-        <x-ui.button :href="route('travel_agency.packages.create')">{{ __('New package') }}</x-ui.button>
-    </x-slot:actions>
+    @if (app(\App\Domains\Panels\Support\TenantPermissions::class)->allows(request(), 'travel_agency', 'packages', true))
+        <x-slot:actions>
+            <x-ui.button :href="route('travel_agency.packages.create')">{{ __('New package') }}</x-ui.button>
+        </x-slot:actions>
+    @endif
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <x-ui.stat-card :label="__('Live packages')" :value="$stats['live_packages']" />

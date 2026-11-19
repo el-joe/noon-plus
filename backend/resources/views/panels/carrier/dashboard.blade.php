@@ -36,4 +36,19 @@
             </dl>
         </x-ui.card>
     </div>
+
+    <x-ui.card :title="__('SLA by zone (30 d)')" flush>
+        <x-ui.table :headers="[__('Zone'), __('Delivered'), __('On time'), __('Late'), __('Failed'), __('Open past SLA')]" :rows="$slaByZone->isNotEmpty()" :empty="__('No deliveries in the last 30 days.')">
+            @foreach ($slaByZone as $zone)
+                <tr class="border-t border-line" data-sla-zone="{{ $zone['zone'] }}">
+                    <td class="px-5 py-3 font-medium">{{ $zone['zone'] }}</td>
+                    <td class="px-5 py-3">{{ $zone['delivered'] }}</td>
+                    <td class="px-5 py-3">{{ $zone['on_time'] }}@if ($zone['on_time_percent'] !== null) <span class="text-xs text-fg-secondary">({{ $zone['on_time_percent'] }}%)</span>@endif</td>
+                    <td class="px-5 py-3">{{ $zone['late'] }}</td>
+                    <td class="px-5 py-3">{{ $zone['failed'] }}</td>
+                    <td class="px-5 py-3">{{ $zone['open_overdue'] }}</td>
+                </tr>
+            @endforeach
+        </x-ui.table>
+    </x-ui.card>
 </x-layouts.panel>

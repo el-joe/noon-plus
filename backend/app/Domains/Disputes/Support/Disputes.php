@@ -8,7 +8,10 @@ use App\Domains\Disputes\Enums\DisputeStatus;
 use App\Domains\Disputes\Models\Dispute;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
+use App\Domains\Orders\Models\Order;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Orders\Support\OrderStatusRollup;
+use App\Domains\Panels\Listeners\NotifySellerOfStateChange;
 use App\Domains\Refunds\Enums\RefundDestination;
 use App\Domains\Refunds\Enums\RefundSource;
 use App\Domains\Refunds\Support\Refunds;
@@ -59,6 +62,8 @@ class Disputes
             $dispute->forceFill(['number' => 'DS-'.$locked->number.'-'.$dispute->id])->save();
             $dispute->messages()->create(['author_type' => ActorType::Customer, 'author_user_id' => $customerUserId, 'body' => $message]);
             $this->machine->created($dispute, ActorType::Customer, $customerUserId, $reason->value);
+            NotifySellerOfStateChange::notifyVendor($locked->vendor_id, 'dispute.opened', __('Dispute :number opened', ['number' => $dispute->number]), $message, '/disputes/'.$dispute->id);
+            app(OrderStatusRollup::class)->sync($order, 'Dispute '.$dispute->number.' opened');
 
             return $dispute;
         });
@@ -117,16 +122,30 @@ class Disputes
             $refundAmount = $amount;
         }
 
-        return $this->machine->move($dispute, DisputeStatus::Resolved, ActorType::Admin, $adminUserId, $note ?? $resolution->value, [
+        $resolved = $this->machine->move($dispute, DisputeStatus::Resolved, ActorType::Admin, $adminUserId, $note ?? $resolution->value, [
             'resolution' => $resolution,
             'refund_amount' => $refundAmount === null ? null : $this->money->toStorage($refundAmount),
             'refund_id' => $refundId,
             'resolved_at' => now(),
         ]);
+        $this->syncOrder($resolved, 'Dispute '.$resolved->number.' resolved');
+
+        return $resolved;
     }
 
     public function close(Dispute $dispute, ActorType $actorType, ?int $actorUserId = null): Dispute
     {
-        return $this->machine->move($dispute, DisputeStatus::Closed, $actorType, $actorUserId);
+        $closed = $this->machine->move($dispute, DisputeStatus::Closed, $actorType, $actorUserId);
+        $this->syncOrder($closed, 'Dispute '.$closed->number.' closed');
+
+        return $closed;
+    }
+
+    /**
+     * QC-013: the order's `disputed` overlay follows its open disputes.
+     */
+    private function syncOrder(Dispute $dispute, string $reason): void
+    {
+        app(OrderStatusRollup::class)->sync(Order::query()->findOrFail($dispute->order_id), $reason);
     }
 }

@@ -19,7 +19,7 @@
     <x-ui.table :headers="[__('Shipment'), __('Gross'), __('Commission'), __('VAT on fees'), __('Net')]" :rows="$statement['settlements']->isNotEmpty()">
         @foreach ($statement['settlements'] as $settlement)
             <tr class="border-t border-line" data-settlement="{{ $settlement->id }}">
-                <td class="px-5 py-3">{{ $settlement->subOrder->number }}@if ($settlement->is_cod)<span class="ms-1 text-xs text-fg-secondary">COD</span>@endif</td>
+                <td class="px-5 py-3">{{ $settlement->subOrder->number }}@if ($settlement->is_cod)<span class="ms-1 text-xs text-fg-secondary">{{ __('COD') }}</span>@endif</td>
                 <td class="px-5 py-3"><x-ui.money :amount="$settlement->gross" :currency="$settlement->currency" /></td>
                 <td class="px-5 py-3"><x-ui.money :amount="$settlement->commission" :currency="$settlement->currency" /></td>
                 <td class="px-5 py-3"><x-ui.money :amount="$settlement->commission_vat" :currency="$settlement->currency" /></td>

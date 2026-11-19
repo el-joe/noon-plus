@@ -12,24 +12,50 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    // `nawy/platform` bridge (no pub packages, project rule): app-support dir for
-    // the file-backed SecureStore and opening gateway URLs in Safari.
-    // Replace with path_provider / url_launcher once the owner approves them.
+    // `nawy/platform` channel, kept only for `nawy://` links (Google / Apple web
+    // sign-in coming back): url_launcher cannot receive links. Opening URLs and
+    // the app-support directory use url_launcher / path_provider (D16).
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NawyPlatform") else { return }
     let channel = FlutterMethodChannel(name: "nawy/platform", binaryMessenger: registrar.messenger())
+    NawyLinks.shared.channel = channel
+    // `nawy://` links (Google / Apple web sign-in coming back) from the scene.
+    registrar.addSceneDelegate(NawyLinks.shared)
     channel.setMethodCallHandler { call, result in
       switch call.method {
-      case "appSupportDir":
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        if let dir = dir { try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
-        result(dir?.path)
-      case "openUrl":
-        guard let args = call.arguments as? [String: Any], let raw = args["url"] as? String,
-              let url = URL(string: raw), url.scheme == "https" || url.scheme == "http" else { result(false); return }
-        UIApplication.shared.open(url, options: [:]) { ok in result(ok) }
+      case "initialLink":
+        result(NawyLinks.shared.initialLink)
+        NawyLinks.shared.initialLink = nil
       default:
         result(FlutterMethodNotImplemented)
       }
     }
+  }
+}
+
+/// Hands `nawy://` URLs to Dart over `nawy/platform`: kept as `initialLink`
+/// on a cold start, pushed as `deepLink` while the app runs.
+class NawyLinks: NSObject, FlutterSceneLifeCycleDelegate {
+  static let shared = NawyLinks()
+  var channel: FlutterMethodChannel?
+  var initialLink: String?
+
+  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions?) -> Bool {
+    if let url = connectionOptions?.urlContexts.first?.url, url.scheme == "nawy" {
+      initialLink = url.absoluteString
+    }
+    return false
+  }
+
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool {
+    var handled = false
+    for context in URLContexts where context.url.scheme == "nawy" {
+      handled = true
+      if let channel = channel {
+        channel.invokeMethod("deepLink", arguments: context.url.absoluteString)
+      } else {
+        initialLink = context.url.absoluteString
+      }
+    }
+    return handled
   }
 }

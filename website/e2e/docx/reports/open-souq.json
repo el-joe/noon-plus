@@ -1,0 +1,964 @@
+{
+ "title": "Open Souq (classifieds) — browser test report",
+ "area": "Open Souq: website, Seller Center classified shop, Creator Studio broker",
+ "date": "2026-11-19",
+ "summary": "Playwright browser test of Open Souq end to end: guest browsing (categories, search and filters, motors, real estate list and map view, ad and property detail with the financing block, shop and broker pages, compare, Arabic RTL), buyer flows (favourites, saved searches, chat, D12 viewing / reserve requests with the D13 mail rule, show phone behind the buyer contract, report), posting as a private customer (wizard, photos, per-category photo limit, video, seller contract, My ads edit / pause / resume / sold / renew / archive), the classified shop in Seller Center (2FA, all 11 sidebar pages, posting with coordinates, lifecycle, requests list, inquiry replies) and the broker in Creator Studio (all 19 sidebar pages, requests, leads pipeline, special requests). 29 tests: 27 passed, 2 failed. The two failures are bugs already fixed in the storefront code that need a production rebuild. Six issues found: four fixed in code, one dev-environment fix, one open.",
+ "environment": [
+  "Storefront http://localhost:3000 (next start, production build — not rebuilt during this run)",
+  "API + Blade panels http://localhost:8000; panels on {partner|marketer|admin}.nawy.test:8000 (Chromium host-resolver-rules)",
+  "Dev databases, MAIL_MAILER=log (mails read from backend/storage/logs/laravel.log), uae-en / uae-ar markets",
+  "Playwright project 'areas', Desktop Chrome, 2 workers, E2E_SKIP_SEED=1 --no-deps",
+  "Test records: e2e/specs/areas/souq/support/setup.php (idempotent, run through artisan tinker): classified shop, broker, contract category, 2-photo category, three live ads"
+ ],
+ "accounts": [
+  {
+   "role": "Customer (buyer, signed in)",
+   "login": "e2e-customer@nawy.test (E2eSeeder)"
+  },
+  {
+   "role": "Fresh customers per posting test",
+   "login": "e2e-souq-poster-<run>@nawy.test, e2e-souq-buyer-<run>@nawy.test (created per run, token cookie)"
+  },
+  {
+   "role": "Guests",
+   "login": "no account; unique e2e-souq-guest-<run>@nawy.test contact emails"
+  },
+  {
+   "role": "Classified shop (Seller Center, 2FA)",
+   "login": "e2e-souq-seller@nawy.test — shop e2e-souq-shop"
+  },
+  {
+   "role": "Broker (Creator Studio, 2FA)",
+   "login": "e2e-souq-broker@nawy.test — broker profile"
+  },
+  {
+   "role": "Admin (approval only)",
+   "login": "e2e-admin@nawy.test (storage state)"
+  }
+ ],
+ "specs": [
+  "e2e/specs/areas/souq/browse.spec.ts (SOQ-01–08)",
+  "e2e/specs/areas/souq/buyer.spec.ts (SOQ-09–14, 29)",
+  "e2e/specs/areas/souq/post.spec.ts (SOQ-15–20)",
+  "e2e/specs/areas/souq/seller-panel.spec.ts (SOQ-21–24)",
+  "e2e/specs/areas/souq/broker.spec.ts (SOQ-25–28)",
+  "e2e/specs/areas/souq/support/souq.ts, support/setup.php"
+ ],
+ "totals": {
+  "passed": 27,
+  "failed": 2,
+  "skipped": 0
+ },
+ "flows": [
+  {
+   "id": "SOQ-01",
+   "name": "Open Souq home and categories",
+   "goal": "Guest browses the Open Souq landing page and opens a category.",
+   "preconditions": "Guest; live ads from the Open Souq setup.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-en/classified",
+     "expected": "Hero search, 'Browse categories' with Cars & vehicles, Mobiles & electronics, Property tiles",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-01-1.png"
+    },
+    {
+     "action": "Click the 'Mobiles & electronics' tile",
+     "expected": "Search filtered to electronics-souq lists the shop's Galaxy S24 ad",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-01-2.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-02",
+   "name": "Search, filters and sort",
+   "goal": "Keyword search, price / city filters, sort and the empty state.",
+   "preconditions": "Guest.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Type 'Galaxy' in the hero search and press Enter",
+     "expected": "/classified/search?q=Galaxy shows 'Results for “Galaxy”' and the Galaxy ad",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-02-1.png"
+    },
+    {
+     "action": "Open electronics with min price 5000",
+     "expected": "The 3,200 AED Galaxy ad is filtered out",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-02-2.png"
+    },
+    {
+     "action": "Set min 1000, max 4000, city Dubai, Apply filters",
+     "expected": "URL carries the filters; the Galaxy ad is back",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-02-3.png"
+    },
+    {
+     "action": "Sort price low→high; search a nonsense keyword",
+     "expected": "Result count shown; 'No ads match your search' empty state",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-02-4.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-03",
+   "name": "Motors: cars category and a car ad",
+   "goal": "Browse Cars for sale and open a car ad.",
+   "preconditions": "Demo car ads CL-AE-DEMO1/2.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open search?category=cars-for-sale",
+     "expected": "Toyota Land Cruiser listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-03-1.png"
+    },
+    {
+     "action": "Open the Land Cruiser ad",
+     "expected": "Title, 'Stay safe' box, 'Show phone number' and 'Request a viewing or reserve' buttons",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-03-2.png",
+     "note": "The dev 'motors' category has vertical 'general', so the financing card (motors/property only) does not show on car ads — data setup, see notes."
+    }
+   ]
+  },
+  {
+   "id": "SOQ-04",
+   "name": "Ad detail of a shop ad",
+   "goal": "Detail page shows ad id, seller card, location link.",
+   "preconditions": "Live shop ad (E2E Souq Shop).",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open the Galaxy S24 ad",
+     "expected": "Ad ID, 'E2E Souq Shop' seller card, area Deira, 'Open in map' → openstreetmap with the ad's lat/lng, 'Visit shop'; no financing card for electronics",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-04-1.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-05",
+   "name": "Real estate: list, map view, property detail, financing",
+   "goal": "Property search list and ?view=map, property ad with the indicative financing block.",
+   "preconditions": "Live broker property ad with coordinates.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-en/property",
+     "expected": "Property results include the Business Bay flat",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-05-1.png"
+    },
+    {
+     "action": "Open /uae-en/property?view=map",
+     "expected": "Leaflet map renders with the price pin (AED 120K); '1 more has no location set' note",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-05-2.png"
+    },
+    {
+     "action": "Open the broker's property ad",
+     "expected": "Permit RERA-E2E-1, 'Est. AED 1,811 / month' (20% down, 60 months, 4.99%), 'indicative only', 'View broker profile'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-05-3.png"
+    },
+    {
+     "action": "Open /uae-en/property/{number}",
+     "expected": "Property page renders with Business Bay",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-05-4.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-06",
+   "name": "Shop page",
+   "goal": "A classified shop's public page lists its live ads.",
+   "preconditions": "E2E Souq Shop with live ads.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-en/classified/shop/e2e-souq-shop",
+     "expected": "Shop name, live-ad count and the Galaxy ad",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-06-1.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-07",
+   "name": "Compare ads",
+   "goal": "Compare two cars side by side.",
+   "preconditions": "Two demo car ads.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Click 'Compare' on two car ads",
+     "expected": "'Compare (2)' link appears",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-07-1.png"
+    },
+    {
+     "action": "Open the compare page",
+     "expected": "Land Cruiser and Patrol side by side",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-07-2.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-08",
+   "name": "Arabic RTL",
+   "goal": "Open Souq in Arabic.",
+   "preconditions": "Guest.",
+   "spec": "e2e/specs/areas/souq/browse.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-ar/classified",
+     "expected": "lang=ar, dir=rtl, no raw translation keys",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-08-1.png"
+    },
+    {
+     "action": "Open the broker ad in Arabic",
+     "expected": "lang=ar, dir=rtl, no raw keys",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-08-2.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-09",
+   "name": "Favourites",
+   "goal": "Save an ad, see it in Favourites, remove it.",
+   "preconditions": "Signed-in e2e customer.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Click 'Save (n)' on the Galaxy ad",
+     "expected": "Button turns to 'Saved (n)' (aria-pressed)",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-09-1.png"
+    },
+    {
+     "action": "Open /account/favourites",
+     "expected": "The ad card is listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-09-2.png"
+    },
+    {
+     "action": "Click 'Remove from favourites'",
+     "expected": "The card disappears",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-09-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-10",
+   "name": "Saved search with alerts",
+   "goal": "Save a search, toggle alerts, remove it.",
+   "preconditions": "Signed-in e2e customer.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Search Galaxy in electronics, 'Save search', name it, alerts 'As soon as ads are posted'",
+     "expected": "Modal form filled",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-10-1.png"
+    },
+    {
+     "action": "Save; open /account/saved-searches",
+     "expected": "Confirmation, then the saved search is listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-10-2.png"
+    },
+    {
+     "action": "Toggle alerts; Remove",
+     "expected": "Alerts label flips; the search is removed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-10-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-11",
+   "name": "Chat with the seller",
+   "goal": "Message the seller and continue in My inquiries → Chats.",
+   "preconditions": "Signed-in e2e customer.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Click 'Chat' on the Galaxy ad, fill name, email, mobile, message",
+     "expected": "Name and email prefilled from the account; consent ticked",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-11-1.png"
+    },
+    {
+     "action": "Send message",
+     "expected": "'Message sent' with 'Open in my inquiries'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-11-2.png"
+    },
+    {
+     "action": "Open the thread, send a follow-up",
+     "expected": "Thread shows the message and the follow-up",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-11-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-12",
+   "name": "Guest viewing request — D12 / D13",
+   "goal": "A guest sends a viewing request: record only; D13 mails.",
+   "preconditions": "Guest, unique email.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open 'Request a viewing or reserve', choose Viewing, fill name, email, mobile, date, time slot, message",
+     "expected": "'No payment on Nawy' notice and 'No account needed' note; Send is disabled until consent is ticked",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-12-1.png"
+    },
+    {
+     "action": "Send request",
+     "expected": "'Request sent', 'Nothing to pay on Nawy'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-12-2.png"
+    },
+    {
+     "action": "Read the Laravel mail log",
+     "expected": "Seller gets 'Viewing request for …' with the guest's email, name and 'record only'; NO mail to the guest (D13)",
+     "result": "pass"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-13",
+   "name": "Signed-in reserve request → my requests",
+   "goal": "Reserve request appears in My inquiries → Requests without a status.",
+   "preconditions": "Signed-in e2e customer; broker ad.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Choose Reserve, date, evening slot, message, consent",
+     "expected": "Form filled (name/email prefilled)",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-13-1.png"
+    },
+    {
+     "action": "Send request",
+     "expected": "'Request sent' with 'Reference #id'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-13-2.png"
+    },
+    {
+     "action": "Check mails",
+     "expected": "Broker gets 'Reserve request for …' with the message; customer gets no receipt (D13)",
+     "result": "pass"
+    },
+    {
+     "action": "'View my requests'",
+     "expected": "/account/inquiries?tab=requests lists it with preferred time, no Pending/Confirmed status",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-13-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-14",
+   "name": "Show phone and the buyer contract gate",
+   "goal": "Guests are sent to sign in; a new customer must accept the category's buyer terms before the phone shows.",
+   "preconditions": "Category e2e-contract-souq with a published customer-purchase contract; fresh customer.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Guest clicks 'Show phone number'",
+     "expected": "Redirect to /login?next=…/classified/find/…",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-14-1.png"
+    },
+    {
+     "action": "Signed in, click 'Show phone number'",
+     "expected": "'Accept the purchase terms' modal with 'E2E Souq buyer terms · v1'; name + accept ticked",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-14-2.png"
+    },
+    {
+     "action": "'Accept and continue'",
+     "expected": "Phone +971500000098 (tel: link) and WhatsApp link shown",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-14-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-15",
+   "name": "Post an ad (website wizard)",
+   "goal": "Private customer posts an ad: category → details → location → photos → review → submit.",
+   "preconditions": "Fresh customer.",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Choose 'Mobiles & electronics', fill title, description, price, negotiable; city, area, contact mobile; 'Save draft and continue'",
+     "expected": "Draft created; Photos step 'Up to 20 photos'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-15-1.png"
+    },
+    {
+     "action": "Add 2 photos",
+     "expected": "'2 of 20 photos' after client resize/upload",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-15-2.png"
+    },
+    {
+     "action": "Continue to review",
+     "expected": "'Check your ad' with title and 'Dubai · Al Barsha'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-15-3.png"
+    },
+    {
+     "action": "Submit for review",
+     "expected": "'Your ad is in review' with the ad number",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-15-4.png"
+    },
+    {
+     "action": "Open My ads",
+     "expected": "Ad listed 'In review'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-15-5.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-16",
+   "name": "Photo limit per category",
+   "goal": "Category max_photos = 2 is enforced in the wizard.",
+   "preconditions": "Category e2e-few-photos-souq (max 2, no video).",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Pick 3 photos in the 2-photo category",
+     "expected": "'2 of 2 photos', '1 photo was not added', 'maximum of 2 photos' notice, picker hidden, no video picker",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-16-1.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-17",
+   "name": "Seller contract on a contract category",
+   "goal": "Ad in a requires_contract category is signed before review.",
+   "preconditions": "Category e2e-contract-souq with a published seller-category contract.",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Review step",
+     "expected": "'This category needs the seller contract' notice",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-17-1.png"
+    },
+    {
+     "action": "Submit → contract panel",
+     "expected": "'E2E Souq seller contract · v1' text; Sign disabled until name + accept",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-17-2.png"
+    },
+    {
+     "action": "Sign and send for review; open My ads",
+     "expected": "'Your ad is in review'; listed 'In review'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-17-3.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-18",
+   "name": "My ads lifecycle",
+   "goal": "Edit a draft, approval, pause/resume, mark sold/not sold, renew an expired ad, archive.",
+   "preconditions": "Fresh customer; admin approves in the admin panel (review queue) only so the flow can continue.",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "My ads shows the draft",
+     "expected": "Status 'Draft' with Edit and Archive",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-1.png"
+    },
+    {
+     "action": "Edit → change title through the wizard",
+     "expected": "'Edit your ad'; review shows the edited title",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-2.png"
+    },
+    {
+     "action": "Submit; admin approves",
+     "expected": "My ads: edited title, 'Live'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-3.png"
+    },
+    {
+     "action": "Pause, then Resume",
+     "expected": "'Paused', then 'Live'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-4.png"
+    },
+    {
+     "action": "Mark as sold (480), then Not sold",
+     "expected": "'Sold', then 'Live'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-5.png"
+    },
+    {
+     "action": "Listing period ends (expiry simulated on this test ad); Renew",
+     "expected": "'Expired' with Renew, then live again",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-7.png"
+    },
+    {
+     "action": "Archive",
+     "expected": "'Archived' with Duplicate; the public page shows 'We couldn't find that page' + noindex",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-18-8.png",
+     "note": "HTTP status of that page is 200 (BT-SOQ-04, open)."
+    }
+   ]
+  },
+  {
+   "id": "SOQ-19",
+   "name": "Video on an ad",
+   "goal": "Upload a short WebM (recorded in the browser) as the ad's video.",
+   "preconditions": "Fresh customer; draft at the Photos step.",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "fail",
+   "steps": [
+    {
+     "action": "Photos step shows 'Short video (optional)', 'up to 60 seconds'",
+     "expected": "Video picker visible",
+     "result": "pass"
+    },
+    {
+     "action": "Pick a 1.5 s WebM recorded with MediaRecorder",
+     "expected": "The video tile appears",
+     "result": "fail",
+     "screenshot": "../shots/open-souq/SOQ-19-1.png",
+     "note": "'We couldn't read this video' — BT-SOQ-03: header-less WebM reports duration Infinity. Fixed in code (readVideoDuration seeks to the end); passes after a storefront rebuild."
+    }
+   ]
+  },
+  {
+   "id": "SOQ-20",
+   "name": "My ads links only live ads",
+   "goal": "Titles of non-live ads must not link to the public page (it 404s).",
+   "preconditions": "Fresh customer with a draft.",
+   "spec": "e2e/specs/areas/souq/post.spec.ts",
+   "result": "fail",
+   "steps": [
+    {
+     "action": "Open My ads with a draft",
+     "expected": "Draft listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-20-1.png"
+    },
+    {
+     "action": "Check the draft title",
+     "expected": "Not a link",
+     "result": "fail",
+     "screenshot": "../shots/open-souq/SOQ-20-2.png",
+     "note": "BT-SOQ-02: still a link in the running build. Fixed in code (features/classifieds/account.tsx); passes after a storefront rebuild."
+    }
+   ]
+  },
+  {
+   "id": "SOQ-21",
+   "name": "Classified seller: 2FA sign-in and every sidebar page",
+   "goal": "Seller Center 'Marketplace' layout for a classified shop.",
+   "preconditions": "Test classified shop e2e-souq-shop (owner e2e-souq-seller, 2FA on).",
+   "spec": "e2e/specs/areas/souq/seller-panel.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open partner login, enter email + password",
+     "expected": "Login page",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-21-1.png"
+    },
+    {
+     "action": "Submit → two-step page; enter the emailed code",
+     "expected": "Two-factor page",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-21-2.png"
+    },
+    {
+     "action": "Signed in",
+     "expected": "Dashboard with the Marketplace sidebar",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-21-3.png",
+     "note": "Before the fix this showed the product-seller sidebar and a bare 'Your access' dashboard (BT-SOQ-01)."
+    },
+    {
+     "action": "Sidebar",
+     "expected": "11 items: Dashboard, My listings, Post a listing, Inquiries, Viewing & reserve requests, Ads & boosts, Profile, Change requests, Contracts, Documents, Support; no Orders/Products/Coupons/Earnings",
+     "result": "pass"
+    },
+    {
+     "action": "Open each of the 11 sidebar links",
+     "expected": "HTTP 200, no server error, no console errors",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-21-4.png"
+    },
+    {
+     "action": "(screens)",
+     "expected": "Pages 2–11",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-21-14.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-22",
+   "name": "Seller Center: post a listing and its lifecycle",
+   "goal": "Shop posts an ad with photos and coordinates; review → live → pause → resume → sold.",
+   "preconditions": "Signed-in classified seller; admin approves in the review queue.",
+   "spec": "e2e/specs/areas/souq/seller-panel.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Post a listing: category, title, description, 2 photos, city, area, latitude 25.1400, longitude 55.2300, price, negotiable, phone",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-22-1.png",
+     "note": "Before the fix the browser refused 25.14 (type=number without step) — BT-SOQ-05."
+    },
+    {
+     "action": "Submit for review",
+     "expected": "'Ad sent to review. It goes live once approved.'; row listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-22-2.png"
+    },
+    {
+     "action": "Admin approves; reload",
+     "expected": "Row 'Active' with Mark as sold / Pause",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-22-3.png"
+    },
+    {
+     "action": "Pause, Resume",
+     "expected": "'Paused', then active",
+     "result": "pass"
+    },
+    {
+     "action": "Mark as sold: final price 4000",
+     "expected": "Sold form",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-22-4.png"
+    },
+    {
+     "action": "Confirm",
+     "expected": "'Marked as sold.'; row 'Sold · 4,000.00'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-22-5.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-23",
+   "name": "Viewing & reserve requests (D12) and seller mail (D13)",
+   "goal": "Requests are records only; seller is mailed, customer is not.",
+   "preconditions": "Guest reserve request on the shop ad (API, as the website sends it).",
+   "spec": "e2e/specs/areas/souq/seller-panel.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Guest sends a reserve request",
+     "expected": "201; seller mailed 'Reserve request for …'; nothing to the customer",
+     "result": "pass"
+    },
+    {
+     "action": "Open Viewing & reserve requests",
+     "expected": "Row: ad, 'Reserve', name, mailto email, tel phone, preferred time, message, sent; no status column, no buttons",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-23-1.png"
+    },
+    {
+     "action": "Filter 'Viewing'",
+     "expected": "The reserve row is filtered out",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-23-2.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-24",
+   "name": "Inquiries: seller reply reaches the buyer",
+   "goal": "Seller answers a buyer chat in Seller Center; buyer sees it on the website (Chats and Requests tabs).",
+   "preconditions": "E2e customer inquiry on the shop ad.",
+   "spec": "e2e/specs/areas/souq/seller-panel.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open Inquiries, type a reply",
+     "expected": "Buyer's question shown",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-24-1.png"
+    },
+    {
+     "action": "Send",
+     "expected": "'Reply sent.'; reply in the thread",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-24-2.png"
+    },
+    {
+     "action": "Buyer opens /account/inquiries?thread=…",
+     "expected": "Seller's reply shown (Chats tab)",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-24-3.png"
+    },
+    {
+     "action": "Click 'Viewing & reserve requests' tab",
+     "expected": "?tab=requests list",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-24-4.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-25",
+   "name": "Broker: Creator Studio broker pages; request → lead",
+   "goal": "Broker section pages, D12 request list and lead creation.",
+   "preconditions": "Test broker e2e-souq-broker (job type broker, active) with a live property ad.",
+   "spec": "e2e/specs/areas/souq/broker.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Guest viewing request on the broker's ad",
+     "expected": "Broker mailed 'Viewing request for …'; no customer receipt",
+     "result": "pass"
+    },
+    {
+     "action": "Sign in (2FA) to Creator Studio",
+     "expected": "Broker group: Leads pipeline, Viewing & reserve requests, Special requests, Properties",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-25-1.png"
+    },
+    {
+     "action": "Open all 19 sidebar links",
+     "expected": "HTTP 200, no server errors",
+     "result": "pass"
+    },
+    {
+     "action": "Broker → Requests",
+     "expected": "Row with Viewing, ad, message; no buttons",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-25-2.png"
+    },
+    {
+     "action": "Broker → Properties",
+     "expected": "Business Bay ad listed",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-25-3.png"
+    },
+    {
+     "action": "Broker → Leads pipeline",
+     "expected": "A lead for the requester in the pipeline",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-25-4.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-26",
+   "name": "Broker: leads pipeline",
+   "goal": "Add a lead, schedule a follow-up, move it.",
+   "preconditions": "Signed-in broker.",
+   "spec": "e2e/specs/areas/souq/broker.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Add lead (name, phone, email, budget)",
+     "expected": "'Lead added.'; card in New",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-26-1.png"
+    },
+    {
+     "action": "Follow-up via WhatsApp in 2 days",
+     "expected": "'Follow-up scheduled.'; 'Follow up …' badge",
+     "result": "pass"
+    },
+    {
+     "action": "Move to Contacted",
+     "expected": "'Lead moved.'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-26-2.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-27",
+   "name": "Special request claimed by a broker",
+   "goal": "Customer posts a special request on the website; the broker starts it; the customer sees it is in progress.",
+   "preconditions": "Signed-in e2e customer; signed-in broker.",
+   "spec": "e2e/specs/areas/souq/broker.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "/account/special-requests → New request: purpose, city, bedrooms, budget, details",
+     "expected": "Form filled",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-27-1.png"
+    },
+    {
+     "action": "Post request",
+     "expected": "'Request SR-… posted'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-27-2.png"
+    },
+    {
+     "action": "Broker → Special requests",
+     "expected": "The request is in Open requests",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-27-3.png"
+    },
+    {
+     "action": "Start",
+     "expected": "'Request started — the customer is now one of your leads.'; in My requests (In progress)",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-27-4.png"
+    },
+    {
+     "action": "Customer reloads",
+     "expected": "'A broker is working on it'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-27-5.png"
+    },
+    {
+     "action": "Broker marks it Fulfilled",
+     "expected": "'Request updated.'",
+     "result": "pass"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-28",
+   "name": "Broker profile on the website",
+   "goal": "Public broker page lists the broker's ads.",
+   "preconditions": "Broker with a live ad.",
+   "spec": "e2e/specs/areas/souq/broker.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "Open /uae-en/brokers/{slug}",
+     "expected": "'E2E Souq Broker' and the Business Bay ad",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-28-1.png"
+    }
+   ]
+  },
+  {
+   "id": "SOQ-29",
+   "name": "Report an ad",
+   "goal": "Guest reports an ad to moderation.",
+   "preconditions": "Guest.",
+   "spec": "e2e/specs/areas/souq/buyer.spec.ts",
+   "result": "pass",
+   "steps": [
+    {
+     "action": "'Report this ad' → Duplicate ad + details",
+     "expected": "Modal filled",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-29-1.png"
+    },
+    {
+     "action": "Send report",
+     "expected": "'Thanks — our team will review this ad.'",
+     "result": "pass",
+     "screenshot": "../shots/open-souq/SOQ-29-2.png"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "id": "BT-SOQ-01",
+   "severity": "critical",
+   "area": "Seller Center / classified shops",
+   "description": "A classified shop (membership vendor:classified) got no panel country: PanelCountries only counted product-vendor memberships on the partner panel, so the vendor workspace never resolved — the shop saw the product-seller sidebar and a bare 'Your access' dashboard, and every Marketplace page (My listings, Post a listing, Inquiries, Requests) answered 403.",
+   "status": "fixed",
+   "fix": "backend/app/Domains/Panels/Support/PanelCountries.php counts ProductVendor and ClassifiedSeller memberships; Pest regression in tests/Feature/VerticalPanelsTest.php (request starts without a country context). Live (PHP)."
+  },
+  {
+   "id": "BT-SOQ-02",
+   "severity": "minor",
+   "area": "Website / My ads",
+   "description": "My ads linked every title to the public ad page, but only live ads have one: drafts / ads in review opened 'We couldn't find that page' and the link prefetch logged a 404 in the console.",
+   "status": "fixed",
+   "fix": "features/classifieds/account.tsx links only active ads; vitest tests/features/my-ads-links.test.tsx. Needs a storefront rebuild (SOQ-20 fails until then)."
+  },
+  {
+   "id": "BT-SOQ-03",
+   "severity": "major",
+   "area": "Website / post an ad",
+   "description": "A WebM recorded in a browser (MediaRecorder, also many Android recorders) has no duration in its header (duration = Infinity), so the wizard refused it with 'We couldn't read this video'.",
+   "status": "fixed",
+   "fix": "features/classifieds/photo-limits.ts readVideoDuration seeks to the end to read the real duration (bounded timeout); verified in Chromium (Infinity → 1.38 s); vitest in tests/features/classified-photo-limits.test.ts. Needs a storefront rebuild (SOQ-19 fails until then)."
+  },
+  {
+   "id": "BT-SOQ-04",
+   "severity": "minor",
+   "area": "Website / ad page",
+   "description": "An ad page that was rendered while the ad was live keeps answering HTTP 200 (with the not-found body and noindex) after the ad is archived; never-live numbers answer 404. Looks like the route-level render cache of the production build.",
+   "status": "open",
+   "fix": "Not fixed (Next.js caching behaviour; noindex limits the SEO impact)."
+  },
+  {
+   "id": "BT-SOQ-05",
+   "severity": "major",
+   "area": "Seller Center / Post a listing",
+   "description": "Latitude, longitude and price inputs were type=number without step, so the browser refused decimal coordinates (25.14) and the form could not be submitted with a map location.",
+   "status": "fixed",
+   "fix": "resources/views/panels/partner/marketplace/create.blade.php step=\"any\" with min/max; Pest regression in tests/Feature/VerticalPanelsTest.php. Live (Blade)."
+  },
+  {
+   "id": "BT-SOQ-06",
+   "severity": "minor",
+   "area": "Dev environment",
+   "description": "backend/public/storage symlink was missing, so every public-disk image (ad photos) answered 403 and showed as broken in the storefront.",
+   "status": "fixed",
+   "fix": "Ran php artisan storage:link (git-ignored symlink; dev setup step, not documented in the run guide)."
+  }
+ ],
+ "notes": [
+  "Pages covered: Seller Center classified layout 11/11 sidebar pages (the brief counted 12; PanelNavigation lists 11 for classified shops); Creator Studio broker 19/19 sidebar pages including the 4 broker pages; website Open Souq pages classified, classified/search, classified/find/[number], classified/post, classified/compare, classified/shop/[slug], property, property?view=map, property/[number], brokers/[slug], account/my-ads, account/favourites, account/saved-searches, account/inquiries (Chats + Requests tabs), account/special-requests.",
+  "D12 verified: viewing / reserve requests carry name, email, phone, preferred time and message only; no status and no actions on the website list, Seller Center and Creator Studio lists. D13 verified in the mail log: the advertiser gets one 'Viewing / Reserve request for …' mail; the customer gets none.",
+  "Financing block: shown on the property ad (property vertical). The dev 'motors' / 'cars-for-sale' categories have vertical 'general', so car ads show no financing card — category data, not code.",
+  "Phone reveal on a shop ad uses the ad's contact phone, else the owner user's phone; the shop's own contact phone is not a fallback ('The seller prefers chat' when both are empty). Noted, not changed.",
+  "A classified shop can still open product-seller URLs such as /orders directly (empty pages); the sidebar hides them. Noted, not changed.",
+  "Exclusive contracts are granted by the admin (Admin → Real estate); brokers have no page for them in Creator Studio, so the broker side cannot be tested beyond its ads; admin side is covered by the admin report.",
+  "Not testable in dev: real MP4/MOV uploads (Playwright Chromium has no H.264/HEVC decoder, so a WebM recorded in the page was used); listing expiry by time (simulated by setting the test ad to expired); paid boosts / republish packages (renewal price is 0 in dev, so Renew is free).",
+  "The storefront was not rebuilt (shared production build): SOQ-19 and SOQ-20 fail until 'npm run build' + restart; then they should pass."
+ ]
+}

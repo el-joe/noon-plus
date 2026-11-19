@@ -1,23 +1,22 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ChevronRight, Download } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Alert, Card, ProductImage, Skeleton } from "@/components/ui/misc";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OrderTotalsCard } from "@/features/checkout/order-summary";
 import * as api from "@/lib/api/endpoints";
 import type { Order } from "@/lib/api/schemas";
-import { formatDateTime, formatDay, formatMoney } from "@/lib/format";
+import { formatDateTime, formatMoney } from "@/lib/format";
 import { errorMessage } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { formatAddress } from "./address-form";
+import { ShipmentActions, invoiceHref } from "./order-actions";
+import { useShipmentHeadline } from "./orders";
 
-const CANCELLABLE = new Set(["placed", "confirmed", "processing"]);
-const RETURNABLE = new Set(["delivered", "completed"]);
 const STEPS = ["placed", "confirmed", "packed", "shipped", "out_for_delivery", "delivered"] as const;
 
 /**
@@ -32,12 +31,7 @@ export function OrderDetail({ number }: { number: string }) {
   const client = useQueryClient();
   const key = ["order", market.slug, number];
   const { data: order, isLoading, error } = useQuery({ queryKey: key, queryFn: async () => (await api.getOrder(market.slug, number)).data });
-  const [actionError, setActionError] = useState<string | null>(null);
-  const cancel = useMutation({
-    mutationFn: async (shipment: string) => (await api.cancelShipment(market.slug, number, shipment)).data,
-    onSuccess: (next) => client.setQueryData(key, next),
-    onError: (e) => setActionError(errorMessage(e, t("common.error"))),
-  });
+  const onUpdated = (next: Order) => client.setQueryData(key, next);
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (error || !order) return <Alert tone="danger">{errorMessage(error, t("common.notFoundTitle"))}</Alert>;
@@ -62,6 +56,10 @@ export function OrderDetail({ number }: { number: string }) {
             {t("account.order.payNow")}
           </ButtonLink>
         </Alert>
+      ) : order.payment_status === "under_review" || order.payment?.status === "under_review" ? (
+        <Alert tone="info">
+          <span className="font-semibold">{t("payment.underReviewTitle")}</span> · {t("payment.underReviewHint")}
+        </Alert>
       ) : order.payment?.next_action.type === "retry" ? (
         <Alert tone="danger" className="flex flex-wrap items-center justify-between gap-3">
           <span>{t("payment.failedTitle")}</span>
@@ -70,12 +68,20 @@ export function OrderDetail({ number }: { number: string }) {
           </ButtonLink>
         </Alert>
       ) : null}
-      {actionError ? <Alert tone="danger">{actionError}</Alert> : null}
+      {order.status === "disputed" ? (
+        <Alert tone="warning" className="flex flex-wrap items-center justify-between gap-3">
+          <span>{t("account.order.disputeOpen")}</span>
+          <ButtonLink href={href("/account/disputes")} size="sm" variant="outline">
+            {t("account.order.viewDisputes")}
+          </ButtonLink>
+        </Alert>
+      ) : null}
+      {order.payment?.status === "voided" ? <Alert tone="info">{t("account.order.paymentVoided")}</Alert> : null}
 
       <div className="grid items-start gap-4 xl:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-4">
           {order.shipments.map((s, i) => (
-            <Shipment key={s.number} order={order} shipment={s} index={i} onCancel={() => window.confirm(t("account.order.cancelConfirm")) && cancel.mutate(s.number)} cancelling={cancel.isPending} />
+            <Shipment key={s.number} order={order} shipment={s} index={i} onUpdated={onUpdated} />
           ))}
           <p className="text-body-sm text-secondary">{t("account.order.cancelHint")}</p>
         </div>
@@ -96,6 +102,19 @@ export function OrderDetail({ number }: { number: string }) {
             <Link href={href("/account/returns")} className="flex items-center justify-between py-1.5 text-body-sm text-link">
               {t("account.order.requestReturn")} <ChevronRight className="size-4 rtl:rotate-180" />
             </Link>
+            {order.invoice_available ? (
+              <>
+                <a href={invoiceHref(market.slug, order.number)} target="_blank" rel="noopener" className="flex items-center justify-between py-1.5 text-body-sm text-link">
+                  {t("accountPlus.orders.invoice")} <ChevronRight className="size-4 rtl:rotate-180" />
+                </a>
+                <a href={invoiceHref(market.slug, order.number, "pdf")} download className="flex items-center justify-between py-1.5 text-body-sm text-link">
+                  {t("accountPlus.orders.invoicePdf")} <Download className="size-4" />
+                </a>
+              </>
+            ) : null}
+            <Link href={href(`/account/support/new?order=${encodeURIComponent(order.number)}`)} className="flex items-center justify-between py-1.5 text-body-sm text-link">
+              {t("accountPlus.support.contact")} <ChevronRight className="size-4 rtl:rotate-180" />
+            </Link>
           </Card>
         </aside>
       </div>
@@ -103,27 +122,24 @@ export function OrderDetail({ number }: { number: string }) {
   );
 }
 
-function Shipment({ order, shipment, index, onCancel, cancelling }: { order: Order; shipment: Order["shipments"][number]; index: number; onCancel: () => void; cancelling: boolean }) {
+export function Shipment({ order, shipment, index, onUpdated }: { order: Order; shipment: Order["shipments"][number]; index: number; onUpdated: (order: Order) => void }) {
   const t = useTranslations();
-  const market = useMarket();
-  const href = useHref();
+  const headline = useShipmentHeadline();
+  const line = headline(shipment);
   const reached = STEPS.indexOf(shipment.status as (typeof STEPS)[number]);
   const cancelled = shipment.status === "cancelled";
 
   return (
     <Card>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div id={`shipment-${shipment.number}`} className="flex scroll-mt-24 flex-wrap items-start justify-between gap-4">
         <div>
           <StatusBadge status={shipment.status} />
-          {shipment.delivery.by && !cancelled ? (
-            <h2 className="mt-1 text-h3 font-semibold">
-              {shipment.delivery.from && shipment.delivery.from !== shipment.delivery.by
-                ? t("account.order.arrivingBetween", { from: formatDay(shipment.delivery.from, market.locale), to: formatDay(shipment.delivery.by, market.locale) })
-                : t("account.order.arriving", { date: formatDay(shipment.delivery.by, market.locale, true) })}
-            </h2>
-          ) : null}
+          {line ? <h2 className="mt-1 text-h3 font-semibold">{line}</h2> : null}
           <p className="text-body-sm text-secondary">
             {t("account.order.shipment", { n: index + 1, total: order.shipments.length })} · {t("account.order.soldBy", { seller: shipment.seller ?? "Nawy" })}
+            {shipment.fulfilled_by === "nawy" ? (
+              <span data-fulfilled-by="nawy"> · {t("account.order.fulfilledByNawy")}</span>
+            ) : null}
             {shipment.method ? ` · ${shipment.method}` : ""}
           </p>
         </div>
@@ -139,7 +155,7 @@ function Shipment({ order, shipment, index, onCancel, cancelling }: { order: Ord
       </div>
 
       {!cancelled ? (
-        <ol className="my-4 grid grid-cols-6 gap-1" aria-label="Progress">
+        <ol className="my-4 grid grid-cols-6 gap-1" aria-label={t("common.progress")}>
           {STEPS.map((step, i) => (
             <li key={step} className="flex flex-col gap-1.5">
               <span className={`h-1.5 rounded-full ${i <= reached ? "bg-success" : "bg-subtle"}`} />
@@ -163,17 +179,8 @@ function Shipment({ order, shipment, index, onCancel, cancelling }: { order: Ord
         ))}
       </ul>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {CANCELLABLE.has(shipment.status) ? (
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={cancelling}>
-            {t("account.order.cancelShipment")}
-          </Button>
-        ) : null}
-        {RETURNABLE.has(shipment.status) ? (
-          <ButtonLink variant="outline" size="sm" href={href(`/account/returns/new?order=${encodeURIComponent(order.number)}&shipment=${encodeURIComponent(shipment.number)}`)}>
-            {t("account.order.requestReturn")}
-          </ButtonLink>
-        ) : null}
+      <div className="mt-4">
+        <ShipmentActions order={order} shipment={shipment} onUpdated={onUpdated} hide={["track"]} />
       </div>
     </Card>
   );

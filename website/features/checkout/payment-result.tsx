@@ -19,6 +19,15 @@ import { ReferencePaymentResult } from "./reference-payment";
 const PAID = new Set(["authorized", "captured"]);
 
 /**
+ * Methods offered to retry a failed payment: the checkout list without cash on
+ * delivery, which the API refuses once the order is placed ("Cash on delivery
+ * cannot be chosen after the order is placed.").
+ */
+export function retryMethods<T extends { code: string }>(methods: T[]): T[] {
+  return methods.filter((m) => m.code !== "cod");
+}
+
+/**
  * `/checkout/payment?order=&payment=&status=` — where the gateway returns the
  * customer (PaymentController::toStorefront). The page never trusts the query
  * string: it asks the API to verify (`POST orders/{n}/payments/verify`) and
@@ -81,7 +90,9 @@ function OrderPaymentResult() {
   }, [mounted, user, number, verify]);
 
   const status = order?.payment?.status ?? null;
-  const paid = order && (!order.payment || PAID.has(status ?? "") || order.payment?.next_action.type === "none") && status !== "failed" && status !== "expired";
+  // QA-009: a capture for a different amount is held for an admin (`under_review`), never "paid".
+  const underReview = status === "under_review" || order?.payment_status === "under_review";
+  const paid = order && !underReview && (!order.payment || PAID.has(status ?? "") || order.payment?.next_action.type === "none") && status !== "failed" && status !== "expired";
 
   useEffect(() => {
     if (paid && order) router.replace(href(`/checkout/success?order=${encodeURIComponent(order.number)}`));
@@ -91,7 +102,7 @@ function OrderPaymentResult() {
   const methods = useQuery({
     queryKey: ["payment-methods", market.slug, order?.totals.total?.amount],
     enabled: !!failed && !!order?.totals.total,
-    queryFn: async () => (await api.getPaymentMethods(market.slug, order!.totals.total!.amount)).data,
+    queryFn: async () => retryMethods((await api.getPaymentMethods(market.slug, order!.totals.total!.amount)).data),
   });
 
   const retry = useMutation({
@@ -125,6 +136,8 @@ function OrderPaymentResult() {
       </Card>
     );
   }
+
+  if (underReview) return <UnderReviewCard number={order.number} total={formatMoney(order.totals.total)} />;
 
   if (failed) {
     return (
@@ -165,6 +178,25 @@ function OrderPaymentResult() {
       <Button variant="outline" onClick={() => verify.mutate()} disabled={verify.isPending}>
         {t("payment.refresh")}
       </Button>
+    </Card>
+  );
+}
+
+/** Payment `under_review` (QA-009): the gateway reported another amount; Nawy checks it by hand. */
+export function UnderReviewCard({ number, total }: { number: string; total: string }) {
+  const t = useTranslations();
+  const href = useHref();
+  return (
+    <Card className="mx-auto flex max-w-xl flex-col items-center gap-3 py-10 text-center">
+      <Clock className="size-8 text-link" />
+      <h1 className="text-h3 font-semibold">{t("payment.underReviewTitle")}</h1>
+      <p className="text-body text-secondary">{t("payment.underReviewHint")}</p>
+      <p className="text-body-sm text-secondary">
+        {t("confirmation.order", { number })} · {total}
+      </p>
+      <ButtonLink href={href(`/account/orders/${encodeURIComponent(number)}`)} variant="outline">
+        {t("payment.viewOrder")}
+      </ButtonLink>
     </Card>
   );
 }

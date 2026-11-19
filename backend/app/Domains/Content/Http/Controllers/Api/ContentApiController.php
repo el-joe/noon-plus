@@ -18,6 +18,8 @@ use App\Domains\Content\Support\StaticPages;
 use App\Domains\Countries\Support\CountryContext;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
+use App\Shared\Http\LikeSearch;
+use App\Shared\Http\PublicCache;
 use App\Shared\Settings\VerticalSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,6 +37,11 @@ use Illuminate\Validation\Rule;
  */
 class ContentApiController extends Controller
 {
+    /**
+     * Seconds the small public answers (help collections, static pages, blog categories, app contexts) are kept; every change forgets them at once.
+     */
+    private const CACHE_SECONDS = 600;
+
     public function __construct(private CountryContext $countryContext) {}
 
     public function page(string $slug, Pages $pages, BlockResolver $resolver, VerticalSettings $settings): JsonResponse
@@ -68,10 +75,19 @@ class ContentApiController extends Controller
 
     public function appContexts(AppContexts $contexts): JsonResponse
     {
-        $contexts->ensureDefaults();
         $ar = app()->getLocale() === 'ar';
 
-        return ApiResponse::success(AppContext::query()->where('is_active', true)->with('homePage')->orderBy('sort_order')->get()->map(fn (AppContext $context): array => [
+        return ApiResponse::success(PublicCache::remember(PublicCache::countryGroup(PublicCache::APP_CONTEXTS), app()->getLocale(), self::CACHE_SECONDS, fn (): array => $this->buildAppContexts($contexts, $ar)));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildAppContexts(AppContexts $contexts, bool $ar): array
+    {
+        $contexts->ensureDefaults();
+
+        return AppContext::query()->where('is_active', true)->with('homePage')->orderBy('sort_order')->get()->map(fn (AppContext $context): array => [
             'key' => $context->key,
             'name' => $ar ? $context->name_ar : $context->name_en,
             'icon' => $context->icon,
@@ -84,7 +100,7 @@ class ContentApiController extends Controller
                 'target' => $tab['target'],
                 'page' => $tab['page'] ?? null,
             ])->all(),
-        ])->all());
+        ])->all();
     }
 
     public function blog(Request $request, VerticalSettings $settings): JsonResponse
@@ -100,7 +116,7 @@ class ContentApiController extends Controller
         $posts = BlogPost::query()->where('status', PageStatus::Published)->with('category')
             ->when($filters['category'] ?? null, fn ($query, string $slug) => $query->whereHas('category', fn ($category) => $category->where('slug', $slug)))
             ->when($filters['tag'] ?? null, fn ($query, string $tag) => $query->whereJsonContains('tags', $tag))
-            ->when($filters['q'] ?? null, fn ($query, string $term) => $query->where(fn ($search) => $search->where('title_en', 'like', "%{$term}%")->orWhere('title_ar', 'like', "%{$term}%")))
+            ->when($filters['q'] ?? null, fn ($query, string $term) => $query->where(fn ($search) => $search->where('title_en', 'like', LikeSearch::contains($term))->orWhere('title_ar', 'like', LikeSearch::contains($term))))
             ->when($filters['featured'] ?? false, fn ($query) => $query->where('is_featured', true))
             ->latest('published_at')->paginate($settings->int('content.blog_per_page'));
 
@@ -110,6 +126,16 @@ class ContentApiController extends Controller
     }
 
     public function blogCategories(): JsonResponse
+    {
+        [$categories, $tree] = PublicCache::remember(PublicCache::countryGroup(PublicCache::BLOG_CATEGORIES), app()->getLocale(), self::CACHE_SECONDS, fn (): array => $this->buildBlogCategories());
+
+        return ApiResponse::success($categories, ['tree' => $tree]);
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
+     */
+    private function buildBlogCategories(): array
     {
         $ar = app()->getLocale() === 'ar';
 
@@ -123,7 +149,7 @@ class ContentApiController extends Controller
             return $depth > 5 ? [] : $categories->where('parent_id', $parentId)->values()->map(fn (BlogCategory $category): array => $node($category) + ['children' => $tree($category->id, $depth + 1)])->all();
         };
 
-        return ApiResponse::success($categories->map($node)->all(), ['tree' => $tree(null, 0)]);
+        return [$categories->map($node)->all(), $tree(null, 0)];
     }
 
     public function blogPost(string $slug, VerticalSettings $settings): JsonResponse
@@ -147,17 +173,22 @@ class ContentApiController extends Controller
         $filters = $request->validate(['audience' => ['nullable', Rule::in(HelpCollection::AUDIENCES)]]);
         $ar = app()->getLocale() === 'ar';
 
-        return ApiResponse::success(HelpCollection::query()->where('hub', $hub)
-            ->when($filters['audience'] ?? null, fn ($query, string $audience) => $query->where('audience', $audience))
-            ->withCount(['articles' => fn ($query) => $query->where('is_published', true)])
-            ->orderBy('sort_order')->get()->map(fn (HelpCollection $collection): array => [
-                'slug' => $collection->slug,
-                'title' => $ar ? $collection->title_ar : $collection->title_en,
-                'description' => $ar ? $collection->description_ar : $collection->description_en,
-                'audience' => $collection->audience,
-                'articles_count' => $collection->articles_count,
-                'articles' => $collection->articles()->where('is_published', true)->get()->map(fn (HelpArticle $article): array => $this->articleSummary($article, $ar))->all(),
-            ])->all());
+        return ApiResponse::success(PublicCache::remember(
+            PublicCache::countryGroup(PublicCache::HELP),
+            'collections:'.$hub.':'.($filters['audience'] ?? 'all').':'.app()->getLocale(),
+            self::CACHE_SECONDS,
+            fn (): array => HelpCollection::query()->where('hub', $hub)
+                ->when($filters['audience'] ?? null, fn ($query, string $audience) => $query->where('audience', $audience))
+                ->with(['articles' => fn ($query) => $query->where('is_published', true)])
+                ->orderBy('sort_order')->get()->map(fn (HelpCollection $collection): array => [
+                    'slug' => $collection->slug,
+                    'title' => $ar ? $collection->title_ar : $collection->title_en,
+                    'description' => $ar ? $collection->description_ar : $collection->description_en,
+                    'audience' => $collection->audience,
+                    'articles_count' => $collection->articles->count(),
+                    'articles' => $collection->articles->map(fn (HelpArticle $article): array => $this->articleSummary($article, $ar))->all(),
+                ])->all(),
+        ));
     }
 
     /**
@@ -169,8 +200,8 @@ class ContentApiController extends Controller
         $ar = app()->getLocale() === 'ar';
 
         return ApiResponse::success(HelpArticle::query()->where('hub', $hub)->where('is_published', true)
-            ->where(fn ($query) => $query->where('title_en', 'like', "%{$term}%")->orWhere('title_ar', 'like', "%{$term}%")
-                ->orWhere('body_en', 'like', "%{$term}%")->orWhere('body_ar', 'like', "%{$term}%"))
+            ->where(fn ($query) => $query->where('title_en', 'like', LikeSearch::contains($term))->orWhere('title_ar', 'like', LikeSearch::contains($term))
+                ->orWhere('body_en', 'like', LikeSearch::contains($term))->orWhere('body_ar', 'like', LikeSearch::contains($term)))
             ->orderByDesc('views')->limit($settings->int('content.help_search_limit'))->get()
             ->map(fn (HelpArticle $article): array => $this->articleSummary($article, $ar))->all());
     }
@@ -232,27 +263,42 @@ class ContentApiController extends Controller
     public function staticPage(Request $request, string $slug, StaticPages $pages): JsonResponse
     {
         $audience = $request->validate(['audience' => ['nullable', Rule::in(['storefront', 'portal'])]])['audience'] ?? 'storefront';
-        $page = $pages->resolve($slug, $this->countryContext->current(), $audience);
+        $country = $this->countryContext->current();
+        $locale = app()->getLocale();
+        $payload = PublicCache::remember(PublicCache::STATIC_PAGES, implode(':', [$country->code, $audience, $locale, sha1($slug)]), self::CACHE_SECONDS, function () use ($slug, $country, $audience, $pages, $locale): array {
+            $page = $pages->resolve($slug, $country, $audience);
 
-        abort_if($page === null, 404);
-        $ar = app()->getLocale() === 'ar';
+            if ($page === null) {
+                return [];
+            }
 
-        $title = $ar ? $page->title_ar : $page->title_en;
-        $body = $ar ? $page->body_ar : $page->body_en;
+            $ar = $locale === 'ar';
+            $title = $ar ? $page->title_ar : $page->title_en;
+            $body = $ar ? $page->body_ar : $page->body_en;
 
-        return ApiResponse::success([
-            'slug' => $page->slug,
-            'title' => $title,
-            'body' => $body,
-            'seo' => [
-                'title' => ($ar ? $page->seo_title_ar : $page->seo_title_en) ?: $title,
-                'description' => ($ar ? $page->seo_description_ar : $page->seo_description_en) ?: Str::limit(trim(preg_replace('/\s+/', ' ', strip_tags((string) $body))), 160, '…'),
-            ],
-            'country_specific' => $page->country_id !== null,
-            'updated_at' => $page->updated_at?->toIso8601String(),
-        ]);
+            return [
+                'slug' => $page->slug,
+                'title' => $title,
+                'body' => $body,
+                'seo' => [
+                    'title' => ($ar ? $page->seo_title_ar : $page->seo_title_en) ?: $title,
+                    'description' => ($ar ? $page->seo_description_ar : $page->seo_description_en) ?: Str::limit(trim(preg_replace('/\s+/', ' ', strip_tags((string) $body))), 160, '…'),
+                ],
+                'country_specific' => $page->country_id !== null,
+                // QA-032: seeded legal text that legal has not replaced yet.
+                'placeholder' => (bool) $page->is_placeholder,
+                'updated_at' => $page->updated_at?->toIso8601String(),
+            ];
+        });
+
+        abort_if($payload === [], 404);
+
+        return ApiResponse::success($payload);
     }
 
+    /**
+     * Footer columns come from settings, which SettingsService already caches (and forgets on save).
+     */
     public function footer(Footer $footer): JsonResponse
     {
         return ApiResponse::success($footer->get($this->countryContext->current(), app()->getLocale()));

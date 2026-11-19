@@ -2,6 +2,7 @@
  * The 8 storefront countries (MASTER_PLAN §4a). The backend is the source of
  * truth (`GET /countries`); this static copy lets the router validate a
  * `[market]` segment and render the country switcher without a request.
+ * `name` mirrors the API's `names: {en, ar}` (G-A8); keep the two in step.
  */
 export const LOCALES = ["en", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -17,9 +18,9 @@ export type Country = {
 };
 
 export const COUNTRIES: Country[] = [
-  { code: "uae", timeZone: "Asia/Dubai", iso2: "AE", currency: "AED", decimals: 2, defaultLocale: "en", name: { en: "United Arab Emirates", ar: "الإمارات" } },
+  { code: "uae", timeZone: "Asia/Dubai", iso2: "AE", currency: "AED", decimals: 2, defaultLocale: "en", name: { en: "United Arab Emirates", ar: "الإمارات العربية المتحدة" } },
   { code: "omn", timeZone: "Asia/Muscat", iso2: "OM", currency: "OMR", decimals: 3, defaultLocale: "ar", name: { en: "Oman", ar: "عُمان" } },
-  { code: "ksa", timeZone: "Asia/Riyadh", iso2: "SA", currency: "SAR", decimals: 2, defaultLocale: "ar", name: { en: "Saudi Arabia", ar: "السعودية" } },
+  { code: "ksa", timeZone: "Asia/Riyadh", iso2: "SA", currency: "SAR", decimals: 2, defaultLocale: "ar", name: { en: "Saudi Arabia", ar: "المملكة العربية السعودية" } },
   { code: "egy", timeZone: "Africa/Cairo", iso2: "EG", currency: "EGP", decimals: 2, defaultLocale: "ar", name: { en: "Egypt", ar: "مصر" } },
   { code: "kwt", timeZone: "Asia/Kuwait", iso2: "KW", currency: "KWD", decimals: 3, defaultLocale: "ar", name: { en: "Kuwait", ar: "الكويت" } },
   { code: "qat", timeZone: "Asia/Qatar", iso2: "QA", currency: "QAR", decimals: 2, defaultLocale: "ar", name: { en: "Qatar", ar: "قطر" } },

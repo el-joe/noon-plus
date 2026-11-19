@@ -14,5 +14,6 @@ export function cardFromApi(product: ProductCard): ProductCardData {
     image: product.image?.url ?? null,
     imageAlt: product.image?.alt ?? null,
     rating: product.rating ?? null,
+    badges: product.badges ?? [],
   };
 }

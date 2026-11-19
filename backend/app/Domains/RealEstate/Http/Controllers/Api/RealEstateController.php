@@ -7,8 +7,10 @@ use App\Domains\Classifieds\Http\ClassifiedPresenter;
 use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Classifieds\Models\Follow;
 use App\Domains\Classifieds\Support\ClassifiedRequests;
+use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Marketers\Enums\MarketerStatus;
 use App\Domains\Marketers\Models\MarketerProfile;
+use App\Domains\RealEstate\Http\ViewingPresenter;
 use App\Domains\RealEstate\Models\BrokerDetail;
 use App\Domains\RealEstate\Models\PropertyViewing;
 use App\Domains\RealEstate\Models\SpecialRequest;
@@ -52,7 +54,9 @@ class RealEstateController extends Controller
 
     /**
      * D8 viewing / reserve request on any live classified ad whose vertical
-     * takes that type (G-W22). `type` defaults to `viewing`.
+     * takes that type (G-W22). `type` defaults to `viewing`. A `preferred_at`
+     * without an offset is the market's local time (QA-019). D12: the
+     * request is a record only; the answer carries no status.
      */
     public function requestViewing(Request $request, string $number, Viewings $viewings): JsonResponse
     {
@@ -62,13 +66,14 @@ class RealEstateController extends Controller
             'message' => ['nullable', 'string', 'max:1000'],
         ]);
         $ad = ClassifiedAd::query()->where('number', $number)->with(['property', 'category'])->firstOrFail();
-        $viewing = $viewings->request($ad, $request->user('sanctum')?->id, ['name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone']], CarbonImmutable::parse($data['preferred_at']), $data['message'] ?? null, $data['type'] ?? 'viewing');
+        $viewing = $viewings->request($ad, $request->user('sanctum')?->id, ['name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone']], CarbonImmutable::parse($data['preferred_at'], app(CountryContext::class)->current()->timezone)->utc(), $data['message'] ?? null, $data['type'] ?? 'viewing');
 
-        return ApiResponse::success(['id' => $viewing->id, 'type' => $viewing->type, 'status' => $viewing->status->value], status: 201);
+        return ApiResponse::success(['id' => $viewing->id, 'type' => $viewing->type, 'created_at' => $viewing->created_at?->toIso8601String()], status: 201);
     }
 
     /**
-     * The signed-in customer's own viewing / reserve requests, newest first (G-W22).
+     * The signed-in customer's own viewing / reserve requests, newest first
+     * (G-W22). D12: records only, so no status.
      */
     public function myViewings(Request $request): JsonResponse
     {
@@ -76,16 +81,7 @@ class RealEstateController extends Controller
             ->when($request->query('type'), fn ($query, $type) => $query->where('type', (string) $type))
             ->with(['ad.media', 'ad.category', 'ad.vendor'])->latest('id')->paginate(min(50, max(1, $request->integer('per_page', 20))));
 
-        return ApiResponse::success(collect($viewings->items())->map(fn (PropertyViewing $viewing): array => [
-            'id' => $viewing->id,
-            'type' => $viewing->type,
-            'status' => $viewing->status->value,
-            'preferred_at' => $viewing->preferred_at->toIso8601String(),
-            'scheduled_at' => $viewing->scheduled_at?->toIso8601String(),
-            'note' => $viewing->note,
-            'created_at' => $viewing->created_at?->toIso8601String(),
-            'ad' => $viewing->ad === null ? null : array_intersect_key(ClassifiedPresenter::card($viewing->ad), array_flip(['number', 'title', 'price', 'image', 'city', 'area', 'status', 'category'])),
-        ])->all(), ['total' => $viewings->total(), 'page' => $viewings->currentPage(), 'last_page' => $viewings->lastPage(), 'per_page' => $viewings->perPage()]);
+        return ApiResponse::success(collect($viewings->items())->map(fn (PropertyViewing $viewing): array => ViewingPresenter::record($viewing))->all(), ['total' => $viewings->total(), 'page' => $viewings->currentPage(), 'last_page' => $viewings->lastPage(), 'per_page' => $viewings->perPage()]);
     }
 
     public function specialRequests(Request $request): JsonResponse

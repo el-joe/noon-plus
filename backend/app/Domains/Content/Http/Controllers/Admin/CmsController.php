@@ -166,7 +166,7 @@ class CmsController extends Controller
 
         StaticPage::query()->updateOrCreate(
             ['country_id' => $data['scope'] === 'country' ? $this->countryContext->current()->id : null, 'slug' => $data['slug']],
-            collect($data)->except(['scope', 'slug'])->all() + ['updated_by' => $request->user()->id],
+            collect($data)->except(['scope', 'slug'])->all() + ['is_placeholder' => false, 'updated_by' => $request->user()->id],
         );
 
         return back()->with('status', __('Static page saved.'));

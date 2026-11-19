@@ -36,6 +36,11 @@ class PaymentResource extends JsonResource
             'status' => $this->status->value,
             'amount' => MoneyResource::make((string) $this->amount),
             'refunded' => MoneyResource::make((string) $this->refunded_amount),
+            // PayPal USD conversion: the amount the provider charged and the stored rate (1 market currency = rate charge currency).
+            'charge' => $this->charge_currency === null ? null : [
+                'amount' => MoneyResource::of((string) $this->charge_amount, $this->charge_currency),
+                'rate' => rtrim(rtrim((string) $this->exchange_rate, '0'), '.'),
+            ],
             'expires_at' => $this->expires_at?->toIso8601String(),
             'failure' => $this->failure_code === null ? null : ['code' => $this->failure_code, 'message' => $this->failure_message],
             'next_action' => $nextAction,

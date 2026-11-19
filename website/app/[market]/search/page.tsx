@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Container, EmptyState, Skeleton } from "@/components/ui/misc";
 import { ProductListing, toListingQuery } from "@/features/listing/product-listing";
+import { SearchChips } from "@/features/search/search-chips";
 import { getT } from "@/lib/i18n";
 import { resolveMarket } from "@/lib/server-market";
 
@@ -20,7 +21,12 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
           const query = toListingQuery(raw);
           if (!query.q?.trim()) {
             const t = getT(market.locale);
-            return <EmptyState title={t("search.title")} body={t("search.prompt")} />;
+            return (
+              <div className="flex flex-col gap-6">
+                <EmptyState title={t("search.title")} body={t("search.prompt")} />
+                <SearchChips />
+              </div>
+            );
           }
           return <ProductListing market={market} query={query} basePath={`/${market.slug}/search`} />;
         })}

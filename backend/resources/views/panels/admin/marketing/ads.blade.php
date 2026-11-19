@@ -21,7 +21,15 @@
                     <td class="px-5 py-3">{{ $booking->number }}<span class="block text-xs text-fg-secondary">{{ $booking->advertiser_type }} #{{ $booking->advertiser_id }}</span></td>
                     <td class="px-5 py-3">{{ $booking->slot->name }}</td>
                     <td class="px-5 py-3">{{ $booking->starts_on->format('j M') }} – {{ $booking->ends_on->format('j M') }}</td>
-                    <td class="px-5 py-3">@if ($booking->creative_path)<a class="text-fg-link" target="_blank" rel="noopener" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($booking->creative_path) }}">{{ __('View') }}</a>@endif</td>
+                    <td class="px-5 py-3">@if ($booking->creative_path)<a class="text-fg-link" target="_blank" rel="noopener" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($booking->creative_path) }}">{{ $booking->creative_type === 'video' ? __('View video') : __('View') }}</a>@endif
+                        {{-- QC-018 (ADR 11): sponsored video creatives are uploaded by admin. --}}
+                        <form method="POST" action="{{ route('admin.marketing.bookings.video', $booking->id) }}" enctype="multipart/form-data" class="mt-2 flex flex-col gap-1">
+                            @csrf
+                            <label class="text-xs text-fg-secondary" for="video-{{ $booking->id }}">{{ __('Upload video creative') }}</label>
+                            <input id="video-{{ $booking->id }}" type="file" name="video" accept="video/mp4,video/webm,video/quicktime" required class="text-xs">
+                            <x-ui.button type="submit" size="sm" variant="outline">{{ __('Upload') }}</x-ui.button>
+                        </form>
+                    </td>
                     <td class="px-5 py-3"><x-ui.money :amount="$booking->amount" :currency="$booking->currency" /></td>
                     <td class="px-5 py-3">@include('panels.admin.marketing._decision', ['action' => route('admin.marketing.bookings.decide', $booking->id), 'id' => 'b'.$booking->id])</td>
                 </tr>

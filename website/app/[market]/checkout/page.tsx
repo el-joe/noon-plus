@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CheckoutChrome } from "@/features/checkout/checkout-chrome";
 import { Container } from "@/components/ui/misc";
 import { CheckoutView } from "@/features/checkout/checkout-view";
 import { getT } from "@/lib/i18n";
@@ -11,8 +12,11 @@ export async function generateMetadata({ params }: PageProps<"/[market]/checkout
 
 export default function CheckoutPage() {
   return (
-    <Container className="py-6">
-      <CheckoutView />
-    </Container>
+    <>
+      <CheckoutChrome />
+      <Container className="py-6">
+        <CheckoutView />
+      </Container>
+    </>
   );
 }

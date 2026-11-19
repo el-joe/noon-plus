@@ -21,8 +21,8 @@ import { DuplicateButton } from "./post-wizard";
 
 /**
  * `/account/inquiries` — classified chats as buyer and seller (Figma 50:2352,
- * chats 50:4032), and the D8 viewing / reserve requests (`?tab=requests`,
- * `GET me/viewing-requests`).
+ * chats 50:4032), and the D8 viewing / reserve requests (`?tab=requests`;
+ * D12: a plain record list).
  */
 export function InquiriesView() {
   const t = useTranslations("classifieds.inquiries");
@@ -49,66 +49,79 @@ export function InquiriesView() {
   );
 }
 
-const REQUEST_STATUSES = ["pending", "requested", "confirmed", "scheduled", "completed", "declined", "rejected", "cancelled", "no_show"] as const;
-
-/** The customer's own viewing / reserve requests (`GET me/viewing-requests`). */
+/**
+ * The viewing / reserve requests (owner decision D12: records only — no
+ * status, no actions). "Sent" lists the customer's own requests
+ * (`GET me/viewing-requests`); "On my ads" lists the requests other people
+ * sent on the user's own ads, with their contact details, so the seller can
+ * contact them outside Nawy (`GET classifieds/mine/requests`).
+ */
 function ViewingRequestsList() {
   const t = useTranslations("classifieds.requests");
   const tr = useTranslations("classifieds.request.types");
   const tc = useTranslations("common");
   const market = useMarket();
   const href = useHref();
+  const [box, setBox] = useState<"sent" | "received">("sent");
   const [type, setType] = useState<"" | "viewing" | "reserve">("");
   const [page, setPage] = useState(1);
   const list = useQuery({
-    queryKey: ["viewing-requests", market.slug, type, page],
-    queryFn: async () => api.getMyViewingRequests(market.slug, { type: type || undefined, page, per_page: 20 }),
+    queryKey: ["viewing-requests", box, market.slug, type, page],
+    queryFn: async () => (box === "sent" ? api.getMyViewingRequests : api.getReceivedViewingRequests)(market.slug, { type: type || undefined, page, per_page: 20 }),
   });
   const lastPage = Number(list.data?.meta.last_page ?? 1);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t("box")}>
+        {(["sent", "received"] as const).map((key) => (
+          <Button key={key} size="sm" variant={box === key ? "dark" : "outline"} aria-pressed={box === key} onClick={() => { setBox(key); setPage(1); }}>
+            {t(`boxes.${key}`)}
+          </Button>
+        ))}
+        <span className="mx-1 w-px self-stretch bg-line" aria-hidden />
         {(["", "viewing", "reserve"] as const).map((key) => (
-          <Button key={key || "all"} size="sm" variant={type === key ? "dark" : "outline"} onClick={() => { setType(key); setPage(1); }}>
+          <Button key={key || "all"} size="sm" variant={type === key ? "dark" : "outline"} aria-pressed={type === key} onClick={() => { setType(key); setPage(1); }}>
             {key ? tr(key) : t("allTypes")}
           </Button>
         ))}
       </div>
+      {box === "received" ? <p className="text-body-sm text-secondary">{t("receivedHint")}</p> : null}
       {list.error ? <Alert tone="danger">{errorMessage(list.error, tc("error"))}</Alert> : null}
       {list.isLoading ? <Skeleton className="h-48 w-full" /> : null}
-      {list.data && list.data.data.length === 0 ? <EmptyState icon={<CalendarCheck className="size-10" />} title={t("empty")} /> : null}
+      {list.data && list.data.data.length === 0 ? <EmptyState icon={<CalendarCheck className="size-10" />} title={box === "sent" ? t("empty") : t("emptyReceived")} /> : null}
       <ul className="flex flex-col gap-3">
-        {list.data?.data.map((r) => {
-          const status = (REQUEST_STATUSES as readonly string[]).includes(r.status) ? t(`status.${r.status as (typeof REQUEST_STATUSES)[number]}`) : r.status;
-          return (
-            <li key={r.id}>
-              <Card className="flex flex-wrap items-start gap-4">
-                <div className="size-20 shrink-0 overflow-hidden rounded-md bg-subtle">
-                  <AdImage src={r.ad?.image} alt={r.ad?.title ?? ""} />
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="flex flex-wrap items-center gap-2 text-caption text-secondary">
-                    <span className="font-semibold text-ink">{r.type === "reserve" || r.type === "viewing" ? tr(r.type) : r.type}</span>
-                    <span className="rounded-full bg-subtle px-2 py-0.5">{status}</span>
-                    <span>#{r.id}</span>
+        {list.data?.data.map((r) => (
+          <li key={r.id} data-request={r.id}>
+            <Card className="flex flex-wrap items-start gap-4">
+              <div className="size-20 shrink-0 overflow-hidden rounded-md bg-subtle">
+                <AdImage src={r.ad?.image} alt={r.ad?.title ?? ""} />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="flex flex-wrap items-center gap-2 text-caption text-secondary">
+                  <span className="font-semibold text-ink">{r.type === "reserve" || r.type === "viewing" ? tr(r.type) : r.type}</span>
+                  <span>#{r.id}</span>
+                </p>
+                {r.ad ? (
+                  <Link href={href(`/classified/find/${encodeURIComponent(r.ad.number)}`)} className="line-clamp-1 text-body font-semibold hover:underline">
+                    {r.ad.title ?? r.ad.number}
+                  </Link>
+                ) : null}
+                {r.ad?.price ? <p className="text-body-sm font-semibold" dir="ltr">{formatMoney(r.ad.price)}</p> : null}
+                {r.created_at ? <p className="text-body-sm text-secondary">{t("sent", { date: formatDay(r.created_at, market.locale) })}</p> : null}
+                {r.preferred_at ? <p className="text-body-sm text-secondary">{t("preferred", { date: formatDateTime(r.preferred_at, market.locale, market.country.timeZone) })}</p> : null}
+                {r.note ? <p className="text-body-sm">{t("message", { message: r.note })}</p> : null}
+                {r.contact ? (
+                  <p className="flex flex-wrap gap-x-3 text-body-sm">
+                    <span className="font-semibold">{r.contact.name}</span>
+                    <a className="text-link hover:underline" href={`mailto:${r.contact.email}`}>{r.contact.email}</a>
+                    <a className="text-link hover:underline" href={`tel:${r.contact.phone}`} dir="ltr">{r.contact.phone}</a>
                   </p>
-                  {r.ad ? (
-                    <Link href={href(`/classified/find/${encodeURIComponent(r.ad.number)}`)} className="line-clamp-1 text-body font-semibold hover:underline">
-                      {r.ad.title ?? r.ad.number}
-                    </Link>
-                  ) : null}
-                  {r.ad?.price ? <p className="text-body-sm font-semibold" dir="ltr">{formatMoney(r.ad.price)}</p> : null}
-                  <p className="text-body-sm text-secondary">
-                    {r.scheduled_at ? t("scheduled", { date: formatDateTime(r.scheduled_at, market.locale, market.country.timeZone) }) : r.preferred_at ? t("preferred", { date: formatDateTime(r.preferred_at, market.locale, market.country.timeZone) }) : null}
-                  </p>
-                  {r.note ? <p className="text-body-sm">{t("note", { note: r.note })}</p> : null}
-                  {r.created_at ? <p className="text-caption text-muted">{t("sent", { date: formatDay(r.created_at, market.locale) })}</p> : null}
-                </div>
-              </Card>
-            </li>
-          );
-        })}
+                ) : null}
+              </div>
+            </Card>
+          </li>
+        ))}
       </ul>
       {lastPage > 1 ? (
         <div className="flex items-center justify-center gap-2">
@@ -425,8 +438,7 @@ export function MyAdsView() {
       refresh();
     },
   });
-  const total = Number(ads.data?.meta.total ?? 0);
-  const pages = Math.max(1, Math.ceil(total / 24));
+  const pages = Math.max(1, Number(ads.data?.meta.last_page ?? 1)); // G-A4: meta.per_page / last_page
 
   return (
     <div className="flex flex-col gap-4">
@@ -448,9 +460,14 @@ export function MyAdsView() {
                   <AdImage src={ad.image} alt={ad.title} />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <Link href={href(`/classified/find/${encodeURIComponent(ad.number)}`)} className="line-clamp-1 text-body font-semibold hover:underline">
-                    {ad.title}
-                  </Link>
+                  {/* Only live ads have a public page (the API answers 404 to everyone else), so other statuses show the title only. */}
+                  {ad.status === "active" ? (
+                    <Link href={href(`/classified/find/${encodeURIComponent(ad.number)}`)} className="line-clamp-1 text-body font-semibold hover:underline">
+                      {ad.title}
+                    </Link>
+                  ) : (
+                    <span className="line-clamp-1 text-body font-semibold">{ad.title}</span>
+                  )}
                   <AdPrice ad={ad} />
                   <p className="flex flex-wrap items-center gap-2 text-caption text-secondary">
                     <AdStatusChip status={ad.status} />

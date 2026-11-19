@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { notFound } from "next/navigation";
 import { orNull } from "@/lib/api/client";
 import { getStaticPage } from "@/lib/api/content";
@@ -23,6 +24,14 @@ export async function StaticPageView({ market, slug }: { market: Market; slug: s
             {page.country_specific ? ` · ${t("content.pages.countrySpecific", { country: market.country.name[market.locale] })}` : null}
           </p>
         </header>
+        {page.placeholder ? (
+          <p role="note" className="flex items-start gap-2 rounded-md border border-warning-text/30 bg-warning-subtle p-3 text-body-sm text-warning-text">
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              <span className="font-semibold">{t("content.pages.placeholderTitle")}</span> {t("content.pages.placeholderBody")}
+            </span>
+          </p>
+        ) : null}
         {page.body ? <div className="prose-cms text-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.body) }} /> : null}
       </article>
     </div>

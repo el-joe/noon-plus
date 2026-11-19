@@ -6,8 +6,9 @@ version: 1.0.0+1
 environment:
   sdk: ^3.13.7
 
-# No pub packages (project rule). `nawy_core` is a local path package in this
-# repository (packages/nawy_core); flutter_localizations ships with the SDK.
+# `nawy_core` is a local path package in this repository (packages/nawy_core;
+# it brings flutter_secure_storage, image_picker, path_provider and
+# url_launcher). Owner-approved packages: owner-review D16.
 dependencies:
   flutter:
     sdk: flutter
@@ -15,6 +16,8 @@ dependencies:
     sdk: flutter
   nawy_core:
     path: ../packages/nawy_core
+  geolocator: ^14.1.2
+  mobile_scanner: ^7.5.0
 
 dev_dependencies:
   flutter_test:

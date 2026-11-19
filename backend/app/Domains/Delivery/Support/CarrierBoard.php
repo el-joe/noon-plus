@@ -6,6 +6,7 @@ use App\Domains\Delivery\Enums\AssignmentStatus;
 use App\Domains\Delivery\Enums\ShipmentStatus;
 use App\Domains\Delivery\Models\Carrier;
 use App\Domains\Delivery\Models\DeliveryAgent;
+use App\Domains\Delivery\Models\DeliveryAssignment;
 use App\Domains\Delivery\Models\Shipment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -61,5 +62,41 @@ class CarrierBoard
     public function agentUserIds(Carrier $carrier): Collection
     {
         return DeliveryAgent::query()->where('carrier_id', $carrier->id)->pluck('user_id');
+    }
+
+    /**
+     * QC-062 (Figma 106:15992): delivery SLA per shipping zone over the last
+     * `days` days — attempts delivered, on time (delivered by `sla_due_at`),
+     * late, failed, and open attempts already past their SLA.
+     *
+     * @return Collection<int, array{zone: string, delivered: int, on_time: int, late: int, failed: int, open_overdue: int, on_time_percent: int|null}>
+     */
+    public function slaByZone(Carrier $carrier, int $days = 30): Collection
+    {
+        $since = now()->subDays($days);
+        $rows = DeliveryAssignment::query()
+            ->where('delivery_assignments.carrier_id', $carrier->id)
+            ->where('delivery_assignments.created_at', '>=', $since)
+            ->join('sub_orders', 'sub_orders.id', '=', 'delivery_assignments.sub_order_id')
+            ->leftJoin('shipping_zones', 'shipping_zones.id', '=', 'sub_orders.shipping_zone_id')
+            ->groupBy('shipping_zones.id', 'shipping_zones.name')
+            ->selectRaw('shipping_zones.name as zone')
+            ->selectRaw("sum(case when delivery_assignments.status = 'delivered' then 1 else 0 end) as delivered")
+            ->selectRaw("sum(case when delivery_assignments.status = 'delivered' and (delivery_assignments.sla_due_at is null or delivery_assignments.delivered_at <= delivery_assignments.sla_due_at) then 1 else 0 end) as on_time")
+            ->selectRaw("sum(case when delivery_assignments.status = 'failed' then 1 else 0 end) as failed")
+            ->selectRaw('sum(case when delivery_assignments.status in (?, ?, ?) and delivery_assignments.sla_due_at < ? then 1 else 0 end) as open_overdue',
+                [...array_map(fn (AssignmentStatus $status): string => $status->value, AssignmentStatus::open()), now()])
+            ->orderBy('shipping_zones.name')
+            ->get();
+
+        return $rows->map(fn ($row): array => [
+            'zone' => $row->zone ?? __('No zone'),
+            'delivered' => (int) $row->delivered,
+            'on_time' => (int) $row->on_time,
+            'late' => (int) $row->delivered - (int) $row->on_time,
+            'failed' => (int) $row->failed,
+            'open_overdue' => (int) $row->open_overdue,
+            'on_time_percent' => (int) $row->delivered === 0 ? null : intdiv((int) $row->on_time * 100, (int) $row->delivered),
+        ])->values();
     }
 }

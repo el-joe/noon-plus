@@ -25,6 +25,12 @@ export const travelPackageCard = z.object({
   cover_url: z.string().nullable().optional(),
   image: z.object({ url: z.string(), alt: z.string().nullable().optional() }).nullable().optional(),
   status: z.string(),
+  /**
+   * D14: a paid promotion. Promoted trips come first (server order, never
+   * re-sorted) with the server-localized `label` ("Sponsored" / "مُموَّل").
+   */
+  sponsored: z.boolean().catch(false).default(false),
+  label: z.string().nullable().optional().catch(null),
 });
 export type TravelPackageCard = z.infer<typeof travelPackageCard>;
 
@@ -37,6 +43,8 @@ export const travelDeparture = z.object({
   seats_left: z.number(),
   status: z.string(),
   rooms: z.array(z.object({ type: z.string(), price_per_person: money })),
+  /** QC-060: price per child (the departure's `child` room), or null when children cannot be booked. */
+  child_price_per_person: money.nullable().optional().catch(null),
 });
 export type TravelDeparture = z.infer<typeof travelDeparture>;
 
@@ -48,6 +56,20 @@ export const travelPackage = travelPackageCard.extend({
   exclusions: textList,
   cancellation_policy: textList,
   departures: z.array(travelDeparture),
+  /** QC-060: 1+2 gallery and the stats line. */
+  gallery: z.array(z.object({ url: z.string(), alt: z.string().nullable().optional() })).catch([]).default([]),
+  stats: z
+    .object({
+      rating: z.object({ average: z.union([z.number(), z.string()]).nullable(), count: z.number() }).or(z.number()).nullable().optional().catch(null),
+      travellers: z.number().default(0),
+      bookings: z.number().default(0),
+      agency_trips: z.number().default(0),
+    })
+    .nullable()
+    .optional()
+    .catch(null),
+  /** D14: up to 4 similar trips, promoted first (server order). */
+  related: z.array(travelPackageCard).catch([]).default([]),
 });
 export type TravelPackage = z.infer<typeof travelPackage>;
 
@@ -59,8 +81,12 @@ export const travelBooking = z.object({
   package: z.object({ slug: z.string(), title: z.string().nullable() }),
   departs_on: z.string(),
   returns_on: z.string(),
-  rooms: z.array(z.object({ room_type: z.string(), travellers: z.number(), unit_price: z.string().optional(), line_total: z.string().optional() })).nullable().default([]),
+  /** QA-037: room line money is `{amount, currency}`. */
+  rooms: z.array(z.object({ room_type: z.string(), travellers: z.number(), unit_price: money.nullable().optional().catch(null), line_total: money.nullable().optional().catch(null) })).nullable().default([]),
   seats: z.number(),
+  /** QC-060: the adults / children split (children travel on the `child` room line). */
+  adults: z.number().optional(),
+  children: z.number().optional(),
   quoted_total: money,
   payment: z.string(),
   contact: z.object({ name: z.string().nullable(), email: z.string().nullable(), phone: z.string().nullable() }),
@@ -113,6 +139,8 @@ export type BookingRequestInput = {
   email: string;
   phone: string;
   rooms: { room_type: string; travellers: number }[];
+  /** QC-060: children on the departure's child price (only when it has one). */
+  children?: number;
   traveller_names?: string[];
   message?: string;
   ref?: string;
@@ -132,3 +160,6 @@ export const resendBookingLinks = (market: string, email: string) =>
 /** Remember a guest booking on this device from its number + access token (email link / "find my booking"). */
 export const claimTravelBooking = (market: string, number: string, token: string) =>
   bookingCall(market, `bookings/${encodeURIComponent(number)}/access`, travelBooking, { method: "POST", body: { token } });
+
+/** The room type that prices a child (backend TravelController::CHILD_ROOM); it is not an adult room choice. */
+export const CHILD_ROOM = "child";

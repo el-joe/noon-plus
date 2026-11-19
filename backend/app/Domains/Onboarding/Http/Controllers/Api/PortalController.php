@@ -4,8 +4,10 @@ namespace App\Domains\Onboarding\Http\Controllers\Api;
 
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Onboarding\Models\AdvertiseInquiry;
+use App\Domains\Onboarding\Models\PortalFunnelEvent;
 use App\Domains\Onboarding\Support\AdvertiseInquiries;
 use App\Domains\Onboarding\Support\JoinOptions;
+use App\Domains\Onboarding\Support\PortalFunnel;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\ApiResponse;
 use App\Shared\Validation\ContactDetails;
@@ -39,11 +41,30 @@ class PortalController extends Controller
             'budget_bands' => array_map(fn (string $band): array => [
                 'key' => $band,
                 'label' => AdvertiseInquiry::budgetLabel($band, $currency),
-                'min' => AdvertiseInquiry::BUDGET_BANDS[$band][0],
-                'max' => AdvertiseInquiry::BUDGET_BANDS[$band][1],
+                'min' => AdvertiseInquiry::budgetRange($band, $currency)[0],
+                'max' => AdvertiseInquiry::budgetRange($band, $currency)[1],
                 'currency' => $currency,
             ], array_keys(AdvertiseInquiry::BUDGET_BANDS)),
         ]);
+    }
+
+    /**
+     * Portal funnel tracking (FR-POR-2/8, QC-042): a page view, a wizard step
+     * reached or an application submitted. The anonymous visitor token (the
+     * website's `X-Visitor-Token`) is stored only as a keyed hash.
+     */
+    public function trackFunnel(Request $request, PortalFunnel $funnel): JsonResponse
+    {
+        $event = $request->validate([
+            'event' => ['required', Rule::in(PortalFunnelEvent::EVENTS)],
+            'page' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9\/_-]+$/'],
+            'type' => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9_-]+$/'],
+            'step' => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9_-]+$/'],
+        ]);
+        $visitor = $request->header('X-Visitor-Token');
+        $funnel->record($event, is_string($visitor) ? mb_substr($visitor, 0, 64) : null, app()->getLocale());
+
+        return ApiResponse::success(['recorded' => true], status: 202);
     }
 
     public function advertiseRequest(Request $request, AdvertiseInquiries $inquiries): JsonResponse

@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { syncLocale } from "@/lib/locale-sync";
 import { useMarket } from "@/lib/market-context";
 import { COUNTRIES, LOCALES, switchMarketPath, type Locale } from "@/lib/markets";
 import { buttonClass } from "../ui/button";
@@ -16,7 +17,8 @@ export function CountrySwitcher({ onClose }: { onClose: () => void }) {
   const [country, setCountry] = useState(market.country.code);
   const [locale, setLocale] = useState<Locale>(market.locale);
 
-  const go = () => {
+  const go = async () => {
+    if (locale !== market.locale) await syncLocale(market.slug, locale);
     // A different country has its own catalogue and cart, so land on its home
     // page; switching only the language keeps the current page.
     const target = `${country}-${locale}`;

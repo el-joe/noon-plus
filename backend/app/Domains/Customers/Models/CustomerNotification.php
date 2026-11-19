@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * booking, return, request, ad and review moderation updates. `link` is a
  * storefront path without the market prefix, e.g. `/account/orders/NW-…`.
  */
-#[Fillable(['user_id', 'type', 'title', 'body', 'link', 'data', 'read_at'])]
+#[Fillable(['user_id', 'audience', 'type', 'title', 'body', 'link', 'data', 'read_at'])]
 class CustomerNotification extends Model
 {
     use UsesCountryDatabase;

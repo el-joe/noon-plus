@@ -7,13 +7,18 @@ import '../screens/account/help_screens.dart';
 import '../screens/account/money_screens.dart';
 import '../screens/account/orders_screens.dart';
 import '../screens/account/returns_screens.dart';
+import '../screens/account/saved_cards_screen.dart';
+import '../screens/account/static_page_screen.dart';
+import '../screens/account/support_screens.dart';
 import '../screens/account/wishlist_screen.dart';
 import '../screens/auth/sign_in_screen.dart';
 import '../screens/cart/cart_tab.dart';
 import '../screens/catalog/product_list_screen.dart';
+import '../screens/catalog/compare_screen.dart';
 import '../screens/catalog/product_screen.dart';
 import '../screens/catalog/reviews_screens.dart';
 import '../screens/catalog/search_screen.dart';
+import '../screens/catalog/seller_screens.dart';
 import '../screens/checkout/checkout_screen.dart';
 import '../screens/checkout/payment_flow.dart';
 import '../screens/deals/deals_tab.dart';
@@ -56,6 +61,7 @@ class AppRouter {
       Routes.reviews => ReviewsScreen(slug: s('slug'), title: args.s('title')),
       Routes.questions => QuestionsScreen(slug: s('slug')),
       Routes.writeReview => WriteReviewScreen(orderItemId: args.i('order_item_id')),
+      Routes.myReviews => const MyReviewsScreen(),
       Routes.flashSale => FlashSaleScreen(id: s('id')),
       Routes.page => PageScreen(slug: s('slug'), title: args.s('title')),
       Routes.cart => const CartTab(),
@@ -91,9 +97,18 @@ class AppRouter {
       Routes.souqSent => SouqSentScreen(request: args.m('request') ?? const {}, ad: args.m('ad') ?? const {}),
       Routes.postAd => const PostAdScreen(),
       Routes.myAds => const MyAdsScreen(),
+      Routes.adPhotos => AdPhotosScreen(number: s('number'), category: args.s('category')),
       Routes.viewingRequests => const ViewingRequestsScreen(),
       Routes.live => const LiveListScreen(),
       Routes.liveWatch => LiveWatchScreen(slug: s('slug')),
+      Routes.support => const SupportListScreen(),
+      Routes.supportNew => SupportNewScreen(order: args.s('order'), shipment: args.s('shipment')),
+      Routes.supportTicket => SupportTicketScreen(number: s('number')),
+      Routes.cards => const SavedCardsScreen(),
+      Routes.seller => SellerScreen(slug: s('slug')),
+      Routes.followedStores => const FollowedStoresScreen(),
+      Routes.compare => const CompareScreen(),
+      Routes.staticPage => StaticPageScreen(slug: s('slug'), title: args.s('title')),
       _ => const _NotFound(),
     };
   }

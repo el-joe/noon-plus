@@ -74,4 +74,15 @@ final readonly class Panel
     {
         return $this->key.'.'.$name;
     }
+
+    /**
+     * QC-070: an absolute link on this panel's host with the app's scheme
+     * (https in production, from APP_URL), for emails.
+     */
+    public function url(string $path = '/'): string
+    {
+        $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) ?: 'https';
+
+        return $scheme.'://'.$this->host.'/'.ltrim($path, '/');
+    }
 }

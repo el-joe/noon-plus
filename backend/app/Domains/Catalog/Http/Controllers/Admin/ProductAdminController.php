@@ -2,20 +2,25 @@
 
 namespace App\Domains\Catalog\Http\Controllers\Admin;
 
+use App\Domains\Catalog\Enums\ProductStatus;
 use App\Domains\Catalog\Models\Brand;
 use App\Domains\Catalog\Models\Category;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductVariant;
 use App\Domains\Catalog\Models\SizeGuideTemplate;
+use App\Domains\Catalog\Support\ProductStateMachine;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Identity\Support\AdminVendorScope;
 use App\Domains\Listings\Enums\ListingStatus;
 use App\Domains\Listings\Models\Listing;
+use App\Domains\Orders\Enums\ActorType;
 use App\Http\Controllers\Controller;
 use App\Shared\Http\LikeSearch;
+use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -29,7 +34,10 @@ use Illuminate\View\View;
  */
 class ProductAdminController extends Controller
 {
-    public const STATUSES = ['active', 'inactive'];
+    /**
+     * QC-016: catalogue §1.2 product states.
+     */
+    public const STATUSES = ['draft', 'active', 'restricted', 'discontinued'];
 
     public const FULFILMENT_MODES = ['ready_to_ship', 'made_to_order'];
 
@@ -96,12 +104,13 @@ class ProductAdminController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $product): RedirectResponse
+    public function update(Request $request, int $product, ProductStateMachine $machine): RedirectResponse
     {
         $product = Product::query()->findOrFail($product);
         $data = $request->validate([
             'title_en' => ['required', 'string', 'max:255'],
             'title_ar' => ['required', 'string', 'max:255'],
+            'model_number' => ['nullable', 'string', 'max:64'],
             'slug' => ['required', 'alpha_dash', 'max:255', Rule::unique(Product::class, 'slug')->ignore($product->id)],
             'description_en' => ['nullable', 'string', 'max:10000'],
             'description_ar' => ['nullable', 'string', 'max:10000'],
@@ -109,10 +118,26 @@ class ProductAdminController extends Controller
             'brand_id' => ['nullable', 'integer', Rule::exists(Brand::class, 'id')],
             'size_guide_template_id' => ['nullable', 'integer', Rule::exists(SizeGuideTemplate::class, 'id')],
             'status' => ['required', Rule::in(self::STATUSES)],
+            'status_reason' => ['nullable', 'string', 'max:255'],
             'fulfilment_mode' => ['required', Rule::in(self::FULFILMENT_MODES)],
             'lead_days' => ['nullable', 'integer', 'min:0', 'max:180'],
         ]);
-        $product->update($data);
+        $status = ProductStatus::from($data['status']);
+        $reason = $data['status_reason'] ?? null;
+        unset($data['status'], $data['status_reason']);
+
+        try {
+            DB::connection($product->getConnectionName())->transaction(function () use ($product, $data, $status, $reason, $machine, $request): void {
+                $product->update($data);
+
+                // QC-016: status changes go through the product machine (guards + history).
+                if ($product->status !== $status->value) {
+                    $machine->move($product, $status, ActorType::Admin, $request->user()->id, $reason);
+                }
+            });
+        } catch (TransitionRefused $refused) {
+            return back()->withInput()->withErrors(['status' => $refused->getMessage()]);
+        }
 
         return redirect()->route('admin.catalog.products.show', $product->id)->with('status', __('Product saved.'));
     }

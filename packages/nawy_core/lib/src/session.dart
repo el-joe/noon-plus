@@ -10,7 +10,10 @@ import 'storage/secure_store.dart';
 /// Signed-in state shared by the delivery and ops apps: the market
 /// (`uae-en`), the Sanctum token and the signed-in profile JSON.
 class Session extends ChangeNotifier {
-  Session({required this.api, required this.store, this.country = 'uae', this.locale = 'en'});
+  Session({required this.api, required this.store, this.country = 'uae', this.locale = 'en'}) {
+    api.onAuthFailure ??= handleAuthFailure;
+    api.locale = locale;
+  }
 
   final ApiClient api;
   final SecureStore store;
@@ -19,6 +22,14 @@ class Session extends ChangeNotifier {
   String locale;
   Json? profile;
   bool loaded = false;
+
+  /// Why the app signed out on its own (an l10n key shown on the sign-in
+  /// screen): `auth.expired` (401), `auth.wrongToken` (403 `wrong_token` /
+  /// `no_workspace`) or `auth.suspended` (403 `account_suspended`).
+  String? signOutNotice;
+
+  /// Email of the account that was signed out, to prefill the sign-in form.
+  String? lastEmail;
 
   static const keyCountry = 'country';
   static const keyLocale = 'locale';
@@ -49,6 +60,7 @@ class Session extends ChangeNotifier {
       }
     }
     api.market = market;
+    api.locale = locale;
     loaded = true;
     notifyListeners();
   }
@@ -63,12 +75,14 @@ class Session extends ChangeNotifier {
   Future<void> setLocale(String code) async {
     locale = code;
     api.market = market;
+    api.locale = code;
     await store.write(keyLocale, code);
     notifyListeners();
   }
 
   /// Saves the token returned by a login endpoint plus the profile to show.
   Future<void> signedInWith(String token, Json profileJson) async {
+    signOutNotice = null;
     api.token = token;
     profile = profileJson;
     await store.write(keyToken, token);
@@ -82,8 +96,23 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The API refused the token (see [ApiClient.onAuthFailure]): forget it and
+  /// show the sign-in screen with a message, so the user signs in again.
+  Future<void> handleAuthFailure(ApiException error) async {
+    if (!signedIn) return;
+    signOutNotice = switch (error.code) {
+      'account_suspended' => 'auth.suspended',
+      'wrong_token' || 'no_workspace' => 'auth.wrongToken',
+      _ => 'auth.expired',
+    };
+    await signOut(revoke: false, notice: signOutNotice);
+  }
+
   /// Revokes the token on the server ([logoutPath]) when possible and forgets it.
-  Future<void> signOut({String? logoutPath, bool revoke = true}) async {
+  Future<void> signOut({String? logoutPath, bool revoke = true, String? notice}) async {
+    signOutNotice = notice;
+    final email = profile?['email'] ?? (profile?['user'] is Map ? (profile!['user'] as Map)['email'] : null);
+    if (email is String && email.isNotEmpty) lastEmail = email;
     if (revoke && logoutPath != null && api.token != null) {
       try {
         await api.post(logoutPath);

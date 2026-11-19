@@ -1,15 +1,17 @@
 "use client";
 
 import clsx from "clsx";
-import { Globe, Heart, Search, ShoppingCart, Store, User } from "lucide-react";
+import { Globe, Heart, ShoppingCart, Store, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useState } from "react";
 import { cartItemCount, useCart, useSession, useWishlist } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
+import { syncLocale } from "@/lib/locale-sync";
 import { switchMarketPath } from "@/lib/markets";
 import { NotificationBell } from "@/features/account-extra/notifications";
+import { SearchBox } from "@/features/search/search-box";
 import { CountrySwitcher } from "./country-switcher";
 import { DeliverTo } from "./deliver-to";
 import { Logo } from "./logo";
@@ -119,46 +121,17 @@ function LanguageLink({ pathname }: { pathname: string | null }) {
   const otherLocale = market.locale === "en" ? "ar" : "en";
   const target = `${market.country.code}-${otherLocale}`;
   return (
-    <Link href={pathname ? switchMarketPath(pathname, target) : `/${target}`} hrefLang={otherLocale} lang={otherLocale} className="text-body font-medium">
+    <Link
+      href={pathname ? switchMarketPath(pathname, target) : `/${target}`}
+      hrefLang={otherLocale}
+      lang={otherLocale}
+      // E2E-001: the other language is a different root layout (full load); prefetching it only
+      // costs a request, and on a 404 page the prefetched 404 is a console error.
+      prefetch={false}
+      onClick={() => void syncLocale(market.slug, otherLocale)}
+      className="text-body font-medium"
+    >
       {t("otherLanguage")}
     </Link>
-  );
-}
-
-function SearchBox({ className }: { className?: string }) {
-  const t = useTranslations("header");
-  const router = useRouter();
-  const href = useHref();
-  const [q, setQ] = useState("");
-
-  // Mirror the query when the page is opened on /search?q=…
-  useEffect(() => {
-    if (window.location.pathname.endsWith("/search")) {
-      setQ(new URLSearchParams(window.location.search).get("q") ?? "");
-    }
-  }, []);
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const term = q.trim();
-    if (term) router.push(`${href("/search")}?q=${encodeURIComponent(term)}`);
-  };
-
-  return (
-    <form role="search" onSubmit={submit} className={clsx("flex h-11 items-center gap-2 rounded-md bg-surface ps-4 pe-1", className)}>
-      <input
-        type="search"
-        name="q"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={t("searchPlaceholder")}
-        aria-label={t("search")}
-        maxLength={100}
-        className="h-full min-w-0 flex-1 bg-transparent text-body-lg text-ink placeholder:text-muted focus:outline-none"
-      />
-      <button type="submit" className="flex h-9 w-10 items-center justify-center rounded-sm bg-ink text-white" aria-label={t("search")}>
-        <Search className="size-[18px]" />
-      </button>
-    </form>
   );
 }

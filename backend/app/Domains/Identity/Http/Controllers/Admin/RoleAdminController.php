@@ -3,10 +3,13 @@
 namespace App\Domains\Identity\Http\Controllers\Admin;
 
 use App\Domains\Identity\Enums\AdminPermission;
+use App\Domains\Identity\Support\AdminRoleLabels;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
@@ -35,11 +38,12 @@ class RoleAdminController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request, null);
-        $role = Role::query()->create(['name' => $data['name'], 'guard_name' => 'web', config('permission.column_names.team_foreign_key') => null]);
+        $role = Role::query()->create(['name' => $data['key'], 'guard_name' => 'web', config('permission.column_names.team_foreign_key') => null]);
+        $role->forceFill(['display_name' => $data['name']])->save();
         $role->syncPermissions($data['permissions'] ?? []);
         $this->audit($request, $role, [], $data['permissions'] ?? [], 'created');
 
-        return back()->with('status', __('Role :name created.', ['name' => $role->name]));
+        return back()->with('status', __('Role :name created.', ['name' => $data['name']]));
     }
 
     public function update(Request $request, int $role): RedirectResponse
@@ -51,22 +55,39 @@ class RoleAdminController extends Controller
         $role->syncPermissions($data['permissions'] ?? []);
         $this->audit($request, $role, $before, $data['permissions'] ?? [], 'updated');
 
-        return back()->with('status', __('Role :name saved.', ['name' => $role->name]));
+        return back()->with('status', __('Role :name saved.', ['name' => app(AdminRoleLabels::class)->label($role->name)]));
     }
 
     /**
-     * @return array{name: string, permissions?: array<int, string>}
+     * A new role keeps the name as typed for display and gets a key made from
+     * it (`QA narrow 9okp9wr` → `qa_narrow_9okp9wr`, browser test BT-ADM-010);
+     * an edited role keeps both.
+     *
+     * @return array{name: string, key: string, permissions?: array<int, string>}
      */
     private function validated(Request $request, ?Role $role): array
     {
-        $request->merge(['name' => $role?->name ?? str((string) $request->input('name'))->lower()->snake()->toString()]);
+        if ($role !== null) {
+            return $request->validate([
+                'permissions' => ['nullable', 'array'],
+                'permissions.*' => ['string', Rule::in(array_map(fn (AdminPermission $permission): string => $permission->value, AdminPermission::cases()))],
+            ]) + ['name' => (string) $role->getAttribute('display_name'), 'key' => $role->name];
+        }
 
-        return $request->validate([
-            'name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/',
-                Rule::unique('roles', 'name')->where('guard_name', 'web')->whereNull(config('permission.column_names.team_foreign_key'))->ignore($role?->id)],
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:64'],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in(array_map(fn (AdminPermission $permission): string => $permission->value, AdminPermission::cases()))],
         ]);
+        $data['name'] = trim(preg_replace('/\s+/u', ' ', $data['name']) ?? '');
+        $key = Str::slug($data['name'], '_');
+        $data['key'] = preg_match('/^[a-z][a-z0-9_]*$/', $key) === 1 ? Str::limit($key, 64, '') : 'role_'.Str::lower(Str::random(10));
+
+        Validator::make(['name' => $data['key']], ['name' => [
+            Rule::unique('roles', 'name')->where('guard_name', 'web')->whereNull(config('permission.column_names.team_foreign_key')),
+        ]], ['name.unique' => __('A role with this name already exists.')])->validate();
+
+        return $data;
     }
 
     /**

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nawy_core/nawy_core.dart';
 
 import '../data/vendor_api.dart';
+import 'fbn.dart';
 
 /// Figma "Vendor inventory": search, low-stock filter and stock moves.
 class StockScreen extends StatefulWidget {
@@ -26,7 +27,14 @@ class _StockScreenState extends State<StockScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(context.t('stock.title'))),
+        appBar: AppBar(title: Text(context.t('stock.title')), actions: [
+          IconButton(
+            key: const Key('open-fbn'),
+            tooltip: context.t('fbn.open'),
+            icon: const Icon(Icons.warehouse_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FbnScreen())),
+          ),
+        ]),
         body: Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -55,16 +63,21 @@ class _StockScreenState extends State<StockScreen> {
                       itemBuilder: (context, i) {
                         final r = rows[i];
                         final low = isLowStock(r);
+                        final fbn = r.str('fulfilment') == 'fbn';
                         return Card(
                           child: ListTile(
                             key: Key('stock-${r.i('listing_id')}'),
                             title: Text(r.str('title', r.str('sku')), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(r.str('sku')),
+                            subtitle: Text(fbn ? '${r.str('sku')} · ${context.t('fbn.badge')}' : r.str('sku')),
                             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                               Text('${r.i('stock') ?? 0}', style: NawyText.h4.copyWith(color: low ? NawyColors.textDanger : null)),
                               if (low) Text(context.t('stock.low'), style: NawyText.caption.copyWith(color: NawyColors.textDanger)),
                             ]),
                             onTap: () async {
+                              if (fbn) {
+                                showSnack(context, context.t('fbn.managedByWarehouse'));
+                                return;
+                              }
                               final saved = await showModalBottomSheet<Json>(
                                 context: context,
                                 isScrollControlled: true,
@@ -115,7 +128,7 @@ class _AdjustStockSheetState extends State<AdjustStockSheet> {
       final saved = await widget.api.adjustStock(widget.row.i('listing_id')!, StockAdjustment.from(raw: _qty.text, remove: _remove, reason: _reason!));
       if (mounted) Navigator.pop(context, saved);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.fieldErrors['quantity'] ?? e.message);
+      if (mounted) setState(() => _error = e.fieldErrors['quantity'] ?? apiErrorMessage(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

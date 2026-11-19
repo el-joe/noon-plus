@@ -3,6 +3,7 @@ import 'package:nawy_core/nawy_core.dart';
 
 import '../data/delivery_api.dart';
 import '../data/models.dart';
+import '../ui/run_step.dart';
 
 /// Figma "07 Can't deliver": one of the configured reasons
 /// (`delivery.failure_reasons`, sent with every assignment) plus a note.
@@ -61,7 +62,7 @@ class _CantDeliverScreenState extends State<CantDeliverScreen> {
               : () async {
                   setState(() => _busy = true);
                   final note = _note.text.trim();
-                  final done = await runAction(context, () => DeliveryApi(context.api).fail(widget.assignment.number, _reason!, note: note.isEmpty ? null : note), success: context.t('fail.done'));
+                  final done = await runStep(context, () => DeliveryApi(context.api).fail(widget.assignment.number, _reason!, note: note.isEmpty ? null : note), success: context.t('fail.done'), onRefused: () => Navigator.maybePop(context));
                   if (!context.mounted) return;
                   setState(() => _busy = false);
                   if (done != null) Navigator.pop(context, done);

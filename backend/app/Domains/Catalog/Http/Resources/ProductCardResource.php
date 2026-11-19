@@ -3,6 +3,7 @@
 namespace App\Domains\Catalog\Http\Resources;
 
 use App\Domains\Catalog\Models\Product;
+use App\Domains\Catalog\Support\ProductBadges;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,6 +28,7 @@ class ProductCardResource extends JsonResource
             'fulfilment_mode' => $this->fulfilment_mode,
             'image' => $this->primaryImage()?->toPublicArray(),
             'rating' => ['average' => $this->rating_average, 'count' => (int) $this->rating_count],
+            'badges' => ProductBadges::forCard($this->resource),
         ];
     }
 }

@@ -29,6 +29,7 @@ use App\Shared\Notifications\RequestNotification;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -122,23 +123,68 @@ describe('broker leads', function () {
         expect($lead->refresh())->status->toBe(LeadStatus::Won)->next_follow_up_at->toBeNull();
     });
 
-    it('takes viewing requests from guests as contact details, opens a lead and moves it on confirmation', function () {
+    it('takes viewing requests from guests as contact details and opens a lead the broker moves on their own (D12)', function () {
         [, $broker] = marketerAccount(['broker']);
         $ad = liveProperty($broker);
         $contact = ['name' => 'Sara M.', 'email' => 'sara@example.com', 'phone' => '+971 55 765 4321', 'message' => 'After 6 pm please'];
 
         $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['preferred_at' => now()->subHour()->toDateTimeString()])->assertStatus(422);
         $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", ['name' => 'Sara M.', 'preferred_at' => now()->addDay()->toDateTimeString()])->assertUnprocessable()->assertJsonValidationErrors(['email', 'phone'], 'error.fields');
-        $viewingId = $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['preferred_at' => now()->addDays(2)->toDateTimeString()])->assertCreated()->json('data.id');
-        $viewing = PropertyViewing::query()->findOrFail($viewingId);
+        $response = $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['preferred_at' => now()->addDays(2)->toDateTimeString()])->assertCreated()
+            ->assertJsonPath('data.type', 'viewing')->assertJsonMissingPath('data.status');
+        $viewing = PropertyViewing::query()->findOrFail($response->json('data.id'));
 
-        expect($viewing)->customer_user_id->toBeNull()->contact_phone->toBe('+971557654321')
-            ->and(BrokerLead::query()->sole())->name->toBe('Sara M.')->phone->toBe('+971557654321')->notes->toBe('After 6 pm please');
+        expect($viewing)->customer_user_id->toBeNull()->contact_phone->toBe('+971557654321')->note->toBe('After 6 pm please')
+            ->and($viewing->toArray())->not->toHaveKeys(['status', 'scheduled_at'])
+            ->and(BrokerLead::query()->sole())->name->toBe('Sara M.')->phone->toBe('+971557654321')->notes->toBe('After 6 pm please')->status->toBe(LeadStatus::New);
         Notification::assertSentTo(User::query()->find($broker->user_id), RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'viewing.requested');
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail, array $channels, object $notifiable): bool => $mail->kind === 'viewing.received' && $notifiable->routes['mail'] === 'sara@example.com');
+        Notification::assertSentOnDemandTimes(RequestNotification::class, 0);
+        expect(method_exists(Viewings::class, 'confirm'))->toBeFalse()
+            ->and(method_exists(Viewings::class, 'move'))->toBeFalse()
+            ->and(file_exists(app_path('Domains/RealEstate/Enums/ViewingStatus.php')))->toBeFalse();
 
-        app(Viewings::class)->confirm($viewing, 1);
-        expect(BrokerLead::query()->sole()->status)->toBe(LeadStatus::ViewingScheduled);
+        $leads = app(BrokerLeads::class);
+        $leads->move(BrokerLead::query()->sole(), LeadStatus::ViewingScheduled, 1);
+        expect(BrokerLead::query()->sole()->status)->toBe(LeadStatus::ViewingScheduled)
+            ->and(DB::connection($viewing->getConnectionName())->table('state_transitions')->where('subject_type', 'property_viewing')->exists())->toBeFalse();
+    });
+
+    it('has no confirm, reject, schedule or complete endpoint for a request (D12)', function () {
+        $ad = liveProperty();
+        [, $token] = customerWithToken();
+        $id = $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", ['name' => 'Sara M.', 'email' => 'sara@example.com', 'phone' => '0501234567', 'preferred_at' => now()->addDay()->toDateTimeString()])
+            ->assertCreated()->json('data.id');
+
+        foreach (['confirm', 'reject', 'schedule', 'complete', 'cancel', 'status'] as $action) {
+            $this->withToken($token)->postJson("/api/v1/uae-en/me/viewing-requests/{$id}/{$action}")->assertNotFound();
+            $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings/{$id}/{$action}")->assertNotFound();
+            $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/mine/requests/{$id}/{$action}")->assertNotFound();
+        }
+
+        $this->withToken($token)->patchJson('/api/v1/uae-en/me/viewing-requests', ['status' => 'confirmed'])->assertStatus(405);
+        $this->withToken($token)->getJson('/api/v1/uae-en/me/viewing-requests')->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $id)->assertJsonMissingPath('data.0.status')->assertJsonMissingPath('data.0.scheduled_at');
+    });
+
+    it('lists the requests on the owner\'s own ads with the contact details, and nobody else\'s (D12)', function () {
+        $owner = User::factory()->create();
+        $mine = liveProperty();
+        $mine->forceFill(['owner_user_id' => $owner->id])->save();
+        $theirs = liveProperty();
+        $contact = ['name' => 'Sara M.', 'email' => 'sara@example.com', 'phone' => '0501234567', 'preferred_at' => now()->addDay()->toDateTimeString(), 'message' => 'Evening please'];
+        $this->postJson("/api/v1/uae-en/classifieds/ads/{$mine->number}/viewings", $contact + ['type' => 'reserve'])->assertCreated();
+        $this->postJson("/api/v1/uae-en/classifieds/ads/{$theirs->number}/viewings", $contact)->assertCreated();
+        $token = $owner->createToken('test', ['customer'])->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/v1/uae-en/classifieds/mine/requests')->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.type', 'reserve')
+            ->assertJsonPath('data.0.ad.number', $mine->number)
+            ->assertJsonPath('data.0.note', 'Evening please')
+            ->assertJsonPath('data.0.contact', ['name' => 'Sara M.', 'email' => 'sara@example.com', 'phone' => '+971501234567'])
+            ->assertJsonMissingPath('data.0.status');
+        $this->withToken($token)->getJson('/api/v1/uae-en/classifieds/mine/requests?type=viewing')->assertOk()->assertJsonCount(0, 'data');
+        app('auth')->forgetGuards();
+        $this->withoutToken()->getJson('/api/v1/uae-en/classifieds/mine/requests')->assertUnauthorized();
     });
 });
 
@@ -189,4 +235,27 @@ describe('exclusive contracts', function () {
         expect(ExclusiveContract::query()->pluck('status')->all())->toBe([ExclusiveStatus::Expired, ExclusiveStatus::Expired]);
         $this->getJson("/api/v1/uae-en/classifieds/ads/{$ad->number}")->assertJsonPath('data.exclusive_marketer', null);
     });
+});
+
+it('QC-009: an admin grants an exclusive contract on an ad from the admin panel and revokes it', function () {
+    $this->withoutVite();
+    $ad = liveProperty();
+    [, $broker] = marketerAccount(['broker'], attributes: ['display_name' => 'Gulf Broker']);
+    $admin = adminAccount('uae', 'marketing');
+    $window = ['starts_at' => now('Asia/Dubai')->subHour()->format('Y-m-d\TH:i'), 'ends_at' => now('Asia/Dubai')->addDays(30)->format('Y-m-d\TH:i')];
+
+    $this->actingAs($admin)->get(onPanel('admin', 'real-estate'))->assertOk()->assertSee('Gulf Broker');
+    $this->post(onPanel('admin', 'real-estate/exclusive-contracts'), ['marketer_profile_id' => $broker->id, 'subject_type' => 'ad', 'ad_number' => 'NOPE'] + $window)
+        ->assertSessionHasErrors('ad_number');
+    $this->post(onPanel('admin', 'real-estate/exclusive-contracts'), ['marketer_profile_id' => $broker->id, 'subject_type' => 'ad', 'ad_number' => $ad->number, 'file' => UploadedFile::fake()->create('deal.pdf', 20, 'application/pdf')] + $window)
+        ->assertSessionHasNoErrors();
+
+    $contract = ExclusiveContract::query()->sole();
+    expect($contract->status)->toBe(ExclusiveStatus::Active)->and($contract->granted_by_user_id)->toBe($admin->id);
+    $this->getJson("/api/v1/uae-en/classifieds/ads/{$ad->number}")->assertJsonPath('data.exclusive_marketer.name', 'Gulf Broker');
+    $this->get(onPanel('admin', "real-estate/exclusive-contracts/{$contract->id}/file"))->assertOk();
+
+    $this->actingAs(adminAccount('uae', 'support'))->post(onPanel('admin', "real-estate/exclusive-contracts/{$contract->id}/revoke"), ['reason' => 'Ended early'])->assertForbidden();
+    $this->actingAs($admin)->post(onPanel('admin', "real-estate/exclusive-contracts/{$contract->id}/revoke"), ['reason' => 'Ended early'])->assertSessionHasNoErrors();
+    expect($contract->refresh()->status)->toBe(ExclusiveStatus::Revoked);
 });

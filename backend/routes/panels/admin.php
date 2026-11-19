@@ -6,33 +6,53 @@
 */
 
 use App\Domains\Advertising\Http\Controllers\Admin\AdsReviewController;
+use App\Domains\Advertising\Http\Controllers\Admin\TravelPromotionAdminController;
 use App\Domains\Campaigns\Http\Controllers\Admin\CampaignAdminController;
 use App\Domains\Catalog\Http\Controllers\Admin\BrandAdminController;
 use App\Domains\Catalog\Http\Controllers\Admin\CategoryAdminController;
 use App\Domains\Catalog\Http\Controllers\Admin\ProductAdminController;
+use App\Domains\Catalog\Http\Controllers\Admin\ProductRequestAdminController;
+use App\Domains\Classifieds\Http\Controllers\Admin\ClassifiedCategoryController;
 use App\Domains\Classifieds\Http\Controllers\Admin\ClassifiedReviewController;
 use App\Domains\Content\Http\Controllers\Admin\AppContextController;
 use App\Domains\Content\Http\Controllers\Admin\CmsController;
 use App\Domains\Content\Http\Controllers\Admin\NotificationTemplateController;
 use App\Domains\Content\Http\Controllers\Admin\PageBuilderController;
 use App\Domains\Contracts\Http\Controllers\Admin\ContractTemplateController;
+use App\Domains\Countries\Http\Controllers\Admin\DomainAdminController;
 use App\Domains\Countries\Http\Controllers\Admin\HolidayController;
 use App\Domains\Coupons\Http\Controllers\Admin\CouponAdminController;
+use App\Domains\Customers\Http\Controllers\Admin\CustomerAdminController;
+use App\Domains\Delivery\Http\Controllers\Admin\AgentWithdrawalController;
 use App\Domains\Delivery\Http\Controllers\Admin\CarrierClaimController;
 use App\Domains\Delivery\Http\Controllers\Admin\DeliveryDispatchController;
 use App\Domains\Delivery\Http\Controllers\Admin\DeliveryNetworkController;
 use App\Domains\Disputes\Http\Controllers\Admin\AdminDisputeController;
 use App\Domains\Documents\Http\Controllers\Admin\DocumentReviewController;
+use App\Domains\Finance\Http\Controllers\Admin\AcquisitionCommissionController;
 use App\Domains\Finance\Http\Controllers\Admin\CodSettlementController;
+use App\Domains\Finance\Http\Controllers\Admin\ExchangeRateController;
+use App\Domains\Finance\Http\Controllers\Admin\LedgerController;
 use App\Domains\Finance\Http\Controllers\Admin\PayoutController;
+use App\Domains\Finance\Http\Controllers\Admin\VendorSubscriptionAdminController;
 use App\Domains\FlashSales\Http\Controllers\Admin\FlashSaleEventController;
+use App\Domains\Fulfilment\Http\Controllers\Admin\FbnAdminController;
+use App\Domains\Fulfilment\Http\Controllers\Admin\FbnOperationsController;
+use App\Domains\Fulfilment\Http\Controllers\Admin\PackagingAdminController;
 use App\Domains\GiftCards\Http\Controllers\Admin\GiftCardAdminController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleAdminController;
 use App\Domains\Identity\Http\Controllers\Admin\StaffController;
 use App\Domains\Listings\Http\Controllers\Admin\ListingReviewController;
 use App\Domains\LiveMedia\Http\Controllers\Admin\LiveMediaController;
+use App\Domains\Marketers\Http\Controllers\Admin\CelebrityReportAdminController;
 use App\Domains\Marketers\Http\Controllers\Admin\MarketerAdminController;
 use App\Domains\Membership\Http\Controllers\Admin\MembershipAdminController;
+use App\Domains\Migration\Http\Controllers\Admin\LegacyRecordController;
+use App\Domains\Migration\Http\Controllers\Admin\LegacyRedirectAdminController;
+use App\Domains\Migration\Http\Controllers\Admin\MigrationJobController;
+use App\Domains\Migration\Http\Controllers\Admin\MigrationRunController;
+use App\Domains\Migration\Http\Controllers\Admin\QuarantineController;
+use App\Domains\Migration\Http\Controllers\Admin\ReconciliationController;
 use App\Domains\Onboarding\Http\Controllers\Admin\ApplicationReviewController;
 use App\Domains\Onboarding\Http\Controllers\Admin\PortalAdminController;
 use App\Domains\Orders\Http\Controllers\Admin\AdminOrderController;
@@ -41,11 +61,15 @@ use App\Domains\Panels\Http\Controllers\Admin\SystemHealthController;
 use App\Domains\Panels\Http\Controllers\AdminSettingsController;
 use App\Domains\Payments\Http\Controllers\Admin\PaymentGatewayController;
 use App\Domains\Payments\Http\Controllers\Admin\PaymentReviewController;
+use App\Domains\RealEstate\Http\Controllers\Admin\ExclusiveContractAdminController;
 use App\Domains\Refunds\Http\Controllers\Admin\RefundAdminController;
+use App\Domains\Reporting\Http\Controllers\Admin\CrossCountryReportController;
 use App\Domains\Returns\Http\Controllers\Admin\AdminReturnController;
 use App\Domains\Reviews\Http\Controllers\Admin\ReviewModerationController;
 use App\Domains\Shipping\Http\Controllers\Admin\ShippingZoneController;
+use App\Domains\Support\Http\Controllers\Admin\AdminSupportTicketController;
 use App\Domains\Travel\Http\Controllers\Admin\TravelReviewController;
+use App\Domains\Vendors\Http\Controllers\Admin\ChangeRequestAdminController;
 use App\Domains\Vendors\Http\Controllers\Admin\VendorAdminController;
 use App\Domains\Warranty\Http\Controllers\Admin\WarrantyClaimAdminController;
 use App\Domains\Warranty\Http\Controllers\Admin\WarrantyPlanController;
@@ -60,6 +84,7 @@ Route::middleware('can:vendor_listings.approve')->group(function (): void {
 Route::middleware('can:orders.view')->group(function (): void {
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders');
     Route::get('orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+    Route::get('orders/{order}/invoice.pdf', [AdminOrderController::class, 'invoicePdf'])->whereNumber('order')->middleware('throttle:30,1')->name('orders.invoice-pdf');
 });
 Route::post('sub-orders/{subOrder}/status', [AdminOrderController::class, 'move'])->whereNumber('subOrder')->middleware('can:orders.status')->name('orders.move');
 Route::post('sub-orders/{subOrder}/cancel', [AdminOrderController::class, 'forceCancel'])->whereNumber('subOrder')->middleware('can:orders.force_cancel')->name('orders.force-cancel');
@@ -113,6 +138,23 @@ Route::middleware('can:payment_gateways.update')->group(function (): void {
 });
 
 /*
+| Countries & gateways → Exchange rates (PayPal USD conversion; Finance) and
+| Domains (QC-044 hostname → market / panel / portal; super admin).
+*/
+Route::get('countries/exchange-rates', [ExchangeRateController::class, 'index'])->middleware('can:exchange_rates.view')->name('countries.exchange-rates');
+Route::middleware('can:exchange_rates.manage')->group(function (): void {
+    Route::post('countries/exchange-rates', [ExchangeRateController::class, 'store'])->name('countries.exchange-rates.store');
+    Route::post('countries/exchange-rates/sync', [ExchangeRateController::class, 'sync'])->middleware('throttle:6,1')->name('countries.exchange-rates.sync');
+});
+Route::get('countries/domains', [DomainAdminController::class, 'index'])->middleware('can:domains.view')->name('countries.domains');
+Route::middleware('can:domains.manage')->group(function (): void {
+    Route::post('countries/domains', [DomainAdminController::class, 'store'])->name('countries.domains.store');
+    Route::get('countries/domains/{domain}/edit', [DomainAdminController::class, 'edit'])->whereNumber('domain')->name('countries.domains.edit');
+    Route::put('countries/domains/{domain}', [DomainAdminController::class, 'update'])->whereNumber('domain')->name('countries.domains.update');
+    Route::delete('countries/domains/{domain}', [DomainAdminController::class, 'destroy'])->whereNumber('domain')->name('countries.domains.destroy');
+});
+
+/*
 | Returns (SRS §4.1.4, §7.4) and Finance → Payouts / COD settlements
 | (SRS §4.1.12, Figma 98:4242) — matrix §3.2 `returns`, `payouts`,
 | `cod_settlements`.
@@ -139,6 +181,19 @@ Route::middleware('can:disputes.manage')->group(function (): void {
     Route::post('disputes/{dispute}/close', [AdminDisputeController::class, 'close'])->whereNumber('dispute')->name('disputes.close');
 });
 
+/*
+| Support tickets (QC-007, SRS §15, lifecycle §9.3): queue, thread with
+| internal notes, assignment, priority and status moves.
+*/
+Route::get('support', [AdminSupportTicketController::class, 'index'])->middleware('can:tickets.view')->name('support');
+Route::get('support/{ticket}', [AdminSupportTicketController::class, 'show'])->whereNumber('ticket')->middleware('can:tickets.view')->name('support.show');
+Route::middleware('can:tickets.manage')->group(function (): void {
+    Route::post('support/{ticket}/reply', [AdminSupportTicketController::class, 'reply'])->whereNumber('ticket')->middleware('throttle:30,1')->name('support.reply');
+    Route::post('support/{ticket}/assign', [AdminSupportTicketController::class, 'assign'])->whereNumber('ticket')->name('support.assign');
+    Route::post('support/{ticket}/priority', [AdminSupportTicketController::class, 'priority'])->whereNumber('ticket')->name('support.priority');
+    Route::post('support/{ticket}/status', [AdminSupportTicketController::class, 'status'])->whereNumber('ticket')->name('support.status');
+});
+
 Route::get('finance', fn () => redirect()->route('admin.finance.payouts'))->middleware('can:payouts.view')->name('finance');
 Route::get('finance/payouts', [PayoutController::class, 'index'])->middleware('can:payouts.view')->name('finance.payouts');
 Route::get('finance/payouts/{payout}', [PayoutController::class, 'show'])->whereNumber('payout')->middleware('can:payouts.view')->name('finance.payouts.show');
@@ -156,6 +211,53 @@ Route::middleware('can:payouts.process')->group(function (): void {
 });
 Route::get('finance/cod-settlements', [CodSettlementController::class, 'index'])->middleware('can:cod_settlements.view')->name('finance.cod-settlements');
 Route::post('finance/cod-settlements/{settlement}/settle', [CodSettlementController::class, 'settle'])->whereNumber('settlement')->middleware('can:cod_settlements.settle')->name('finance.cod-settlements.settle');
+
+/*
+| Finance → Ledger (read-only): accounts and balances, journal entries with
+| filters, an entry's debit / credit lines and the CSV export.
+*/
+Route::middleware('can:ledger.view')->group(function (): void {
+    Route::get('finance/ledger', [LedgerController::class, 'accounts'])->name('finance.ledger');
+    Route::get('finance/ledger/entries', [LedgerController::class, 'entries'])->name('finance.ledger.entries');
+    Route::get('finance/ledger/entries/export', [LedgerController::class, 'export'])->middleware('throttle:10,1')->name('finance.ledger.entries.export');
+    Route::get('finance/ledger/entries/{transaction}', [LedgerController::class, 'show'])->whereNumber('transaction')->name('finance.ledger.entries.show');
+});
+
+/*
+| Acquisition commissions (FR-FIN-6, SRS §4.1.5) and vendor subscriptions
+| (FR-FIN-7, SRS §4.1.12). "My acquisition commissions" is open to every
+| admin (own rows only).
+*/
+Route::get('my-acquisition-commissions', [AcquisitionCommissionController::class, 'mine'])->name('finance.my-acquisition-commissions');
+Route::middleware('can:acquisition_commissions.view')->group(function (): void {
+    Route::get('finance/acquisition-commissions', [AcquisitionCommissionController::class, 'index'])->name('finance.acquisition-commissions');
+    Route::get('finance/acquisition-commissions/{commission}', [AcquisitionCommissionController::class, 'show'])->whereNumber('commission')->name('finance.acquisition-commissions.show');
+    Route::get('finance/acquisition-rules', [AcquisitionCommissionController::class, 'rules'])->name('finance.acquisition-rules');
+});
+Route::middleware('can:acquisition_commissions.manage')->group(function (): void {
+    Route::post('finance/acquisition-commissions/generate', [AcquisitionCommissionController::class, 'generate'])->name('finance.acquisition-commissions.generate');
+    Route::post('finance/acquisition-commissions/{commission}/approve', [AcquisitionCommissionController::class, 'approve'])->whereNumber('commission')->name('finance.acquisition-commissions.approve');
+    Route::post('finance/acquisition-commissions/{commission}/pay', [AcquisitionCommissionController::class, 'pay'])->whereNumber('commission')->name('finance.acquisition-commissions.pay');
+    Route::post('finance/acquisition-commissions/{commission}/reject', [AcquisitionCommissionController::class, 'reject'])->whereNumber('commission')->name('finance.acquisition-commissions.reject');
+    Route::post('finance/acquisition-rules', [AcquisitionCommissionController::class, 'storeRule'])->name('finance.acquisition-rules.store');
+    Route::get('finance/acquisition-rules/{rule}/edit', [AcquisitionCommissionController::class, 'editRule'])->whereNumber('rule')->name('finance.acquisition-rules.edit');
+    Route::put('finance/acquisition-rules/{rule}', [AcquisitionCommissionController::class, 'updateRule'])->whereNumber('rule')->name('finance.acquisition-rules.update');
+});
+Route::middleware('can:vendor_subscriptions.view')->group(function (): void {
+    Route::get('finance/subscriptions', [VendorSubscriptionAdminController::class, 'index'])->name('finance.subscriptions');
+    Route::get('finance/subscriptions/{subscription}', [VendorSubscriptionAdminController::class, 'show'])->whereNumber('subscription')->name('finance.subscriptions.show');
+    Route::get('finance/subscription-plans', [VendorSubscriptionAdminController::class, 'plans'])->name('finance.subscription-plans');
+    Route::get('finance/subscription-invoices/{invoice}/pdf', [VendorSubscriptionAdminController::class, 'invoicePdf'])->whereNumber('invoice')->name('finance.subscription-invoices.pdf');
+});
+Route::middleware('can:vendor_subscriptions.manage')->group(function (): void {
+    Route::post('finance/subscriptions', [VendorSubscriptionAdminController::class, 'subscribe'])->name('finance.subscriptions.store');
+    Route::post('finance/subscriptions/{subscription}/plan', [VendorSubscriptionAdminController::class, 'changePlan'])->whereNumber('subscription')->name('finance.subscriptions.plan');
+    Route::post('finance/subscriptions/{subscription}/cancel', [VendorSubscriptionAdminController::class, 'cancel'])->whereNumber('subscription')->name('finance.subscriptions.cancel');
+    Route::post('finance/subscription-invoices/{invoice}/deduct', [VendorSubscriptionAdminController::class, 'deduct'])->whereNumber('invoice')->name('finance.subscription-invoices.deduct');
+    Route::post('finance/subscription-plans', [VendorSubscriptionAdminController::class, 'storePlan'])->name('finance.subscription-plans.store');
+    Route::get('finance/subscription-plans/{plan}/edit', [VendorSubscriptionAdminController::class, 'editPlan'])->whereNumber('plan')->name('finance.subscription-plans.edit');
+    Route::put('finance/subscription-plans/{plan}', [VendorSubscriptionAdminController::class, 'updatePlan'])->whereNumber('plan')->name('finance.subscription-plans.update');
+});
 
 /*
 | Marketers & campaigns, Contracts, Documents (WP5, SRS §4.1.6, §13,
@@ -215,6 +317,9 @@ Route::middleware('can:classifieds.review')->group(function (): void {
     Route::get('classifieds/reports', [ClassifiedReviewController::class, 'reports'])->name('classifieds.reports');
     Route::post('classifieds/reports/{report}', [ClassifiedReviewController::class, 'decide'])->whereNumber('report')->name('classifieds.reports.decide');
 });
+Route::get('classifieds/categories', [ClassifiedCategoryController::class, 'index'])->middleware('can:categories.view')->name('classifieds.categories');
+Route::post('classifieds/categories/{category}/contract', [ClassifiedCategoryController::class, 'contract'])->whereNumber('category')->middleware('can:categories.manage')->name('classifieds.categories.contract');
+Route::post('classifieds/categories/{category}/limits', [ClassifiedCategoryController::class, 'limits'])->whereNumber('category')->middleware('can:categories.manage')->name('classifieds.categories.limits');
 Route::middleware('can:travel_packages.review')->group(function (): void {
     Route::get('travel', [TravelReviewController::class, 'index'])->name('travel');
     Route::post('travel/{package}/approve', [TravelReviewController::class, 'approve'])->whereNumber('package')->name('travel.approve');
@@ -225,7 +330,19 @@ Route::middleware('can:ads.review')->group(function (): void {
     Route::get('marketing', [AdsReviewController::class, 'index'])->name('marketing');
     Route::post('marketing/campaigns/{campaign}', [AdsReviewController::class, 'decideCampaign'])->whereNumber('campaign')->name('marketing.campaigns.decide');
     Route::post('marketing/bookings/{booking}', [AdsReviewController::class, 'decideBooking'])->whereNumber('booking')->name('marketing.bookings.decide');
+    Route::post('marketing/bookings/{booking}/video', [AdsReviewController::class, 'bookingVideo'])->whereNumber('booking')->name('marketing.bookings.video');
     Route::post('marketing/subscriptions/{subscription}', [AdsReviewController::class, 'decideSubscription'])->whereNumber('subscription')->name('marketing.subscriptions.decide');
+});
+/*
+| D14: travel promotions — placement, options (price per country, duration) and paid promotions.
+*/
+Route::get('marketing/travel-promotions', [TravelPromotionAdminController::class, 'index'])->middleware('can:travel_promotions.view')->name('marketing.travel-promotions');
+Route::middleware('can:travel_promotions.manage')->group(function (): void {
+    Route::post('marketing/travel-promotions/slot', [TravelPromotionAdminController::class, 'updateSlot'])->name('marketing.travel-promotions.slot');
+    Route::post('marketing/travel-promotions/products', [TravelPromotionAdminController::class, 'storeProduct'])->name('marketing.travel-promotions.products.store');
+    Route::put('marketing/travel-promotions/products/{product}', [TravelPromotionAdminController::class, 'updateProduct'])->whereNumber('product')->name('marketing.travel-promotions.products.update');
+    Route::post('marketing/travel-promotions/{promotion}/cancel', [TravelPromotionAdminController::class, 'cancel'])->whereNumber('promotion')->name('marketing.travel-promotions.cancel');
+    Route::post('marketing/travel-promotions/{promotion}/refund', [TravelPromotionAdminController::class, 'refund'])->whereNumber('promotion')->name('marketing.travel-promotions.refund');
 });
 Route::middleware('can:coupon_participation.manage')->group(function (): void {
     Route::get('marketing/coupon-participation', [AdsReviewController::class, 'participation'])->name('marketing.coupon-participation');
@@ -252,6 +369,10 @@ Route::middleware('can:delivery_assignments.manage')->group(function (): void {
     Route::post('delivery/shipments/{shipment}/return-to-origin', [DeliveryDispatchController::class, 'returnToOrigin'])->whereNumber('shipment')->name('delivery.shipments.rto');
     Route::post('delivery/shipments/{shipment}/returned', [DeliveryDispatchController::class, 'confirmReturned'])->whereNumber('shipment')->name('delivery.shipments.returned');
 });
+Route::get('delivery/withdrawals', [AgentWithdrawalController::class, 'index'])->middleware('can:payouts.view')->name('delivery.withdrawals');
+Route::post('delivery/withdrawals/{withdrawal}', [AgentWithdrawalController::class, 'update'])->whereNumber('withdrawal')->middleware('can:payouts.view')->name('delivery.withdrawals.update');
+Route::get('delivery/shipments/{shipment}/label', [DeliveryDispatchController::class, 'label'])->whereNumber('shipment')->middleware('can:delivery_assignments.view')->name('delivery.shipments.label');
+Route::get('delivery/shipments/{shipment}/label.pdf', [DeliveryDispatchController::class, 'label'])->whereNumber('shipment')->middleware('can:delivery_assignments.view')->name('delivery.shipments.label-pdf');
 Route::middleware('can:delivery_agents.manage')->group(function (): void {
     Route::get('delivery/agents', [DeliveryNetworkController::class, 'agents'])->name('delivery.agents');
     Route::post('delivery/agents', [DeliveryNetworkController::class, 'storeAgent'])->name('delivery.agents.store');
@@ -297,6 +418,8 @@ Route::middleware('can:live_media.manage')->group(function (): void {
     Route::post('media/{stream}/live', [LiveMediaController::class, 'goLive'])->whereNumber('stream')->name('media.live');
     Route::post('media/{stream}/end', [LiveMediaController::class, 'end'])->whereNumber('stream')->name('media.end');
     Route::post('media/{stream}/products', [LiveMediaController::class, 'products'])->whereNumber('stream')->name('media.products');
+    Route::post('media/floating', [LiveMediaController::class, 'floating'])->name('media.floating');
+    Route::post('media/{stream}/comments/{comment}', [LiveMediaController::class, 'moderateComment'])->whereNumber(['stream', 'comment'])->name('media.comments.moderate');
 });
 Route::middleware('can:blog.manage')->group(function (): void {
     Route::get('cms', [CmsController::class, 'blog'])->name('cms');
@@ -336,11 +459,13 @@ Route::middleware('can:applications.view')->group(function (): void {
 Route::middleware('can:applications.approve')->group(function (): void {
     Route::post('applications/{application}/assign', [ApplicationReviewController::class, 'assign'])->whereNumber('application')->name('applications.assign');
     Route::post('applications/{application}/decide', [ApplicationReviewController::class, 'decide'])->whereNumber('application')->name('applications.decide');
+    Route::post('applications/{application}/acquirer', [ApplicationReviewController::class, 'acquirer'])->whereNumber('application')->name('applications.acquirer');
     Route::post('applications/{application}/documents/{document}', [ApplicationReviewController::class, 'reviewDocument'])->whereNumber(['application', 'document'])->name('applications.documents.review');
 });
 Route::get('join-options', [PortalAdminController::class, 'joinOptions'])->middleware('can:join_options.configure')->name('join-options');
 Route::put('join-options', [PortalAdminController::class, 'saveJoinOptions'])->middleware('can:join_options.configure')->name('join-options.save');
 Route::get('advertise-requests', [PortalAdminController::class, 'inquiries'])->middleware('can:advertise_inquiries.view')->name('advertise-requests');
+Route::get('portal-analytics', [PortalAdminController::class, 'analytics'])->middleware('can:applications.view')->name('portal-analytics');
 Route::post('advertise-requests/{inquiry}', [PortalAdminController::class, 'moveInquiry'])->whereNumber('inquiry')->middleware('can:advertise_inquiries.manage')->name('advertise-requests.move');
 
 /*
@@ -349,6 +474,7 @@ Route::post('advertise-requests/{inquiry}', [PortalAdminController::class, 'move
 */
 Route::get('reviews', [ReviewModerationController::class, 'index'])->middleware('can:reviews.view')->name('reviews');
 Route::post('reviews/reviews/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'reviews')->middleware('can:reviews.moderate')->name('reviews.reviews.decide');
+Route::post('reviews/replies/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'replies')->middleware('can:reviews.moderate')->name('reviews.replies.decide');
 Route::middleware('can:product_qa.moderate')->group(function (): void {
     Route::post('reviews/questions/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'questions')->name('reviews.questions.decide');
     Route::post('reviews/answers/{id}', [ReviewModerationController::class, 'decide'])->whereNumber('id')->defaults('type', 'answers')->name('reviews.answers.decide');
@@ -402,6 +528,7 @@ Route::middleware('can:coupons.manage')->group(function (): void {
     Route::post('coupons', [CouponAdminController::class, 'store'])->name('coupons.store');
     Route::get('coupons/{coupon}/edit', [CouponAdminController::class, 'edit'])->whereNumber('coupon')->name('coupons.edit');
     Route::put('coupons/{coupon}', [CouponAdminController::class, 'update'])->whereNumber('coupon')->name('coupons.update');
+    Route::post('coupons/{coupon}/toggle', [CouponAdminController::class, 'toggle'])->whereNumber('coupon')->name('coupons.toggle');
 });
 Route::middleware('can:gift_cards.view')->group(function (): void {
     Route::get('gift-cards', [GiftCardAdminController::class, 'index'])->name('gift-cards');
@@ -467,8 +594,22 @@ Route::middleware('can:vendors.view')->group(function (): void {
     Route::get('vendors', [VendorAdminController::class, 'index'])->name('vendors');
     Route::get('vendors/{vendor}', [VendorAdminController::class, 'show'])->whereNumber('vendor')->name('vendors.show');
 });
+// QC-009: exclusive real-estate contracts (matrix "marketers … exclusive").
+Route::middleware('can:marketers.view')->group(function (): void {
+    Route::get('real-estate', [ExclusiveContractAdminController::class, 'index'])->name('real-estate');
+    Route::get('real-estate/exclusive-contracts/{contract}/file', [ExclusiveContractAdminController::class, 'file'])->whereNumber('contract')->name('real-estate.file');
+});
+Route::middleware('can:marketers.manage')->group(function (): void {
+    Route::post('real-estate/exclusive-contracts', [ExclusiveContractAdminController::class, 'store'])->name('real-estate.store');
+    Route::post('real-estate/exclusive-contracts/{contract}/revoke', [ExclusiveContractAdminController::class, 'revoke'])->whereNumber('contract')->name('real-estate.revoke');
+});
+
+// QC-016: customer accounts (active ⇄ suspended, banned).
+Route::get('customers', [CustomerAdminController::class, 'index'])->middleware('can:customers.view')->name('customers');
+Route::post('customers/{user}/status', [CustomerAdminController::class, 'status'])->whereNumber('user')->middleware('can:customers.update')->name('customers.status');
 Route::post('vendors/{vendor}/status', [VendorAdminController::class, 'status'])->whereNumber('vendor')->middleware('can:vendors.update')->name('vendors.status');
 Route::post('vendors/{vendor}/account-manager', [VendorAdminController::class, 'accountManager'])->whereNumber('vendor')->middleware('can:vendors.assign_account_manager')->name('vendors.account-manager');
+Route::post('vendors/{vendor}/acquirer', [VendorAdminController::class, 'acquirer'])->whereNumber('vendor')->middleware('can:vendors.assign_account_manager')->name('vendors.acquirer');
 Route::middleware('can:admins.view')->group(function (): void {
     Route::get('staff', [StaffController::class, 'index'])->name('staff');
     Route::get('staff/{user}', [StaffController::class, 'show'])->whereNumber('user')->name('staff.show');
@@ -501,3 +642,111 @@ Route::middleware('can:system_health.manage')->group(function (): void {
 Route::middleware('can:delivery_agents.manage')->group(function (): void {
     Route::post('delivery/agents/invitations/{invitation}/revoke', [DeliveryNetworkController::class, 'revokeInvitation'])->whereNumber('invitation')->name('delivery.agents.invitations.revoke');
 });
+
+/*
+| WP11 extras — Data migration (super admin + Ops, `data_migration.*`): runs,
+| quarantine review and re-tries, legacy records, redirects, reconciliation.
+*/
+Route::prefix('migration')->name('migration.')->group(function (): void {
+    Route::middleware('can:data_migration.view')->group(function (): void {
+        Route::get('/', fn () => redirect()->route('admin.migration.quarantine'))->name('index');
+        Route::get('runs', [MigrationRunController::class, 'index'])->name('runs');
+        Route::get('runs/{run}', [MigrationRunController::class, 'show'])->whereNumber('run')->name('runs.show');
+        Route::get('quarantine', [QuarantineController::class, 'index'])->name('quarantine');
+        Route::get('quarantine/{entry}', [QuarantineController::class, 'show'])->whereNumber('entry')->name('quarantine.show');
+        Route::get('jobs/{job}', [MigrationJobController::class, 'show'])->whereNumber('job')->name('jobs.show');
+        Route::get('records', [LegacyRecordController::class, 'index'])->name('records');
+        Route::get('records/{database}/{record}', [LegacyRecordController::class, 'show'])->where('database', '[a-z]{3,7}')->whereNumber('record')->name('records.show');
+        Route::get('redirects', [LegacyRedirectAdminController::class, 'index'])->name('redirects');
+        Route::get('redirects/export.{format}', [LegacyRedirectAdminController::class, 'export'])->whereIn('format', ['json', 'map'])->name('redirects.export');
+        Route::get('reconciliation', [ReconciliationController::class, 'show'])->name('reconciliation');
+    });
+    Route::middleware('can:data_migration.manage')->group(function (): void {
+        Route::post('quarantine/{entry}/reveal', [QuarantineController::class, 'reveal'])->whereNumber('entry')->middleware('throttle:30,1')->name('quarantine.reveal');
+        Route::post('quarantine/{entry}/review', [QuarantineController::class, 'review'])->whereNumber('entry')->name('quarantine.review');
+        Route::post('quarantine/{entry}/preview', [QuarantineController::class, 'preview'])->whereNumber('entry')->middleware('throttle:20,1')->name('quarantine.preview');
+        Route::post('retries', [MigrationJobController::class, 'store'])->middleware('throttle:10,1')->name('retries.store');
+        Route::post('jobs/{job}/apply', [MigrationJobController::class, 'apply'])->whereNumber('job')->middleware('throttle:10,1')->name('jobs.apply');
+        Route::post('records/{database}/{record}/reveal', [LegacyRecordController::class, 'show'])->where('database', '[a-z]{3,7}')->whereNumber('record')->middleware('throttle:30,1')->name('records.reveal');
+        Route::post('redirects/rebuild', [LegacyRedirectAdminController::class, 'rebuild'])->middleware('throttle:5,1')->name('redirects.rebuild');
+        Route::post('reconciliation', [ReconciliationController::class, 'run'])->middleware('throttle:5,1')->name('reconciliation.run');
+    });
+});
+
+/*
+| Inventory & fulfilment (Fulfilled by Nawy): overview, warehouses, stock and
+| adjustments, inbound receiving, pick & pack, transfers, removals, fees.
+*/
+Route::middleware('can:fbn.view')->group(function (): void {
+    Route::get('inventory', [FbnAdminController::class, 'overview'])->name('inventory');
+    Route::get('inventory/warehouses', [FbnAdminController::class, 'warehouses'])->name('inventory.warehouses');
+    Route::get('inventory/stock', [FbnAdminController::class, 'stock'])->name('inventory.stock');
+    Route::get('inventory/inbound', [FbnOperationsController::class, 'inbound'])->name('inventory.inbound');
+    Route::get('inventory/inbound/{shipment}', [FbnOperationsController::class, 'showInbound'])->whereNumber('shipment')->name('inventory.inbound.show');
+    Route::get('inventory/pick-pack', [FbnOperationsController::class, 'pickPack'])->name('inventory.pick-pack');
+    Route::get('inventory/transfers', [FbnOperationsController::class, 'transfers'])->name('inventory.transfers');
+    Route::get('inventory/removals', [FbnOperationsController::class, 'removals'])->name('inventory.removals');
+    Route::get('inventory/fees', [FbnAdminController::class, 'fees'])->name('inventory.fees');
+});
+Route::middleware('can:fbn.operate')->group(function (): void {
+    Route::post('inventory/stock/adjust', [FbnAdminController::class, 'adjust'])->name('inventory.stock.adjust');
+    Route::post('inventory/inbound/{shipment}/{action}', [FbnOperationsController::class, 'actInbound'])->whereNumber('shipment')->whereIn('action', ['arrive', 'receive', 'finish', 'close', 'cancel'])->name('inventory.inbound.act');
+    Route::post('inventory/inbound/lines/{line}/receive', [FbnOperationsController::class, 'receiveLine'])->whereNumber('line')->name('inventory.inbound.lines.receive');
+    Route::post('inventory/pick-pack/{subOrder}', [FbnOperationsController::class, 'advanceOrder'])->whereNumber('subOrder')->name('inventory.pick-pack.advance');
+    Route::post('inventory/transfers', [FbnOperationsController::class, 'storeTransfer'])->name('inventory.transfers.store');
+    Route::post('inventory/transfers/{transfer}/{action}', [FbnOperationsController::class, 'actTransfer'])->whereNumber('transfer')->whereIn('action', ['dispatch', 'receive', 'cancel'])->name('inventory.transfers.act');
+    Route::post('inventory/removals/{removal}/{action}', [FbnOperationsController::class, 'actRemoval'])->whereNumber('removal')->whereIn('action', ['process', 'complete', 'reject'])->name('inventory.removals.act');
+});
+Route::middleware('can:fbn.configure')->group(function (): void {
+    Route::post('inventory/warehouses', [FbnAdminController::class, 'storeWarehouse'])->name('inventory.warehouses.store');
+    Route::put('inventory/warehouses/{warehouse}', [FbnAdminController::class, 'updateWarehouse'])->whereNumber('warehouse')->name('inventory.warehouses.update');
+    Route::put('inventory/fees', [FbnAdminController::class, 'updateFees'])->name('inventory.fees.update');
+});
+
+/*
+| Reports (FR-CTY-10, FR-ANL-2): cross-country figures from the reporting
+| database only; the celebrity (influencer) monthly report of the country.
+*/
+Route::get('reports/cross-country', [CrossCountryReportController::class, 'index'])->middleware('can:reports.view')->name('reports.cross-country');
+Route::post('reports/cross-country/run', [CrossCountryReportController::class, 'run'])->middleware(['can:reports.view', 'throttle:6,1'])->name('reports.cross-country.run');
+Route::middleware('can:celebrity_reports.view')->group(function (): void {
+    Route::get('marketers/celebrity-reports', [CelebrityReportAdminController::class, 'index'])->name('marketers.celebrity-reports');
+    Route::get('marketers/celebrity-reports/{report}', [CelebrityReportAdminController::class, 'show'])->whereNumber('report')->name('marketers.celebrity-reports.show');
+    Route::get('marketers/celebrity-reports/{report}/pdf', [CelebrityReportAdminController::class, 'pdf'])->whereNumber('report')->name('marketers.celebrity-reports.pdf');
+});
+Route::post('marketers/celebrity-reports/regenerate', [CelebrityReportAdminController::class, 'regenerate'])->middleware(['can:marketers.manage', 'throttle:10,1'])->name('marketers.celebrity-reports.regenerate');
+
+/*
+| QC-016 lifecycles: product requests (§1.3), profile change requests
+| (§7.3), packaging catalogue and orders (§6.3), flash-sale marketer
+| invites (§4.10).
+*/
+Route::middleware('can:product_requests.view')->group(function (): void {
+    Route::get('product-requests', [ProductRequestAdminController::class, 'index'])->name('product-requests');
+    Route::get('product-requests/{productRequest}', [ProductRequestAdminController::class, 'show'])->whereNumber('productRequest')->name('product-requests.show');
+});
+Route::middleware('can:product_requests.review')->group(function (): void {
+    Route::post('product-requests/{productRequest}/approve', [ProductRequestAdminController::class, 'approve'])->whereNumber('productRequest')->name('product-requests.approve');
+    Route::post('product-requests/{productRequest}/reject', [ProductRequestAdminController::class, 'reject'])->whereNumber('productRequest')->name('product-requests.reject');
+});
+Route::middleware('can:change_requests.view')->group(function (): void {
+    Route::get('change-requests', [ChangeRequestAdminController::class, 'index'])->name('change-requests');
+    Route::get('change-requests/{changeRequest}', [ChangeRequestAdminController::class, 'show'])->whereNumber('changeRequest')->name('change-requests.show');
+});
+Route::middleware('can:change_requests.review')->group(function (): void {
+    Route::post('change-requests/{changeRequest}/approve', [ChangeRequestAdminController::class, 'approve'])->whereNumber('changeRequest')->name('change-requests.approve');
+    Route::post('change-requests/{changeRequest}/reject', [ChangeRequestAdminController::class, 'reject'])->whereNumber('changeRequest')->name('change-requests.reject');
+});
+Route::middleware('can:packaging.view')->group(function (): void {
+    Route::get('packaging', [PackagingAdminController::class, 'supplies'])->name('packaging');
+    Route::get('packaging/orders', [PackagingAdminController::class, 'orders'])->name('packaging.orders');
+    Route::get('packaging/orders/{order}', [PackagingAdminController::class, 'order'])->whereNumber('order')->name('packaging.orders.show');
+});
+Route::middleware('can:packaging.manage')->group(function (): void {
+    Route::post('packaging/supplies', [PackagingAdminController::class, 'storeSupply'])->name('packaging.supplies.store');
+    Route::get('packaging/supplies/{supply}/edit', [PackagingAdminController::class, 'editSupply'])->whereNumber('supply')->name('packaging.supplies.edit');
+    Route::put('packaging/supplies/{supply}', [PackagingAdminController::class, 'updateSupply'])->whereNumber('supply')->name('packaging.supplies.update');
+    Route::post('packaging/delivery-fee', [PackagingAdminController::class, 'deliveryFee'])->name('packaging.delivery-fee');
+    Route::post('packaging/orders/{order}/{action}', [PackagingAdminController::class, 'move'])->whereNumber('order')->whereIn('action', ['approve', 'reject', 'ship', 'deliver'])->name('packaging.orders.move');
+});
+Route::post('flash-sales/{event}/marketer-invites', [FlashSaleEventController::class, 'inviteMarketers'])->whereNumber('event')->middleware(['can:flash_sales.manage', 'throttle:20,1'])->name('flash-sales.marketer-invites');

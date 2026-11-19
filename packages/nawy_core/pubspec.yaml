@@ -1,5 +1,5 @@
 name: nawy_core
-description: "Shared core for the Nawy delivery and ops Flutter apps (local path package, not published): API client, secure store stop-gap, platform bridge, money, l10n base, theme and common widgets."
+description: "Shared core for the Nawy Flutter apps (local path package, not published): API client, secure store, platform bridge, media picker, money, l10n base, theme, fonts and common widgets."
 publish_to: 'none'
 version: 1.0.0
 
@@ -11,8 +11,26 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  # Owner-approved packages (owner-review D16).
+  flutter_secure_storage: ^11.2.0
+  image_picker: ^1.2.4
+  file_picker: 13.4.0
+  path_provider: ^2.1.6
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  # Figma type (QC-065): Inter for Latin (`en/*`), Cairo for Arabic (`ar/*`).
+  # Variable fonts from google/fonts (OFL, see fonts/*/OFL.txt). Apps use
+  # them as `packages/nawy_core/Inter` / `packages/nawy_core/Cairo`.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: fonts/inter/Inter-Variable.ttf
+    - family: Cairo
+      fonts:
+        - asset: fonts/cairo/Cairo-Variable.ttf

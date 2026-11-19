@@ -7,6 +7,7 @@
                     <div class="grow"><x-ui.input :label="__('Product name, SKU or barcode')" name="q" :value="$search" /></div>
                     <x-ui.button type="submit" variant="outline">{{ __('Search') }}</x-ui.button>
                 </form>
+                <p class="mt-2 text-sm"><a class="text-fg-link" href="{{ route('partner.product-requests') }}">{{ __('Request a product') }}</a></p>
                 @if ($search !== '')
                     <ul class="mt-4 divide-y divide-line rounded-lg border border-line" data-variant-results>
                         @forelse ($matches as $match)
@@ -37,7 +38,7 @@
                         <x-ui.select :label="__('Fulfilment')" name="fulfilment" selected="fbm"
                                      :options="['fbm' => __('Fulfilled by me (FBM)'), 'fbn' => __('Fulfilled by Nawy (FBN)'), 'cross_dock' => __('Cross-dock')]" />
                         <x-ui.input :label="__('Handling days')" name="handling_days" type="number" min="0" max="30" value="1" required />
-                        <x-ui.input :label="__('Opening stock')" name="stock" type="number" min="0" value="0" required />
+                        <x-ui.input :label="__('Opening stock')" name="stock" type="number" min="0" value="0" required :helper="__('FBN listings start at 0: their stock arrives with an inbound plan.')" />
                         <x-ui.input :label="__('Your SKU')" name="vendor_sku" />
                         <div class="flex flex-col gap-1.5 sm:col-span-2">
                             <label for="images" class="text-sm font-medium text-fg">{{ __('Product images') }}</label>

@@ -14,10 +14,11 @@ import '../../ui/widgets/states.dart';
 import '../live/live_screens.dart';
 import '../souq/souq_screens.dart';
 import '../travel/travel_screens.dart';
+import 'home_extras.dart';
 
 /// The Home tab of an app context (ADR 16): its `home_page` (an `app_context`
 /// page-builder page) when set; otherwise the vertical's own home, and for
-/// shopping contexts `pages/home` with a built-in Noon-order fallback.
+/// shopping contexts `pages/home` with a built-in fallback in the §14c section order.
 class ContextHome extends StatelessWidget {
   const ContextHome({super.key, required this.appContext});
 
@@ -27,8 +28,13 @@ class ContextHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final key = appContext.str('key', 'main');
     final page = appContext.s('home_page');
-    if (page != null) return PageBuilderView(slug: page, fallback: (_) => _verticalHome(key));
-    return _verticalHome(key);
+    final home = page != null ? PageBuilderView(slug: page, fallback: (_) => _verticalHome(key)) : _verticalHome(key);
+    if (key != 'main') return home;
+    // QC-063: the floating mini-player is a country setting, not a page block.
+    return Stack(children: [
+      Positioned.fill(child: home),
+      const PositionedDirectional(end: 12, bottom: 12, child: FloatingLivePlayer()),
+    ]);
   }
 
   Widget _verticalHome(String key) => switch (key) {
@@ -99,7 +105,7 @@ class PageScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: Text(title ?? '')), body: PageBuilderView(slug: slug));
 }
 
-/// Built-in home in the Noon section order (§14c) from live API data, used
+/// Built-in home in the §14c section order from live API data, used
 /// until the admin publishes a page for the context. Sections hide when empty.
 class FallbackHome extends StatefulWidget {
   const FallbackHome({super.key, this.contextKey = 'main'});
@@ -148,6 +154,8 @@ class _FallbackHomeState extends State<FallbackHome> {
                   const SizedBox.shrink();
             },
           ),
+          // QC-064: Offers for you (public coupons + flash sales).
+          OffersForYou(key: ValueKey('offers-$g')),
           // 4. Ad banner (labelled).
           buildBlock(context, const {'type': 'ad_slot', 'settings': {'ad_slot_key': 'home'}}) ?? const SizedBox.shrink(),
           // 5. Recommended for you.
@@ -163,7 +171,7 @@ class _FallbackHomeState extends State<FallbackHome> {
             },
           ),
           // 8. Bestsellers.
-          _ProductSection(key: ValueKey('best-$g'), title: context.t('home.bestsellers'), query: const {'sort': 'rating', 'per_page': 12}, tag: context.t('product.bestSeller')),
+          _ProductSection(key: ValueKey('best-$g'), title: context.t('home.bestsellers'), query: const {'sort': 'bestselling', 'per_page': 12}, tag: context.t('product.bestSeller')),
           // 10. More reasons to shop: the other contexts.
           if (widget.contextKey == 'main') ...[
             SectionHeader(title: context.t('home.moreReasons')),

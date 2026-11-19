@@ -19,7 +19,7 @@ export async function AdPlacements({ placement, ctx, variant }: { placement: str
     ads = [];
   }
   const t = getT(ctx.market.locale);
-  const visible = ads.filter((ad) => ad.image || ad.headline);
+  const visible = ads.filter((ad) => ad.image || ad.video || ad.headline);
   if (visible.length === 0) return null;
   const grid = variant === "tile" ? "grid grid-cols-2 gap-3 md:grid-cols-4" : "grid gap-3";
   return (
@@ -27,9 +27,21 @@ export async function AdPlacements({ placement, ctx, variant }: { placement: str
       {visible.map((ad, i) => {
         const href = resolveLink(ad.link_url, ctx.market);
         const image = safeUrl(ad.image);
+        const video = ad.creative_type === "video" || ad.video ? safeUrl(ad.video ?? null) : null;
         const body = (
           <div className="relative overflow-hidden rounded-lg bg-surface">
-            {image ? (
+            {video ? (
+              <video
+                src={video}
+                muted
+                playsInline
+                loop
+                autoPlay
+                preload="metadata"
+                aria-label={ad.headline ?? t("common.sponsored")}
+                className={variant === "tile" ? "aspect-square w-full object-cover" : variant === "video" ? "aspect-video w-full object-cover" : "aspect-[5/1] w-full object-cover"}
+              />
+            ) : image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image} alt={ad.headline ?? ""} loading="lazy" className={variant === "tile" ? "aspect-square w-full object-cover" : "aspect-[5/1] w-full object-cover"} />
             ) : (
