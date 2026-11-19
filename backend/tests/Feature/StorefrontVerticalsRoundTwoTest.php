@@ -16,6 +16,7 @@ use App\Domains\Travel\Support\TravelBookings;
 use App\Domains\Travel\Support\TravelPackages;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\Notifications\RequestNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -95,7 +96,7 @@ describe('travel (G-W18, G-W19, G-W20)', function () {
         expect($response->json('data.access_token'))->toBe($token);
 
         $link = "https://shop.test/uae-en/travel/bookings/{$number}?token={$token}";
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail, array $channels, AnonymousNotifiable $to): bool => $mail->kind === 'travel_booking.received' && $mail->actionUrl === $link && $to->routes['mail'] === 'sara@example.com');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail, array $channels, AnonymousNotifiable $to): bool => $mail->event === 'travel.booking_received' && $mail->options['url'] === $link && array_key_first((array) $to->routes['mail']) === 'sara@example.com');
         $this->getJson("/api/v1/uae-en/travel/bookings/{$number}", ['X-Booking-Token' => $token])->assertOk()->assertJsonPath('data.number', $number);
     });
 
@@ -154,7 +155,7 @@ describe('classifieds (G-W19, G-W21, G-W22, G-W24)', function () {
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact)->assertCreated()->assertJsonPath('data.type', 'viewing');
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['type' => 'buy'])->assertUnprocessable();
         // D12: a record only — the advertiser is told a request arrived; the customer gets no status mail.
-        Notification::assertSentOnDemandTimes(RequestNotification::class, 0);
+        Notification::assertSentOnDemandTimes(EventEmail::class, 0);
 
         app(SettingsService::class)->set('classified.request_types', ['general' => ['viewing'], 'property' => ['viewing', 'reserve']], $this->country, $this->admin->id);
         $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/viewings", $contact + ['type' => 'reserve'])->assertUnprocessable();

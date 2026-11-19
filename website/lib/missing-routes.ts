@@ -28,7 +28,7 @@ const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "htt
 const STATIC_ROOTS = new Set([
   "account", "adsupport", "advertise", "auth", "blog", "brands", "brokers", "cart", "checkout", "classified", "compare", "creators", "deals",
   "flash-sale", "gift-cards", "help", "join", "legal", "live", "marketers", "login", "membership", "missing", "newsletter", "pages", "products",
-  "property", "r", "reset-password", "search", "sell", "seller", "travel",
+  "property", "r", "reset-password", "search", "sell", "seller", "travel", "unsubscribe",
 ]);
 
 /**
@@ -38,7 +38,7 @@ const STATIC_ROOTS = new Set([
 const ROUTES: string[][] = [
   "account", "account/addresses", "account/bookings", "account/cards", "account/contracts", "account/credits", "account/disputes", "account/disputes/new",
   "account/disputes/:", "account/favourites", "account/followed-stores", "account/gift-cards", "account/inquiries", "account/membership",
-  "account/my-ads", "account/notifications", "account/orders", "account/orders/:", "account/profile", "account/returns", "account/returns/new",
+  "account/my-ads", "account/notifications", "account/notifications/settings", "account/orders", "account/orders/:", "account/profile", "account/returns", "account/returns/new",
   "account/returns/:", "account/reviews", "account/saved-searches", "account/security", "account/special-requests", "account/support",
   "account/support/new", "account/support/:", "account/vouchers", "account/warranty", "account/warranty/new", "account/warranty/:",
   "account/wishlist", "adsupport", "adsupport/articles/:", "adsupport/collections/:", "adsupport/search", "advertise", "auth/add-email", "auth/social/complete",
@@ -47,7 +47,7 @@ const ROUTES: string[][] = [
   "deals", "flash-sale/:", "gift-cards", "help", "help/articles/:", "help/collections/:", "help/search", "join", "join/resume", "join/status",
   "join/:", "legal/seller-agreement", "live", "live/:", "login", "marketers", "marketers/:", "membership", "missing", "newsletter/confirm",
   "pages/:", "products/:", "property", "property/:", "r/:", "reset-password", "search", "sell", "sell/travel-agency", "seller/:", "travel",
-  "travel/bookings", "travel/bookings/:", "travel/bookings/:/sent", "travel/search", "travel/:", "travel/:/book",
+  "travel/bookings", "travel/bookings/:", "travel/bookings/:/sent", "travel/search", "travel/:", "travel/:/book", "unsubscribe",
 ].map((route) => route.split("/"));
 
 function matchesRoute(rest: string[]): boolean {

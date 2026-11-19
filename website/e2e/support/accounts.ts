@@ -20,6 +20,9 @@ export const PANELS: Record<PanelKey, { email: string; label: string }> = {
 export const BASE_DOMAIN = process.env.E2E_BASE_DOMAIN ?? "nawy.test";
 export const API_PORT = process.env.E2E_API_PORT ?? "8000";
 
-export const panelUrl = (panel: PanelKey, path = "") => `http://${panel}.${BASE_DOMAIN}:${API_PORT}/${path.replace(/^\//, "")}`;
+/** `:8000` for `php artisan serve`; empty when the panels run on Apache port 80 (`E2E_API_PORT=80`). */
+export const PANEL_PORT = API_PORT === "80" ? "" : `:${API_PORT}`;
+
+export const panelUrl = (panel: PanelKey, path = "") => `http://${panel}.${BASE_DOMAIN}${PANEL_PORT}/${path.replace(/^\//, "")}`;
 export const panelState = (panel: PanelKey) => `e2e/.auth/${panel}.json`;
 export const CUSTOMER_STATE = "e2e/.auth/customer.json";

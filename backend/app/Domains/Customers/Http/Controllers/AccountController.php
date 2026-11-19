@@ -5,6 +5,7 @@ namespace App\Domains\Customers\Http\Controllers;
 use App\Domains\Identity\Actions\ConsumeEmailLoginCode;
 use App\Domains\Identity\Actions\RequestEmailLoginCode;
 use App\Domains\Identity\Exceptions\EmailLoginCodeRejected;
+use App\Domains\Identity\Support\SecurityEmails;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\Http\ApiResponse;
@@ -129,6 +130,8 @@ class AccountController extends Controller
             return ApiResponse::error($rejected->reason, $rejected->getMessage(), $rejected->status());
         }
 
+        $oldEmail = (string) $user->email;
+        $hadPlaceholder = (bool) $user->requires_email;
         $changed = DB::transaction(function () use ($user, $email): bool {
             if (User::query()->where('email', $email)->whereKeyNot($user->id)->lockForUpdate()->exists()) {
                 return false;
@@ -142,6 +145,11 @@ class AccountController extends Controller
 
         if (! $changed) {
             return ApiResponse::error('email_taken', __('This email belongs to another Nawy account.'), 422);
+        }
+
+        // A legacy phone-only account only replaced its placeholder address: nothing changed to tell about.
+        if ($oldEmail !== $email && ! $hadPlaceholder) {
+            app(SecurityEmails::class)->emailChanged($user, $oldEmail, $email);
         }
 
         return ApiResponse::success($this->present($user->refresh()));

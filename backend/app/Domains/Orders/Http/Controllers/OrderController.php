@@ -20,12 +20,14 @@ use App\Domains\Orders\Support\InvoicePdf;
 use App\Domains\Orders\Support\PlaceOrder;
 use App\Domains\Orders\Support\SubOrderStateMachine;
 use App\Domains\Payments\Enums\PaymentMethod;
+use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Payments\Support\PaymentAttempts;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\Http\ApiResponse;
 use App\Shared\Http\LikeSearch;
 use App\Shared\Localization\Label;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,7 +73,12 @@ class OrderController extends Controller
             return ApiResponse::error($rejected->errorCode, $rejected->getMessage(), $rejected->status);
         }
 
-        $payments->start($order, PaymentMethod::from($order->payment_method), $user);
+        $payment = $payments->start($order, PaymentMethod::from($order->payment_method), $user);
+
+        if ($payment->method === PaymentMethod::Cod && $payment->status !== PaymentStatus::Failed) {
+            // Card / BNPL / wallet orders get their receipt when the payment goes through.
+            app(CommerceLifecycleEmails::class)->orderPlaced($order->refresh(), $payment);
+        }
 
         return ApiResponse::success(new OrderResource($order->refresh()->load('subOrders.vendor', 'subOrders.items', 'payments')), status: 201);
     }

@@ -2,24 +2,27 @@
 
 namespace App\Domains\Delivery\Support;
 
-use App\Domains\Content\Notifications\TemplatedNotification;
-use App\Domains\Content\Support\NotificationTemplates;
-use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Delivery\Models\DeliveryAssignment;
 use App\Domains\Delivery\Models\Shipment;
 use App\Models\User;
+use App\Shared\Http\StorefrontLinks;
+use App\Shared\Localization\InLocale;
+use App\Shared\Localization\Label;
 use App\Shared\Money\MoneyFormatter;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 
 /**
- * Customer messages of the delivery flow, rendered from the country's
- * notification templates in the customer's language (ADR 10). The
- * out-for-delivery message carries the delivery code (ADR 15).
+ * Customer messages of the delivery flow, sent as catalogue emails
+ * ({@see Emails}) in the customer's language from the country's templates
+ * (ADR 10). The out-for-delivery message carries the delivery code
+ * (ADR 15) and also goes out by SMS.
  */
 class DeliveryNotices
 {
     public function __construct(
-        private NotificationTemplates $templates,
-        private CountryContext $countryContext,
+        private Emails $emails,
+        private StorefrontLinks $storefront,
         private MoneyFormatter $formatter,
     ) {}
 
@@ -28,41 +31,44 @@ class DeliveryNotices
         $shipment = $assignment->shipment()->firstOrFail();
         $agent = $assignment->agent()->first();
 
-        $this->send($event, $shipment, [
+        $this->send($event, $shipment, fn (User $customer): array => [
             'delivery_code' => $assignment->delivery_code,
             'agent_name' => $agent?->name,
-            'reason' => $assignment->failure_reason === null ? null : str_replace('_', ' ', $assignment->failure_reason),
-            'cod_amount' => $assignment->cod_amount === null ? '' : ' '.__('Please have :amount ready.', ['amount' => $this->formatter->format((string) $assignment->cod_amount, $assignment->currency)]),
-        ]);
+            'reason' => $assignment->failure_reason === null ? null : EmailValue::t(Label::key($assignment->failure_reason)),
+            'cod_amount' => $assignment->cod_amount === null ? '' : InLocale::run($customer->preferredLocale(), fn (): string => ' '.__('Please have :amount ready.', [
+                'amount' => $this->formatter->format((string) $assignment->cod_amount, $assignment->currency),
+            ])),
+        ], $assignment);
     }
 
     public function shipment(string $event, Shipment $shipment): void
     {
-        $this->send($event, $shipment, ['date' => $shipment->rescheduled_for?->toDateString()]);
+        $this->send($event, $shipment, fn (): array => [
+            'date' => $shipment->rescheduled_for === null ? null : EmailValue::date($shipment->rescheduled_for->toDateString().' 12:00:00'),
+        ], $shipment, (string) $shipment->rescheduled_for?->toDateString());
     }
 
     /**
-     * @param  array<string, string|null>  $variables
+     * @param  callable(User): array<string, mixed>  $variables
      */
-    private function send(string $event, Shipment $shipment, array $variables): void
+    private function send(string $event, Shipment $shipment, callable $variables, DeliveryAssignment|Shipment $entity, ?string $key = null): void
     {
         $subOrder = $shipment->subOrder()->firstOrFail();
         $order = $subOrder->order()->firstOrFail();
         $customer = User::query()->find($order->customer_user_id);
 
-        if ($customer === null || $customer->email === null) {
+        if ($customer === null || blank($customer->email)) {
             return;
         }
 
-        $locale = in_array($customer->preferred_locale, ['en', 'ar'], true) ? $customer->preferred_locale : 'en';
-        $text = $this->templates->render($event, 'mail', $locale, $variables + [
+        $this->emails->send($event, $customer, $variables($customer) + [
             'customer_name' => $customer->name,
             'order_number' => $order->number,
             'shipment_number' => $subOrder->number,
-        ], $this->countryContext->current());
-
-        if ($text !== null) {
-            $customer->notify(new TemplatedNotification($event, (string) $text['subject'], $text['body']));
-        }
+        ], array_filter([
+            'entity' => $entity,
+            'key' => $key,
+            'url' => $this->storefront->to('account/orders/'.$order->number, [], $customer->preferredLocale()),
+        ]));
     }
 }

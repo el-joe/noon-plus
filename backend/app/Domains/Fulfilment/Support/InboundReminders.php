@@ -5,6 +5,8 @@ namespace App\Domains\Fulfilment\Support;
 use App\Domains\Fulfilment\Enums\InboundStatus;
 use App\Domains\Fulfilment\Models\InboundShipment;
 use App\Domains\Panels\Listeners\NotifySellerOfStateChange;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use Carbon\CarbonImmutable;
 
 /**
@@ -29,6 +31,10 @@ class InboundReminders
                 __('Inbound :number is waiting to be shipped', ['number' => $shipment->number]),
                 __('Ship it to the warehouse and add the tracking number, or cancel the plan.'),
                 '/inventory/inbound/'.$shipment->id);
+            app(PartnerEmails::class)->toVendor($shipment->vendor_id, 'fbn.inbound_reminder', [
+                'inbound_number' => $shipment->number,
+                'status' => EmailValue::t(ucfirst(str_replace('_', ' ', $shipment->status->value))),
+            ], '/inventory/inbound/'.$shipment->id, ['entity' => $shipment, 'key' => $now->toDateString()]);
             $shipment->forceFill(['reminded_at' => $now])->save();
             $sent++;
         }

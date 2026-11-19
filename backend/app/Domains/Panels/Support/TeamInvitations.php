@@ -72,6 +72,9 @@ class TeamInvitations
             route($panelKey.'.team-invitations.show', ['country' => $this->countryContext->current()->code, 'token' => $token]),
             self::VALID_DAYS,
             $tenantType === self::PLATFORM_TENANT ? $panelKey : null,
+            User::query()->whereKey($invitedByUserId)->value('name'),
+            $invitation->name,
+            $panelKey,
         ));
 
         return $invitation;

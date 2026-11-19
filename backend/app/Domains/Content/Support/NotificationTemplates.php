@@ -3,7 +3,9 @@
 namespace App\Domains\Content\Support;
 
 use App\Domains\Content\Models\NotificationTemplate;
+use App\Domains\Content\Models\NotificationTemplateVersion;
 use App\Domains\Countries\Models\Country;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -64,7 +66,7 @@ class NotificationTemplates
     /**
      * Save a template; every `{{ variable }}` must belong to the event.
      *
-     * @param  array{subject?: string|null, body: string, is_active?: bool}  $data
+     * @param  array{subject?: string|null, body: string, is_active?: bool, action?: string}  $data
      */
     public function save(string $event, string $channel, string $locale, array $data, ?Country $country, ?int $userId): NotificationTemplate
     {
@@ -83,10 +85,60 @@ class NotificationTemplates
             ])]);
         }
 
-        return NotificationTemplate::query()->updateOrCreate(
+        $version = $this->nextVersion($event, $channel, $locale, $country);
+        $template = NotificationTemplate::query()->updateOrCreate(
             ['country_id' => $country?->id, 'event' => $event, 'channel' => $channel, 'locale' => $locale],
-            ['subject' => $data['subject'] ?? null, 'body' => $data['body'], 'is_active' => $data['is_active'] ?? true, 'updated_by' => $userId],
+            ['subject' => $data['subject'] ?? null, 'body' => $data['body'], 'is_active' => $data['is_active'] ?? true, 'version' => $version, 'updated_by' => $userId],
         );
+
+        NotificationTemplateVersion::query()->create([
+            'country_id' => $country?->id, 'event' => $event, 'channel' => $channel, 'locale' => $locale, 'version' => $version,
+            'action' => $data['action'] ?? 'saved', 'subject' => $template->subject, 'body' => $template->body, 'is_active' => $template->is_active, 'created_by' => $userId,
+        ]);
+
+        return $template;
+    }
+
+    /**
+     * Back to the built-in text for this scope (the saved template is removed; history keeps it).
+     */
+    public function reset(string $event, string $channel, string $locale, ?Country $country, ?int $userId): bool
+    {
+        $deleted = NotificationTemplate::query()->where('country_id', $country?->id)->where('event', $event)->where('channel', $channel)->where('locale', $locale)->delete() > 0;
+
+        if ($deleted) {
+            NotificationTemplateVersion::query()->create([
+                'country_id' => $country?->id, 'event' => $event, 'channel' => $channel, 'locale' => $locale,
+                'version' => $this->nextVersion($event, $channel, $locale, $country), 'action' => 'reset', 'created_by' => $userId,
+            ]);
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Save an earlier version again as the newest one.
+     */
+    public function restore(NotificationTemplateVersion $version, ?Country $country, ?int $userId): NotificationTemplate
+    {
+        if ($version->body === null) {
+            throw ValidationException::withMessages(['version' => __('A reset cannot be restored; use Reset to default instead.')]);
+        }
+
+        return $this->save($version->event, $version->channel, $version->locale, ['subject' => $version->subject, 'body' => $version->body, 'is_active' => $version->is_active, 'action' => 'restored'], $country, $userId);
+    }
+
+    /**
+     * @return Collection<int, NotificationTemplateVersion>
+     */
+    public function versions(string $event, string $channel, string $locale, ?Country $country): Collection
+    {
+        return NotificationTemplateVersion::query()->where('country_id', $country?->id)->where('event', $event)->where('channel', $channel)->where('locale', $locale)->latest('version')->limit(30)->get();
+    }
+
+    private function nextVersion(string $event, string $channel, string $locale, ?Country $country): int
+    {
+        return (int) NotificationTemplateVersion::query()->where('country_id', $country?->id)->where('event', $event)->where('channel', $channel)->where('locale', $locale)->max('version') + 1;
     }
 
     /**

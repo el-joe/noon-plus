@@ -10,6 +10,7 @@ use App\Domains\Identity\Enums\LoginMethod;
 use App\Domains\Identity\Enums\LoginOutcome;
 use App\Domains\Identity\Exceptions\EmailLoginCodeRejected;
 use App\Domains\Identity\Notifications\CustomerPasswordResetNotification;
+use App\Domains\Identity\Support\SecurityEmails;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Shared\Http\ApiResponse;
@@ -29,7 +30,7 @@ use Illuminate\Validation\Rules\Password;
  */
 class PasswordAuthController extends Controller
 {
-    public function __construct(private RecordLoginEvent $recordLoginEvent) {}
+    public function __construct(private RecordLoginEvent $recordLoginEvent, private SecurityEmails $securityEmails) {}
 
     public function login(Request $request, SignInCustomer $signIn): JsonResponse
     {
@@ -126,6 +127,7 @@ class PasswordAuthController extends Controller
 
             return isset($data['device_name']) ? $signIn->handle($user, $data['device_name']) : null;
         });
+        $this->securityEmails->passwordChanged($user);
 
         if ($token !== null) {
             $this->recordLoginEvent->handle($request, 'api', LoginOutcome::Succeeded, $user, method: LoginMethod::Password);
@@ -157,6 +159,7 @@ class PasswordAuthController extends Controller
         $currentTokenId = $user->currentAccessToken()?->getKey();
         $user->forceFill(['password' => Hash::make($data['password'])])->save();
         $user->tokens()->when($currentTokenId !== null, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
+        $this->securityEmails->passwordChanged($user);
 
         return ApiResponse::success(['has_password' => true]);
     }

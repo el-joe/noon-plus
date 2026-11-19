@@ -292,12 +292,13 @@ Storage (proposed): central `settings (key, scope_type, scope_id, value json, up
 
 | Key | Scope | Type | Default | Edits | Where used | Source |
 |---|---|---|---|---|---|---|
-| `streams.provider` | G | enum | `livekit` | Super | Media adapter | ADR 11 |
+| `streams.provider` | G | enum | — | Super | Media adapter | ADR 11 — **removed by D18** (native WebRTC, no media server) |
 | `streams.recorded_max_mb` | G | int | **500** | Super | Upload | SRS §14.2 |
 | `streams.recorded_formats` | G | json | mp3, wav, ogg, oga, m4a, aac, mp4, webm, mov, m4v, mpeg | Super | Upload | SRS §14.2 |
 | `streams.default_playback_mode` | G | enum `synced|free` | `synced` | Content | Channels | SRS §14.2 |
 | `streams.comment_like_throttle_per_minute` | G | int | **30** | Super | Viewer actions | SRS §14.1 |
-| `streams.signalling_throttle` | G | json | viewer 240/min, admin 600/min (legacy; review for LiveKit) | Super | Signalling | SRS §14.1 |
+| `streams.signalling_throttle` | G | json | join 30/min per IP, signal 300/min per peer, studio 600/min (D18, in code) | Super | Signalling | SRS §14.1, D18 |
+| `live.webrtc_max_viewers` | C | int | 20 | Content admin | Most WebRTC viewers per live broadcast (host upload) | D18 |
 | `streams.recording_enabled` | G | bool | *proposed* true | Content | Replay | Spec §9 |
 | `homepage_media.dismiss_suppress_hours` | C | int | *proposed* 24 | Content | Floating player | Spec §9.1 |
 | `homepage_media.targeting` | E | json (country, language, audience, segment) | — | Content | Scheduling | Spec §9.1 |

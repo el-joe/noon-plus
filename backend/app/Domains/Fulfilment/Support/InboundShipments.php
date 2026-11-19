@@ -12,6 +12,7 @@ use App\Domains\Listings\Models\Listing;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Panels\Listeners\NotifySellerOfStateChange;
 use App\Domains\Vendors\Models\Vendor;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Support\Facades\DB;
@@ -164,6 +165,12 @@ class InboundShipments
             __('Inbound :number received', ['number' => $shipment->number]),
             __(':received units on sale, :damaged damaged, :short short.', $summary),
             '/inventory/inbound/'.$shipment->id);
+        app(PartnerEmails::class)->toVendor($shipment->vendor_id, $short > 0 || $summary['damaged'] > 0 ? 'fbn.inbound_discrepancy' : 'fbn.inbound_received', [
+            'inbound_number' => $shipment->number,
+            'received' => (string) $summary['received'],
+            'short' => (string) $summary['short'],
+            'damaged' => (string) $summary['damaged'],
+        ], '/inventory/inbound/'.$shipment->id, ['entity' => $shipment]);
 
         return $moved;
     }

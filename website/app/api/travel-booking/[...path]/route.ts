@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { parseMarket } from "@/lib/markets";
-import { TOKEN_COOKIE } from "@/lib/session";
+import { TOKEN_COOKIE, secureCookies, isCrossSite } from "@/lib/session";
 import { GUEST_BOOKINGS_COOKIE, bookingTokenCookie } from "@/features/travel/booking-cookies";
 
 /**
@@ -19,7 +19,6 @@ import { GUEST_BOOKINGS_COOKIE, bookingTokenCookie } from "@/features/travel/boo
  */
 
 const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1").replace(/\/$/, "");
-const secure = process.env.NODE_ENV === "production";
 const KEEP = 60 * 60 * 24 * 365;
 const NUMBER = /^[A-Za-z0-9-]{3,40}$/;
 
@@ -30,6 +29,7 @@ function fail(status: number, code: string, message: string) {
 }
 
 function remember(response: NextResponse, request: NextRequest, countryCode: string, number: string, token: string) {
+  const secure = secureCookies(request);
   response.cookies.set(bookingTokenCookie(number), token, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: KEEP });
   const name = GUEST_BOOKINGS_COOKIE(countryCode);
   const list = (request.cookies.get(name)?.value ?? "").split(",").filter((n) => NUMBER.test(n) && n !== number);
@@ -44,8 +44,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
 
   const method = request.method;
   if (method !== "GET") {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) return fail(403, "forbidden", "Cross-site request refused.");
+    if (isCrossSite(request)) return fail(403, "forbidden", "Cross-site request refused.");
   }
 
   const isCreate = method === "POST" && rest.length === 3 && rest[0] === "departures" && /^\d+$/.test(rest[1]) && rest[2] === "bookings";

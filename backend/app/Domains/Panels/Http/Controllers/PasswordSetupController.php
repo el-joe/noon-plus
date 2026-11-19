@@ -2,6 +2,7 @@
 
 namespace App\Domains\Panels\Http\Controllers;
 
+use App\Domains\Identity\Support\SecurityEmails;
 use App\Domains\Panels\Support\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -37,6 +38,7 @@ class PasswordSetupController extends Controller
         $account = User::query()->findOrFail($user);
         $data = $request->validate(['password' => ['required', 'string', 'confirmed', Password::min(8)]]);
         $account->forceFill(['password' => Hash::make($data['password']), 'email_verified_at' => $account->email_verified_at ?? now()])->save();
+        app(SecurityEmails::class)->passwordChanged($account, $panel->key);
 
         return redirect()->route($panel->route('login'))->with('status', __('Your password is set. Sign in to continue.'));
     }

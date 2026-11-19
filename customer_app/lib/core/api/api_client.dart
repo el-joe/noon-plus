@@ -343,6 +343,11 @@ class ApiClient {
   /// (`classifieds/map` is plain GeoJSON). Errors still use the envelope.
   Future<ApiResponse<dynamic>> getRaw(String path, {Map<String, dynamic>? query}) => _send('GET', path, query: query, raw: true);
 
+  /// POST JSON to an endpoint that answers without the envelope
+  /// (`broadcasting/auth` answers `{auth}`). Errors still use the envelope.
+  Future<ApiResponse<dynamic>> postRaw(String path, {Object? body}) =>
+      _send('POST', path, body: utf8.encode(jsonEncode(body ?? const <String, dynamic>{})), contentType: 'application/json', raw: true);
+
   /// `data` as an object (empty map when it is not one).
   Future<Json> getObject(String path, {Map<String, dynamic>? query, Map<String, String>? headers}) async => asJson((await get(path, query: query, headers: headers)).data);
 

@@ -10,6 +10,7 @@ use App\Domains\Reviews\Models\ProductAnswer;
 use App\Domains\Reviews\Models\ProductQuestion;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Support\Facades\DB;
@@ -35,9 +36,26 @@ class ProductQuestions
                 'status' => ModerationStatus::Pending,
             ]);
             $this->machine->created($question, ActorType::Customer, $customer->id);
+            $this->mailSellers($product, $question);
 
             return $question;
         });
+    }
+
+    /**
+     * `seller.question_received` to the owner of every store selling the product.
+     */
+    private function mailSellers(Product $product, ProductQuestion $question): void
+    {
+        $vendorIds = Listing::query()->whereHas('variant', fn ($variant) => $variant->where('product_id', $product->id))
+            ->distinct()->limit(50)->pluck('vendor_id');
+
+        foreach ($vendorIds as $vendorId) {
+            app(PartnerEmails::class)->toVendor((int) $vendorId, 'seller.question_received', fn (string $locale): array => [
+                'product' => (string) ($locale === 'ar' ? $product->title_ar : $product->title_en),
+                'question' => $question->body,
+            ], '/reviews', ['entity' => $question]);
+        }
     }
 
     public function sells(Vendor $vendor, int $productId): bool

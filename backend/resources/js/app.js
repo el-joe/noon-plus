@@ -8,4 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initPanelSidebar();
     initCopyButtons();
     void initLiveDispatch();
+
+    // D18: the live studio is only on a live broadcast's admin page; loaded on demand.
+    if (document.querySelector('[data-live-studio]')) {
+        void import('./live-studio').then(({ initLiveStudio }) => initLiveStudio());
+    }
 });

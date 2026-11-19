@@ -2,43 +2,40 @@
 
 namespace App\Domains\GiftCards\Notifications;
 
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EmailLinks;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\EventEmail;
+use DateTimeInterface;
 
 /**
- * The gift card email to the recipient — the only place the code appears.
+ * The gift card email to the recipient (`gift_card.received`, sensitive:
+ * the code is never stored in the email log) — the only place the code appears.
  */
-class GiftCardDelivered extends Notification
+class GiftCardDelivered extends EventEmail
 {
     public function __construct(
         public string $code,
         public string $amount,
         public ?string $senderName,
         public ?string $personalMessage,
-        public string $expiresOn,
-    ) {}
+        public DateTimeInterface|string $expiresOn,
+        ?int $giftCardId = null,
+        ?string $recipientLocale = null,
+    ) {
+        $locale = $recipientLocale ?? app()->getLocale();
 
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        $mail = (new MailMessage)
-            ->subject(__('You received a Nawy gift card'))
-            ->line(__(':sender sent you a Nawy gift card worth :amount.', ['sender' => $this->senderName ?? __('Someone'), 'amount' => $this->amount]));
-
-        if ($this->personalMessage !== null) {
-            $mail->line('“'.$this->personalMessage.'”');
-        }
-
-        return $mail
-            ->line(__('Your code:'))
-            ->line($this->code)
-            ->line(__('Redeem it in your account under Nawy Credits before :date.', ['date' => $this->expiresOn]));
+        parent::__construct('gift_card.received', [
+            'sender' => $senderName ?? EmailValue::t('Someone'),
+            'amount' => $amount,
+            'code' => $code,
+            'message' => $personalMessage === null ? '' : '“'.$personalMessage.'”',
+            'expires' => EmailValue::date($expiresOn),
+        ], array_filter([
+            'blocks' => [['type' => 'code', 'value' => $code]],
+            'url' => app(EmailLinks::class)->storefront('account/gift-cards', $locale),
+            'locale' => $locale,
+            'entity_type' => $giftCardId === null ? null : 'GiftCard',
+            'entity_id' => $giftCardId === null ? null : (string) $giftCardId,
+        ]));
     }
 }

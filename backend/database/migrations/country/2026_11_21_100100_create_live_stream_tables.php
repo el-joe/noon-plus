@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * Live streams and scheduled audio/video channels (WP7, SRS §14, ADR 11
-     * admin-only, LiveKit). History rows go to `state_transitions`.
+     * admin-only; native WebRTC since D18). History rows go to `state_transitions`.
      */
     public function up(): void
     {

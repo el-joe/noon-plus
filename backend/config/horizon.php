@@ -100,6 +100,7 @@ return [
         'redis:payments' => 30,
         'redis:webhooks' => 30,
         'redis:default' => 60,
+        'redis:mail' => 120,
         'redis:notifications' => 120,
     ],
 
@@ -220,7 +221,7 @@ return [
         ],
         'supervisor-default' => [
             'connection' => 'redis',
-            'queue' => ['default', 'scheduled', 'notifications', 'broadcasts'],
+            'queue' => ['default', 'mail', 'scheduled', 'notifications', 'broadcasts'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'minProcesses' => 1,

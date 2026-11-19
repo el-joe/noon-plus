@@ -84,8 +84,8 @@ it('generates the previous month for each influencer only, emails it once and is
 
     Notification::assertSentToTimes($user, CelebrityMonthlyReportReady::class, 1);
     $mail = (new CelebrityMonthlyReportReady($report, 'uae'))->toMail($user);
-    expect($mail->rawAttachments[0]['name'])->toBe($report->fileName())
-        ->and(str_starts_with($mail->rawAttachments[0]['data'], '%PDF'))->toBeTrue();
+    expect($mail->files[0]['name'])->toBe($report->fileName())
+        ->and(str_starts_with($mail->files[0]['data'], '%PDF'))->toBeTrue();
 });
 
 it('is scheduled on the 1st after the cross-promotion evaluation', function () {

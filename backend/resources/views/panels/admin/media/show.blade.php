@@ -58,21 +58,44 @@
         <div class="flex flex-col gap-6 lg:col-start-3 lg:row-start-1 lg:row-span-2">
             @can('live_media.manage')
                 @if (! $stream->isRecorded())
-                    <x-ui.card :title="__('Studio')" :subtitle="__('Publish from the browser studio with this room and token')">
-                        <div class="flex flex-wrap gap-2">
-                            @if (in_array($stream->status, [$S::Scheduled, $S::Idle], true))
-                                <form method="POST" action="{{ route('admin.media.live', $stream->id) }}">@csrf<x-ui.button type="submit">{{ __('Go live') }}</x-ui.button></form>
-                            @endif
-                            @if ($stream->status === $S::Live)
-                                <form method="POST" action="{{ route('admin.media.end', $stream->id) }}">@csrf<x-ui.button type="submit" variant="danger">{{ __('End stream') }}</x-ui.button></form>
-                            @endif
-                        </div>
+                    <x-ui.card :title="__('Studio')" :subtitle="__('Broadcast from this browser: viewers connect to you directly (WebRTC).')">
                         @if ($studio)
-                            <dl class="mt-3 flex flex-col gap-2 text-xs">
-                                <div><dt class="text-fg-secondary">{{ __('Server') }}</dt><dd class="font-mono">{{ $studio['url'] }}</dd></div>
-                                <div><dt class="text-fg-secondary">{{ __('Room') }}</dt><dd class="font-mono">{{ $studio['room'] }}</dd></div>
-                                <div><dt class="text-fg-secondary">{{ __('Publisher token') }}</dt><dd><textarea readonly rows="3" class="w-full rounded border border-line p-1 font-mono text-[10px]">{{ $studio['token'] }}</textarea></dd></div>
-                            </dl>
+                            @php($sel = 'h-9 w-full rounded-lg border border-line bg-surface px-2 text-sm')
+                            <div data-live-studio data-studio-state="{{ $studio['status'] }}" class="flex flex-col gap-3">
+                                <script type="application/json">@json($studio)</script>
+                                <video data-studio="preview" muted playsinline autoplay class="aspect-video w-full rounded-lg bg-black object-contain"></video>
+                                <p data-studio="status" role="status" class="text-xs text-fg-secondary">{{ $stream->status === $S::Live ? __('You are live. Viewers connect to this browser — keep this tab open.') : __('Start the camera to check the picture, then go live.') }}</p>
+                                <div class="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-1">
+                                    @if ($stream->media_mode !== 'audio')
+                                        <label class="flex flex-col gap-1">{{ __('Camera') }}<select data-studio="video-device" class="{{ $sel }}"></select></label>
+                                    @endif
+                                    <label class="flex flex-col gap-1">{{ __('Microphone') }}<select data-studio="audio-device" class="{{ $sel }}"></select></label>
+                                    @if ($stream->media_mode !== 'audio')
+                                        <label class="flex flex-col gap-1">{{ __('Quality') }}
+                                            <select data-studio="preset" class="{{ $sel }}">
+                                                <option value="low">{{ __('Low · 360p · 0.5 Mbps per viewer') }}</option>
+                                                <option value="medium">{{ __('Standard · 540p · 1 Mbps per viewer') }}</option>
+                                                <option value="high">{{ __('High · 720p · 2 Mbps per viewer') }}</option>
+                                            </select>
+                                        </label>
+                                    @else
+                                        <input type="hidden" data-studio="preset" value="medium">
+                                    @endif
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <x-ui.button size="sm" variant="outline" data-studio="camera-start">{{ __('Start camera') }}</x-ui.button>
+                                    <x-ui.button size="sm" data-studio="golive" :hidden="$stream->status === $S::Live">{{ __('Go live') }}</x-ui.button>
+                                    <x-ui.button size="sm" variant="danger" data-studio="end" :hidden="$stream->status !== $S::Live">{{ __('End show') }}</x-ui.button>
+                                    <x-ui.button size="sm" variant="outline" data-studio="mute" aria-pressed="false">{{ __('Mute mic') }}</x-ui.button>
+                                    <x-ui.button size="sm" variant="outline" data-studio="screen">{{ __('Share screen') }}</x-ui.button>
+                                </div>
+                                <dl class="grid grid-cols-2 gap-2 text-xs">
+                                    <div><dt class="text-fg-secondary">{{ __('Connected viewers') }}</dt><dd data-studio="count" class="font-semibold">0 / {{ $studio['max_viewers'] }}</dd></div>
+                                    <div><dt class="text-fg-secondary">{{ __('Estimated upload') }}</dt><dd data-studio="upload" class="font-semibold">0 kbps</dd></div>
+                                </dl>
+                                <ul data-studio="viewers" class="flex max-h-40 flex-col gap-1 overflow-y-auto text-xs"></ul>
+                                <p class="text-xs text-fg-secondary">{{ __('Each viewer is a direct connection from this browser, so your upload grows with every viewer (cap: :max).', ['max' => $studio['max_viewers']]) }}</p>
+                            </div>
                         @endif
                     </x-ui.card>
                 @endif

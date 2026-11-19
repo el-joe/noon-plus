@@ -24,6 +24,7 @@ use App\Domains\Onboarding\Notifications\PartnerWelcomeNotification;
 use App\Domains\Onboarding\Support\AcquirerReferrals;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\Notifications\RequestNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -142,7 +143,7 @@ describe('join options and advertise requests', function () {
 
         $number = $this->postJson('/api/v1/uae-en/advertise-requests', ['name' => 'Sara', 'email' => 'sara@bloom.ae', 'phone' => '0501234567', 'company' => 'Bloom Home', 'advertiser_type' => 'seller', 'interest' => 'product_ads', 'consent' => true])
             ->assertCreated()->json('data.number');
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail, array $channels, AnonymousNotifiable $notifiable): bool => $mail->kind === 'advertise_inquiry.received' && $notifiable->routes['mail'] === 'sara@bloom.ae');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail, array $channels, AnonymousNotifiable $notifiable): bool => $mail->event === 'advertise.inquiry_sent' && array_key_first((array) $notifiable->routes['mail']) === 'sara@bloom.ae');
 
         $marketing = adminAccount('uae', 'marketing');
         $inquiry = AdvertiseInquiry::query()->sole();
@@ -211,7 +212,7 @@ describe('vendor wizard (5 steps)', function () {
         $signature = ContractSignature::query()->sole();
         expect($signature->signer_type)->toBe(SignerType::Applicant)->and($signature->signer_id)->toBe($application->id)
             ->and($signature->contract_version_id)->toBe($agreement->id)->and($signature->method)->toBe(SignatureMethod::Registration);
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'partner_application.submitted');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'partner.application_submitted');
 
         $this->postJson(applicationsUrl("{$application->number}/steps/address"), ['city' => 'Sharjah', 'street' => 'X'], ['X-Application-Token' => $token])->assertStatus(422);
         $this->getJson(applicationsUrl($application->number), ['X-Application-Token' => $token])->assertJsonPath('data.status', 'submitted')->assertJsonPath('data.editable', false);
@@ -411,11 +412,11 @@ describe('admin review', function () {
         $this->getJson(applicationsUrl($application->number), ['X-Application-Token' => $oldToken])->assertOk();
 
         $token = null;
-        Notification::assertSentOnDemand(RequestNotification::class, function (RequestNotification $mail) use (&$token): bool {
-            if ($mail->kind !== 'partner_application.changes_requested') {
+        Notification::assertSentOnDemand(EventEmail::class, function (EventEmail $mail) use (&$token): bool {
+            if ($mail->event !== 'partner.application_changes_requested') {
                 return false;
             }
-            preg_match('/token=([A-Za-z0-9]+)/', implode(' ', $mail->lines), $match);
+            preg_match('/token=([A-Za-z0-9]+)/', (string) $mail->options['url'], $match);
             $token = $match[1];
 
             return true;
@@ -442,7 +443,7 @@ describe('admin review', function () {
         $this->actingAs($admin)->post(onPanel('admin', "applications/{$application->id}/decide"), ['decision' => 'reject', 'reason' => 'Trade licence expired'])->assertRedirect();
         expect($application->refresh()->status)->toBe(ApplicationStatus::Rejected)->and($application->decision_reason)->toBe('Trade licence expired')
             ->and(User::query()->where('email', 'sara@example.com')->exists())->toBeFalse();
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'partner_application.rejected' && str_contains(implode(' ', $mail->lines), 'Trade licence expired'));
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'partner.application_rejected' && $mail->variables['reason'] === 'Trade licence expired');
 
         $this->actingAs($admin)->post(onPanel('admin', "applications/{$application->id}/decide"), ['decision' => 'approve'])->assertSessionHasErrors('action');
         $this->postJson(applicationsUrl(), applicantAccount('vendor'))->assertCreated();

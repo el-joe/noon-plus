@@ -2,6 +2,7 @@
 
 namespace App\Domains\Panels\Http\Controllers;
 
+use App\Domains\Identity\Support\SecurityEmails;
 use App\Domains\Panels\Notifications\PanelPasswordResetNotification;
 use App\Domains\Panels\Support\Panel;
 use App\Http\Controllers\Controller;
@@ -46,6 +47,7 @@ class PanelPasswordResetController extends Controller
                 route($panel->route('password.reset'), ['token' => $token, 'email' => $email]),
                 $panel->name,
                 (int) config('auth.passwords.users.expire'),
+                $panel->key,
             ));
         }
 
@@ -84,6 +86,7 @@ class PanelPasswordResetController extends Controller
             'email_verified_at' => $user->email_verified_at ?? now(),
         ])->save();
         PasswordBroker::broker()->deleteToken($user);
+        app(SecurityEmails::class)->passwordChanged($user, $panel->key);
 
         return redirect()->route($panel->route('login'))->with('status', __('Your password has been reset. Sign in to continue.'));
     }

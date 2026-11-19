@@ -2,36 +2,32 @@
 
 namespace App\Domains\Panels\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\EventEmail;
 
 /**
- * Invitation to join a team on Nawy (QA-003, QC-020); the link is the only
- * way to accept it.
+ * Invitation to join a team on Nawy (QA-003, QC-020), catalogue email
+ * `team.invitation`; the link is the only way to accept it.
  */
-class TeamInvitationNotification extends Notification
+class TeamInvitationNotification extends EventEmail
 {
-    use Queueable;
-
-    public function __construct(public string $teamName, public string $roleLabel, public string $acceptUrl, public int $validDays, public ?string $platformPanel = null) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function __construct(public string $teamName, public string $roleLabel, public string $acceptUrl, public int $validDays, public ?string $platformPanel = null, ?string $inviterName = null, ?string $inviteeName = null, ?string $panelKey = null)
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject($this->subject())
-            ->line(__(':team invited you to join as :role.', ['team' => $this->teamName, 'role' => $this->roleLabel]))
-            ->line(__('Nothing changes on your account unless you accept. The invitation is valid for :days days.', ['days' => $this->validDays]))
-            ->action(__('Review the invitation'), $this->acceptUrl)
-            ->line(__('If you were not expecting this, ignore this email.'));
+        parent::__construct('team.invitation', [
+            'inviter' => $inviterName ?? 'Nawy',
+            'team' => match ($platformPanel) {
+                null => EmailValue::t(':team on Nawy', ['team' => $teamName]),
+                'delivery' => EmailValue::t('the Nawy delivery team'),
+                default => EmailValue::t('the Nawy admin team'),
+            },
+            'role' => $roleLabel,
+            'expires' => EmailValue::date(now()->addDays($validDays)),
+        ], array_filter([
+            'url' => $acceptUrl,
+            'name' => $inviteeName,
+            'locale' => app()->getLocale(),
+            'panel' => $panelKey ?? $platformPanel,
+        ]));
     }
 
     /**

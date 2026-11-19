@@ -5,9 +5,9 @@ namespace App\Domains\Onboarding\Support;
 use App\Domains\Onboarding\Enums\AdvertiseInquiryStatus;
 use App\Domains\Onboarding\Models\AdvertiseInquiry;
 use App\Domains\Orders\Enums\ActorType;
-use App\Shared\Notifications\RequestNotification;
+use App\Domains\Panels\Support\Panel;
+use App\Shared\Notifications\Email\Emails;
 use App\Shared\StateMachine\StateMachine;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 /**
@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  */
 class AdvertiseInquiries
 {
-    public function __construct(private StateMachine $machine) {}
+    public function __construct(private StateMachine $machine, private Emails $emails) {}
 
     /**
      * @param  array{name: string, email: string, phone: string, company?: string|null, advertiser_type: string, interest: string, monthly_budget?: string|null, message?: string|null}  $data
@@ -40,21 +40,13 @@ class AdvertiseInquiries
         ]);
         $this->machine->created($inquiry, ActorType::Customer, $customerUserId);
 
-        Notification::route('mail', $inquiry->email)->notify(new RequestNotification(
-            'advertise_inquiry.received',
-            __('We received your advertising request'),
-            [__('Thank you, :name. A Nawy Ads specialist will reply within 2 business days.', ['name' => $inquiry->name])],
-            $inquiry->number,
-        ));
-
-        if (filled($opsEmail = config('nawy.ops_alert_email'))) {
-            Notification::route('mail', $opsEmail)->notify(new RequestNotification(
-                'advertise_inquiry.new',
-                __('New advertising request'),
-                [$inquiry->name.' · '.$inquiry->email.' · '.$inquiry->advertiser_type.' · '.$inquiry->interest],
-                $inquiry->number,
-            ));
-        }
+        $this->emails->send('advertise.inquiry_sent', $inquiry->email, ['company' => (string) ($inquiry->company ?: $inquiry->name)], [
+            'entity' => $inquiry, 'locale' => $inquiry->locale, 'name' => $inquiry->name,
+        ]);
+        $this->emails->alertAdmins('admin.advertise_inquiry', [
+            'company' => (string) ($inquiry->company ?: $inquiry->name),
+            'contact' => $inquiry->name.' · '.$inquiry->email.' · '.$inquiry->phone.' · '.$inquiry->advertiser_type.' · '.$inquiry->interest,
+        ], ['entity' => $inquiry, 'url' => Panel::find('admin')->url('/advertise-requests')]);
 
         return $inquiry;
     }

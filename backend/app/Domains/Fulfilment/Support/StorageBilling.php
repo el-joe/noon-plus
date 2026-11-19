@@ -12,7 +12,11 @@ use App\Domains\Fulfilment\Models\StorageSnapshot;
 use App\Domains\Fulfilment\Models\Warehouse;
 use App\Domains\Fulfilment\Models\WarehouseStock;
 use App\Domains\Panels\Listeners\NotifySellerOfStateChange;
+use App\Domains\Panels\Support\Panel;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -79,9 +83,32 @@ class StorageBilling
             $isOver = $warehouse->capacity_cubic_feet !== null && $used->isGreaterThan((string) $warehouse->capacity_cubic_feet);
             $warehouse->forceFill(['over_capacity_since' => $isOver ? ($warehouse->over_capacity_since ?? now()) : null])->save();
             $over += $isOver ? 1 : 0;
+            $this->alertCapacity($warehouse, $used, $day);
         }
 
         return ['rows' => $rows, 'over_capacity' => $over];
+    }
+
+    /**
+     * Ops alert when a warehouse uses at least the configured share of its
+     * capacity — once per warehouse per day.
+     */
+    private function alertCapacity(Warehouse $warehouse, BigDecimal $used, CarbonImmutable $day): void
+    {
+        if ($warehouse->capacity_cubic_feet === null || BigDecimal::of((string) $warehouse->capacity_cubic_feet)->isLessThanOrEqualTo(0)) {
+            return;
+        }
+
+        $percent = $used->multipliedBy(100)->dividedBy((string) $warehouse->capacity_cubic_feet, 1, RoundingMode::HalfUp);
+
+        if ($percent->isLessThan((int) config('nawy.mail.reminders.warehouse_capacity_percent', 90))) {
+            return;
+        }
+
+        app(Emails::class)->alertAdmins('admin.warehouse_capacity', [
+            'warehouse' => trim($warehouse->code.' · '.$warehouse->name_en, ' ·'),
+            'used_percent' => (string) $percent,
+        ], ['entity' => $warehouse, 'key' => $day->toDateString(), 'url' => Panel::find('admin')->url('/inventory/warehouses')]);
     }
 
     /**
@@ -172,6 +199,11 @@ class StorageBilling
 
                 $this->ledger->chargeVendor((int) $vendorId, $total, VendorBalanceItem::TYPE_FBN_STORAGE, $invoice, "fbn-storage:{$invoice->id}:charge",
                     "FBN storage {$start->format('Y-m')}", AccountRef::platform(LedgerAccountCode::FeeRevenue));
+                app(PartnerEmails::class)->toVendor((int) $vendorId, 'fbn.storage_invoice', [
+                    'invoice_number' => (string) $invoice->number,
+                    'period' => $start->format('Y-m'),
+                    'amount' => EmailValue::money($this->money->toStorage($total), $currency),
+                ], '/fees', ['entity' => $invoice]);
                 $created++;
             });
         }

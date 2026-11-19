@@ -3,22 +3,23 @@
 namespace App\Domains\Travel\Support;
 
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\Travel\Enums\InquiryStatus;
 use App\Domains\Travel\Models\TravelInquiry;
 use App\Domains\Travel\Models\TravelPackage;
 use App\Models\User;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Localization\InLocale;
+use App\Shared\Notifications\Email\Emails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Travel inquiries (SRS §12.2): new → contacted → converted | closed.
  */
 class TravelInquiries
 {
-    public function __construct(private StateMachine $machine) {}
+    public function __construct(private StateMachine $machine, private Emails $emails) {}
 
     /**
      * @param  array{name: string, email: string, phone: string, message: string}  $data
@@ -34,11 +35,20 @@ class TravelInquiries
         $inquiry->forceFill(['status' => InquiryStatus::New])->save();
         $this->machine->created($inquiry, $customerUserId === null ? ActorType::System : ActorType::Customer, $customerUserId);
 
-        User::query()->find($package->vendor->owner_user_id)?->notify(new RequestNotification('travel_inquiry.received', __('New inquiry about :trip', ['trip' => $package->title_en]), [
-            __('From :name · :email · :phone', ['name' => $inquiry->name, 'email' => $inquiry->email, 'phone' => $inquiry->phone]),
-            $inquiry->message,
-        ]));
-        Notification::route('mail', $inquiry->email)->notify(new RequestNotification('travel_inquiry.sent', __('Your question about :trip was sent', ['trip' => $package->title_en]), [__(':agency will reply to you by email or phone.', ['agency' => $package->vendor->store_name])]));
+        $owner = User::query()->find($package->vendor->owner_user_id);
+
+        if ($owner !== null) {
+            $this->emails->send('travel.inquiry_received', $owner, [
+                'trip' => InLocale::run($owner->preferredLocale(), fn (): string => $package->localizedTitle()),
+                'from' => $inquiry->name.' · '.$inquiry->email.' · '.$inquiry->phone,
+                'question' => (string) $inquiry->message,
+            ], ['entity' => $inquiry, 'panel' => 'travel_agency', 'url' => Panel::find('travel_agency')->url('inquiries')]);
+        }
+
+        $this->emails->send('travel.inquiry_sent', $inquiry->email, [
+            'trip' => $package->localizedTitle(),
+            'agency' => (string) $package->vendor->store_name,
+        ], ['entity' => $inquiry, 'locale' => app()->getLocale(), 'name' => $inquiry->name]);
 
         return $inquiry;
     }

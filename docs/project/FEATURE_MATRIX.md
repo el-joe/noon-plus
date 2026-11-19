@@ -259,7 +259,7 @@ Cells: **●** full · **○** view / limited · **—** not present. Parity: **
 
 | Feature | Web | App | Adm | Prt | Mkt | Trv | Car | Dlv | Ops | Por | API | Parity | M |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Live broadcasts via LiveKit (**admin-only** studio) | ● (watch) | ● (watch) | ● | — | — | — | — | — | — | — | pub | R (ADR 11) | M11 |
+| Live broadcasts via native WebRTC + Reverb signalling (D18; was LiveKit) (**admin-only** studio) | ● (watch) | ● (watch) | ● | — | — | — | — | — | — | — | pub | R (ADR 11) | M11 |
 | Recorded channels (scheduled, synced/free playback) | ● | ● | ● | — | — | — | — | — | — | — | pub | K | M11 |
 | Comments, likes, viewer stats | ● | ● | ● | — | — | — | — | — | — | — | pub | K | M11 |
 | Scheduled homepage media + floating mini-player | ● | ● | ● | — | — | — | — | — | — | — | pub | N | M11 |

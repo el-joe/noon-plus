@@ -6,6 +6,7 @@ use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Marketers\Enums\MarketerStatus;
 use App\Domains\Marketers\Models\MarketerProfile;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\Travel\Enums\BookingStatus;
 use App\Domains\Travel\Models\TravelBooking;
 use App\Domains\Travel\Models\TravelBookingModification;
@@ -14,13 +15,14 @@ use App\Models\User;
 use App\Shared\Http\StorefrontLinks;
 use App\Shared\Localization\InLocale;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\Notifications\RequestNotification;
 use App\Shared\Settings\VerticalSettings;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
 use Brick\Money\Money;
-use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -50,6 +52,7 @@ class TravelBookings
         private CountryContext $countryContext,
         private MoneyFactory $money,
         private VerticalSettings $settings,
+        private Emails $emails,
     ) {}
 
     /**
@@ -143,17 +146,14 @@ class TravelBookings
             'confirmed_at' => now(),
             'confirmation_number' => 'TV-'.$this->countryContext->current()->iso2.'-'.str_pad((string) $booking->id, 7, '0', STR_PAD_LEFT),
         ]);
-        $this->notifyCustomer($booking->refresh(), 'travel_booking.confirmed', fn (): array => [__('Your trip booking :number is confirmed', ['number' => $booking->number]), [
-            __(':agency confirmed your booking for :trip on :date.', ['agency' => $booking->vendor->store_name, 'trip' => $booking->package->localizedTitle(), 'date' => $booking->departure->departs_on->toDateString()]),
-            __('The agency will contact you to arrange payment directly.'),
-        ]]);
+        $this->notifyCustomer($booking->refresh(), 'travel.booking_confirmed');
 
         return $booking;
     }
 
     public function reject(TravelBooking $booking, int $userId, string $reason): TravelBooking
     {
-        return $this->release($booking, BookingStatus::Rejected, ActorType::Agency, $userId, $reason, 'travel_booking.rejected', 'Your trip booking :number could not be confirmed');
+        return $this->release($booking, BookingStatus::Rejected, ActorType::Agency, $userId, $reason);
     }
 
     public function cancel(TravelBooking $booking, ActorType $actor, ?int $userId, string $reason): TravelBooking
@@ -162,7 +162,7 @@ class TravelBookings
             throw new TransitionRefused(__('The trip has already left.'));
         }
 
-        return $this->release($booking, BookingStatus::Cancelled, $actor, $userId, $reason, 'travel_booking.cancelled', 'Your trip booking :number is cancelled');
+        return $this->release($booking, BookingStatus::Cancelled, $actor, $userId, $reason);
     }
 
     /**
@@ -280,7 +280,7 @@ class TravelBookings
         return [$lines, $seats, $total];
     }
 
-    private function release(TravelBooking $booking, BookingStatus $to, ActorType $actor, ?int $userId, string $reason, string $kind, string $subjectKey): TravelBooking
+    private function release(TravelBooking $booking, BookingStatus $to, ActorType $actor, ?int $userId, string $reason): TravelBooking
     {
         if (! in_array($to, $booking->status->allowedNext(), true)) {
             throw new TransitionRefused(__('This booking cannot be :action.', ['action' => $to->value]));
@@ -298,7 +298,7 @@ class TravelBookings
         $this->packages->syncSoldOut($booking->package);
 
         if ($booking->requested_at !== null) {
-            $this->notifyCustomer($booking->refresh(), $kind, fn (): array => [__($subjectKey, ['number' => $booking->number]), [__('Reason: :reason', ['reason' => $reason])]]);
+            $this->notifyCustomer($booking->refresh(), 'travel.booking_rejected', ['reason' => $reason]);
         }
 
         return $booking->refresh();
@@ -307,37 +307,50 @@ class TravelBookings
     private function notifySubmitted(TravelBooking $booking): void
     {
         $booking->loadMissing(['package', 'departure', 'vendor']);
-        $summary = fn (): string => __(':trip · departs :date · :seats seat(s) · quoted :total :currency', ['trip' => $booking->package->localizedTitle(), 'date' => $booking->departure->departs_on->toDateString(), 'seats' => $booking->seats, 'total' => $this->money->of((string) $booking->total, $booking->currency)->getAmount(), 'currency' => $booking->currency]);
         $owner = User::query()->find($booking->vendor->owner_user_id);
 
         // QC-028: each email in its recipient's language.
-        $owner?->notify(InLocale::run($owner->preferredLocale(), fn (): RequestNotification => new RequestNotification('travel_booking.requested', __('New booking request :number', ['number' => $booking->number]), [
-            $summary(),
-            __('Customer: :name · :email · :phone', ['name' => $booking->contact_name, 'email' => $booking->contact_email, 'phone' => $booking->contact_phone]),
-            __('Confirm or reject it in Travel Partner → Bookings, and settle payment with the customer directly.'),
-        ], $booking->number)));
+        if ($owner !== null) {
+            $this->emails->send('travel.booking_request', $owner, [
+                'booking_number' => (string) $booking->number,
+                'trip' => InLocale::run($owner->preferredLocale(), fn (): string => $booking->package->localizedTitle()),
+                'travellers' => (string) $booking->seats,
+                'date' => EmailValue::date($booking->departure->departs_on),
+                'contact' => $booking->contact_name.' · '.$booking->contact_email.' · '.$booking->contact_phone,
+            ], [
+                'entity' => $booking,
+                'panel' => 'travel_agency',
+                'url' => Panel::find('travel_agency')->url('bookings'),
+            ]);
+        }
 
-        $this->notifyCustomer($booking, 'travel_booking.received', fn (): array => [__('We received your booking request :number', ['number' => $booking->number]), [
-            $summary(),
-            __(':agency will confirm your seats and contact you about payment. No payment is taken on Nawy.', ['agency' => $booking->vendor->store_name]),
-        ]]);
+        $this->notifyCustomer($booking, 'travel.booking_received');
     }
 
     /**
-     * D4 customer emails, written in the language the customer booked in
-     * (QC-028) — also when the agency acts from its panel in another one.
+     * D4 customer emails (guests included, by the booking's contact email),
+     * written in the language the customer booked in (QC-028) — also when
+     * the agency acts from its panel in another one.
      *
-     * @param  Closure(): array{0: string, 1: array<int, string>}  $content
+     * @param  array<string, string>  $extra
      */
-    private function notifyCustomer(TravelBooking $booking, string $kind, Closure $content): void
+    private function notifyCustomer(TravelBooking $booking, string $event, array $extra = []): void
     {
-        $notification = InLocale::run($booking->locale ?? config('app.locale'), function () use ($booking, $kind, $content): RequestNotification {
-            [$subject, $lines] = $content();
+        $booking->loadMissing(['package', 'departure', 'vendor']);
+        $locale = $booking->locale ?? config('app.locale');
 
-            return new RequestNotification($kind, $subject, $lines, $booking->number, $this->statusLink($booking), __('View your booking'));
-        });
-
-        Notification::route('mail', $booking->contact_email)->notify($notification->locale($booking->locale ?? config('app.locale')));
+        $this->emails->send($event, $booking->contact_email, $extra + [
+            'booking_number' => (string) $booking->number,
+            'trip' => InLocale::run($locale, fn (): string => $booking->package->localizedTitle()),
+            'agency' => (string) $booking->vendor->store_name,
+            'travellers' => (string) $booking->seats,
+            'date' => EmailValue::date($booking->departure->departs_on),
+        ], [
+            'entity' => $booking,
+            'locale' => $locale,
+            'name' => $booking->contact_name,
+            'url' => InLocale::run($locale, fn (): string => $this->statusLink($booking)),
+        ]);
     }
 
     /**

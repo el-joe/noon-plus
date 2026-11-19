@@ -126,7 +126,7 @@ test.describe("signed-in account flows", () => {
   });
 
   test("wishlist add and remove", async ({ page, problems }) => {
-    const slug = JSON.parse(await (await page.request.get("http://localhost:8000/api/v1/uae-en/products?per_page=1")).text()).data[0].slug as string;
+    const slug = JSON.parse(await (await page.request.get(`${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/uae-en/products?per_page=1`)).text()).data[0].slug as string;
     await page.goto(`/uae-en/products/${slug}`);
     await settle(page);
     const add = page.getByRole("button", { name: "Add to wishlist" }).first();

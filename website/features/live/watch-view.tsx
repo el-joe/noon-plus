@@ -12,24 +12,13 @@ import { likeStream, type StreamDetail } from "@/lib/api/live";
 import { formatAmount, formatDateTime } from "@/lib/format";
 import { errorMessage, useCartMutation } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
+import { useRealtimeChannel } from "@/lib/realtime";
 import { LiveChat, useViewerCount } from "./live-chat";
 import { useLivePlayer } from "./player-context";
-import { playerFallback } from "./player-state";
+import { playerFallback, usesWebRtc } from "./player-state";
 
-const HLS_MIME = "application/vnd.apple.mpegurl";
-
-/** D16: the LiveKit browser viewer, loaded only on a watch page whose room is joinable. */
-const LiveKitViewer = dynamic(() => import("./livekit-viewer"), { ssr: false });
-
-/** True when this browser plays HLS in a plain <video> (no player library on the web). */
-function useNativeHls(): boolean {
-  const [ok, setOk] = useState(false);
-  useEffect(() => {
-    const probe = document.createElement("video");
-    setOk(probe.canPlayType(HLS_MIME) !== "" || probe.canPlayType("audio/mpegurl") !== "");
-  }, []);
-  return ok;
-}
+/** D18: the native WebRTC viewer, loaded only on the watch page of a live broadcast. */
+const WebRtcViewer = dynamic(() => import("./webrtc-viewer"), { ssr: false });
 
 /** Watch page body (Figma Live stream player 100:12627): player, info, like, "In this live" products. */
 export function WatchView({ stream }: { stream: StreamDetail }) {
@@ -45,21 +34,17 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
   const [viewers, setViewers] = useViewerCount(stream.slug, isLive, stream.viewers);
   const recorded = stream.playback?.type === "recorded" ? stream.playback : null;
   const playable = recorded && (isLive || stream.status === "ended") ? recorded : null;
-  // LiveKit room with an HLS egress: native <video> where the browser plays HLS (Safari, iOS, Android Chrome).
-  const hlsUrl = isLive && stream.playback?.type === "live" ? (stream.playback.hls_url ?? null) : null;
-  const nativeHls = useNativeHls();
-  const hls = hlsUrl && nativeHls ? hlsUrl : null;
-  // D16: WebRTC viewer when the API says the room is joinable; HLS / poster otherwise or after a failure.
-  const [webrtcFailed, setWebrtcFailed] = useState(false);
-  const room = isLive && stream.playback?.type === "live" && stream.playback.webrtc && stream.playback.url && stream.playback.token && !webrtcFailed
-    ? { url: stream.playback.url, token: stream.playback.token }
-    : null;
+  // D18: a live broadcast plays over WebRTC straight from the host's studio; the recording (`media_url`) otherwise.
+  const webrtc = usesWebRtc({ isLive, playback: stream.playback });
+
+  // D18: go-live / end arrive over Reverb (`status.changed`) when it is configured: reload the stream.
+  useRealtimeChannel({ market: market.slug, channel: `live-stream.${stream.slug}`, events: { "status.changed": () => router.refresh() } });
 
   // Register with the floating player so playback continues after navigating away.
   useEffect(() => {
     if (!playable && !isLive) return;
-    play({ slug: stream.slug, title: stream.title ?? "", src: playable?.media_url ?? hls, mime: playable?.mime ?? (hls ? HLS_MIME : null), poster: stream.thumbnail_url, live: isLive });
-  }, [play, stream.slug, stream.title, stream.thumbnail_url, playable, isLive, hls]);
+    play({ slug: stream.slug, title: stream.title ?? "", src: playable?.media_url ?? null, mime: playable?.mime ?? null, poster: stream.thumbnail_url, live: isLive });
+  }, [play, stream.slug, stream.title, stream.thumbnail_url, playable, isLive]);
 
   useEffect(() => {
     const el = video.current;
@@ -97,22 +82,18 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
     }
   };
 
-  const fallback = playerFallback({ isLive, status: stream.status, webrtcFailed, hlsUrl, nativeHls });
+  const fallback = playerFallback({ isLive, status: stream.status });
   const when = stream.scheduled_at ? formatDateTime(stream.scheduled_at, market.locale, market.country.timeZone) : "";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
       <section className="flex flex-col gap-3">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-ink text-white">
-          {room ? (
-            <LiveKitViewer url={room.url} token={room.token} poster={stream.thumbnail_url} onFailed={() => setWebrtcFailed(true)} />
+          {webrtc ? (
+            <WebRtcViewer market={market.slug} slug={stream.slug} poster={stream.thumbnail_url} onEnded={() => router.refresh()} />
           ) : playable ? (
             <video ref={video} src={playable.media_url} poster={stream.thumbnail_url ?? undefined} controls playsInline autoPlay className="size-full bg-black object-contain">
               {playable.mime ? <source src={playable.media_url} type={playable.mime} /> : null}
-            </video>
-          ) : hls ? (
-            <video src={hls} poster={stream.thumbnail_url ?? undefined} controls playsInline autoPlay muted className="size-full bg-black object-contain">
-              <source src={hls} type={HLS_MIME} />
             </video>
           ) : (
             <div className="relative flex size-full flex-col items-center justify-center gap-3 p-6 text-center">
@@ -122,20 +103,12 @@ export function WatchView({ stream }: { stream: StreamDetail }) {
               ) : null}
               <Radio className="relative size-12" />
               <p className="relative max-w-md text-body" role="status">
-                {fallback === "failed"
-                  ? t("player.failed")
-                  : fallback === "unsupported"
-                    ? t("player.unsupported")
-                    : fallback === "unavailable"
-                      ? t("player.unavailable")
-                      : fallback === "ended"
-                        ? t("ended")
-                        : t("notStarted", { date: when })}
+                {fallback === "unavailable" ? t("player.unavailable") : fallback === "ended" ? t("ended") : t("notStarted", { date: when })}
               </p>
-              {fallback === "failed" || fallback === "unavailable" ? (
+              {fallback === "unavailable" ? (
                 <button
                   type="button"
-                  onClick={() => (fallback === "failed" ? setWebrtcFailed(false) : router.refresh())}
+                  onClick={() => router.refresh()}
                   className="relative inline-flex h-9 items-center gap-2 rounded-full bg-surface px-4 text-body-sm font-semibold text-ink"
                 >
                   <RefreshCw className="size-4" aria-hidden />

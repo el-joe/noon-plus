@@ -24,10 +24,16 @@ use App\Domains\Panels\Http\Middleware\ScalarQueryParameters;
 use App\Domains\Panels\Support\Panel;
 use App\Domains\Travel\Http\Controllers\Panel\TravelPartnerController;
 use App\Domains\Travel\Http\Middleware\ResolveTravelAgency;
+use App\Shared\Notifications\Email\Http\EmailPreferenceController;
+use App\Shared\Notifications\Email\Http\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 // QC-076 / QC-067: no stock Laravel page; the API host sends visitors to the storefront.
 Route::get('/', fn () => redirect()->away((string) config('nawy.payments.storefront_url')));
+
+// Email system: unsubscribe landing for panel users and guests (customers land on the website).
+Route::get('email/unsubscribe/{token}', [UnsubscribeController::class, 'page'])->middleware('throttle:60,1')->name('email.unsubscribe.show');
+Route::post('email/unsubscribe/{token}', [UnsubscribeController::class, 'submit'])->middleware('throttle:20,1')->name('email.unsubscribe.submit');
 
 /*
 | Business panels — {host}.{base} (MASTER_PLAN §5). Every panel shares the
@@ -102,6 +108,8 @@ foreach (Panel::all() as $panel) {
                 Route::post('notifications/read-all', [PanelNotificationController::class, 'readAll'])->defaults('panel', $panel->key)->name('notifications.read-all');
                 Route::post('notifications/{notification}/read', [PanelNotificationController::class, 'read'])->whereNumber('notification')->defaults('panel', $panel->key)->name('notifications.read');
                 Route::get('account/security', PanelSecurityController::class)->defaults('panel', $panel->key)->name('security');
+                Route::get('account/email-preferences', [EmailPreferenceController::class, 'panel'])->defaults('panel', $panel->key)->name('email-preferences');
+                Route::post('account/email-preferences', [EmailPreferenceController::class, 'savePanel'])->defaults('panel', $panel->key)->middleware('throttle:30,1')->name('email-preferences.save');
 
                 if (is_file($routes = base_path("routes/panels/{$panel->key}.php"))) {
                     require $routes;

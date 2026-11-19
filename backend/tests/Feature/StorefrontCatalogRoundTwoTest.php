@@ -83,12 +83,10 @@ describe('images on cards (G-W14, G-W26)', function () {
         $streams->linkProducts($live, [$listing->id]);
         $streams->goLive($live, 1);
 
-        $response = $this->getJson("/api/v1/uae-en/live-streams/{$live->slug}")->assertOk()->assertJsonPath('data.playback.hls_url', null);
+        // D18: a live broadcast plays over native WebRTC (no HLS egress any more).
+        $response = $this->getJson("/api/v1/uae-en/live-streams/{$live->slug}")->assertOk()
+            ->assertJsonPath('data.playback.webrtc', true)->assertJsonMissingPath('data.playback.hls_url');
         expectProductCard($response->json('data.products.0'), $listing);
-
-        config(['nawy.streams.hls_url_template' => 'https://cdn.test/hls/{room}/index.m3u8']);
-        $this->getJson("/api/v1/uae-en/live-streams/{$live->slug}")->assertOk()
-            ->assertJsonPath('data.playback.hls_url', 'https://cdn.test/hls/'.rawurlencode($live->refresh()->room_name).'/index.m3u8');
     });
 
     it('sends creator avatar and cover URLs and product-card picks', function () {

@@ -2,41 +2,31 @@
 
 namespace App\Domains\Onboarding\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EventEmail;
 
 /**
  * The 6-digit code that proves a partner applicant owns the email address
- * (QA-002). When the address already has a Nawy account, entering the code
- * is the owner's consent to add the new workspace to that account.
+ * (QA-002), catalogue email `partner.application_email_code`. When the
+ * address already has a Nawy account, entering the code is the owner's
+ * consent to add the new workspace to that account.
  */
-class ApplicationEmailCodeNotification extends Notification
+class ApplicationEmailCodeNotification extends EventEmail
 {
-    use Queueable;
-
-    public function __construct(public string $code, public string $applicationNumber, public int $validMinutes, public bool $existingAccount) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function __construct(public string $code, public string $applicationNumber, public int $validMinutes, public bool $existingAccount, ?string $locale = null, ?string $name = null)
     {
-        return ['mail'];
-    }
+        $blocks = [['type' => 'code', 'value' => $code]];
 
-    public function toMail(object $notifiable): MailMessage
-    {
-        $mail = (new MailMessage)
-            ->subject(__('Confirm your email for your Nawy application: :code', ['code' => $this->code]))
-            ->line(__('Enter this code to confirm your email for application :number:', ['number' => $this->applicationNumber]))
-            ->line($this->code)
-            ->line(__('The code is valid for :minutes minutes.', ['minutes' => $this->validMinutes]));
-
-        if ($this->existingAccount) {
-            $mail->line(__('This email already has a Nawy account. If the application is approved, the new workspace is added to that account and you keep your current sign-in.'));
+        if ($existingAccount) {
+            $blocks[] = ['type' => 'note', 'text' => 'This email already has a Nawy account. If the application is approved, the new workspace is added to that account and you keep your current sign-in.'];
         }
 
-        return $mail->line(__('If you did not apply, ignore this email: nothing is created without this code.'));
+        $blocks[] = ['type' => 'note', 'text' => 'If you did not apply, ignore this email: nothing is created without this code.'];
+
+        parent::__construct('partner.application_email_code', ['code' => $code, 'minutes' => (string) $validMinutes], array_filter([
+            'blocks' => $blocks,
+            'locale' => $locale,
+            'name' => $name,
+            'panel' => 'partner',
+        ]));
     }
 }

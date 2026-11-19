@@ -636,12 +636,12 @@ States: `open`, `in_progress`, `waiting_customer`, `resolved`, `closed` **(T)**.
 | in_progress → resolved → closed | admin / system (auto-close after N days, proposed 7) | — | Satisfaction survey (proposed) |
 | resolved → open | requester (reopen) | Within N days | — |
 
-### 9.4 Stream — SRS §14, ADR 11 (LiveKit)
+### 9.4 Stream — SRS §14, ADR 11 (native WebRTC since D18; was LiveKit)
 Live broadcast states: `scheduled` / `idle`, `live`, `ended` **(T)**. Recorded channel states: `scheduled`, `live`, `ended` (healable).
 
 | Transition | Actor | Guards | Side effects |
 |---|---|---|---|
-| (create) → scheduled/idle | **admin only** | Bilingual title, thumbnail, media mode | LiveKit room + key |
+| (create) → scheduled/idle | **admin only** | Bilingual title, thumbnail, media mode | Room name + key (no media server since D18; Go Live opens WebRTC viewer slots, End sends `ended` to every viewer) |
 | scheduled/idle → live (Go Live) | admin | Live broadcast only (**FR-LS-9**: refused for channels) | `started_at`; viewers notified; homepage floating icon if configured |
 | live → ended | admin | — | `ended_at`; recording saved (N); cannot go live again (**FR-LS-4**) |
 | recorded: scheduled → live → ended | system **`streams:sync-recorded` every minute** + lazy API | `now ≥ scheduled_at` / `≥ scheduled_end_at` | Synced playback offset |

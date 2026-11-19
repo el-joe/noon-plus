@@ -24,6 +24,9 @@ dependencies:
   # flutter_map's required companion for `LatLng`. Exact pins.
   flutter_map: 8.3.2
   latlong2: 0.9.1
+  # Live broadcasts (D18, owner-approved in owner-review D16/D18): native
+  # WebRTC viewer, receive-only (no camera / mic permissions). Exact pin.
+  flutter_webrtc: 1.6.3
   # Local path package (not from pub): shared design tokens and theme (QC-065).
   nawy_core:
     path: ../packages/nawy_core

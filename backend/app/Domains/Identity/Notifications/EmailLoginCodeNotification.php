@@ -2,38 +2,33 @@
 
 namespace App\Domains\Identity\Notifications;
 
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\EventEmail;
 
-class EmailLoginCodeNotification extends Notification
+/**
+ * The emailed 6-digit code (`auth.email_code`): sign-in, password reset,
+ * a new email address or the panel second step. Sent through the email
+ * engine (log, suppression list, branded layout) with the code in its own block.
+ */
+class EmailLoginCodeNotification extends EventEmail
 {
     /**
-     * `purpose` is `login` (sign-in) or `email_change` (confirm a new address, G-W29).
+     * `purpose` is `login` (sign-in), `password_reset`, `email_change` (confirm a new address, G-W29) or `panel_2fa`.
      */
-    public function __construct(public string $code, public int $validMinutes, public string $purpose = 'login') {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function __construct(public string $code, public int $validMinutes, public string $purpose = 'login')
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        if ($this->purpose === 'email_change') {
-            return (new MailMessage)
-                ->subject(__('Confirm your new Nawy email: :code', ['code' => $this->code]))
-                ->line(__('Use this code to confirm this address for your Nawy account:'))
-                ->line($this->code)
-                ->line(__('It expires in :minutes minutes. If you did not ask for this, ignore this email.', ['minutes' => $this->validMinutes]));
-        }
-
-        return (new MailMessage)
-            ->subject(__('Your Nawy sign-in code: :code', ['code' => $this->code]))
-            ->line(__('Use this code to sign in to Nawy:'))
-            ->line($this->code)
-            ->line(__('It expires in :minutes minutes. Never share it with anyone, including Nawy staff.', ['minutes' => $this->validMinutes]));
+        parent::__construct('auth.email_code', [
+            'code' => $code,
+            'purpose' => EmailValue::t(match ($purpose) {
+                'email_change' => 'confirm your new email address',
+                'password_reset' => 'reset your password',
+                'panel_2fa' => 'finish signing in',
+                default => 'sign in to Nawy',
+            }),
+            'minutes' => (string) $validMinutes,
+        ], [
+            'blocks' => [['type' => 'code', 'value' => $code]],
+            'locale' => app()->getLocale(),
+        ]);
     }
 }

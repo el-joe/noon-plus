@@ -23,7 +23,7 @@ use App\Domains\Finance\Enums\LedgerAccountCode;
 use App\Domains\Finance\Support\AccountRef;
 use App\Domains\Orders\Enums\ActorType;
 use App\Models\User;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -219,8 +219,8 @@ describe('inquiries, phone reveal and the customer purchase contract (FR-CLS-4)'
         $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/inquiries", $guest)->assertUnprocessable()->assertJsonValidationErrors('phone', 'error.fields');
         $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/inquiries", $guest + ['phone' => '+968 9123 4567'])->assertUnprocessable()->assertJsonValidationErrors('phone', 'error.fields');
         $this->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/inquiries", $guest + ['phone' => '0501111111'])->assertCreated();
-        Notification::assertSentTo($owner, RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'classified_inquiry.received' && str_contains(implode(' ', $mail->lines), '+971501111111'));
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail, array $channels, object $notifiable): bool => $mail->kind === 'classified_inquiry.sent' && $notifiable->routes['mail'] === 'ali@example.com');
+        Notification::assertSentTo($owner, EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'classified.new_message' && str_contains(json_encode($mail->options['blocks']), '+971501111111'));
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail, array $channels, object $notifiable): bool => $mail->event === 'classified.inquiry_sent' && array_key_first((array) $notifiable->routes['mail']) === 'ali@example.com');
 
         $thread = $this->withToken($token)->postJson("/api/v1/uae-en/classifieds/ads/{$ad->number}/inquiries", ['message' => 'Best price?'])->assertCreated()->json('data.thread_id');
         expect(ClassifiedThread::query()->findOrFail($thread))->contact_phone->toBe('+971502223333')->contact_email->toBe($buyer->email);

@@ -19,7 +19,7 @@ export type Report = "customer-profile-and-account" | "website-pages" | "checkou
 const E2E_ROOT = path.resolve(__dirname, "../../..");
 const SHOTS = path.join(E2E_ROOT, "docx/shots");
 const LOG = path.join(E2E_ROOT, "docx/reports/_log");
-export const API = "http://localhost:8000/api/v1";
+export const API = `${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1`;
 export const MARKET = "uae-en";
 
 /** Unique per worker, so data created here never collides with other agents' runs. */

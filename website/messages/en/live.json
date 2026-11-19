@@ -30,7 +30,6 @@
     "ended": "This live has ended.",
     "player": {
       "unavailable": "This live can't be played in your browser right now. Try again in a minute, or watch it in the Nawy app.",
-      "unsupported": "Your browser can't play this live video. Open it in Safari or in Chrome on your phone, or watch it in the Nawy app.",
       "failed": "We couldn't connect to the live video. Check your connection and try again.",
       "retry": "Try again"
     },
@@ -60,8 +59,10 @@
     },
     "viewer": {
       "connecting": "Joining the live…",
-      "waitingVideo": "Waiting for the host's video…",
-      "unmute": "Tap for sound"
+      "unmute": "Tap for sound",
+      "waitingHost": "Waiting for the host to start the camera…",
+      "full": "This live is full right now — the host can only take a limited number of viewers. Try again in a moment.",
+      "notLive": "The host isn't live right now. Try again in a moment."
     }
   }
 }

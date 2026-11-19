@@ -170,7 +170,7 @@ it('words staff invitation subjects per team (BT-ADM-009)', function () {
     $this->actingAs($super)->post(onPanel('admin', 'staff/invitations'), ['email' => 'new.staff@nawy.test', 'name' => 'New Staff', 'role' => 'operations'])->assertSessionHasNoErrors();
 
     Notification::assertSentOnDemand(TeamInvitationNotification::class, function (TeamInvitationNotification $notification): bool {
-        expect($notification->toMail(new AnonymousNotifiable)->subject)->toBe('You are invited to join the Nawy admin team');
+        expect($notification->toMail(new AnonymousNotifiable)->rendered->subject)->toBe('You are invited to join the Nawy admin team');
         app()->setLocale('ar');
         expect($notification->subject())->toBe('أنت مدعو للانضمام إلى فريق إدارة Nawy');
         app()->setLocale('en');

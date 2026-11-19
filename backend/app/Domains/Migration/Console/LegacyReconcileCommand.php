@@ -5,6 +5,8 @@ namespace App\Domains\Migration\Console;
 use App\Domains\Migration\Support\LegacySource;
 use App\Domains\Migration\Support\MigrationContext;
 use App\Domains\Migration\Support\Reconciler;
+use App\Domains\Panels\Support\Panel;
+use App\Shared\Notifications\Email\Emails;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -51,6 +53,13 @@ class LegacyReconcileCommand extends Command
 
         foreach ($reconciler->differences as $difference) {
             $this->components->warn(Reconciler::mask($difference));
+        }
+
+        if ($reconciler->differences !== []) {
+            app(Emails::class)->alertAdmins('admin.reconcile_mismatch', [
+                'scope' => (string) Reconciler::mask(implode('; ', array_slice($reconciler->differences, 0, 5))),
+                'count' => (string) count($reconciler->differences),
+            ], ['key' => 'reconcile:'.now()->toDateString().':'.md5(implode('|', $reconciler->differences)), 'url' => Panel::find('admin')->url('/migration/reconciliation')]);
         }
 
         return $reconciler->differences === [] ? self::SUCCESS : self::FAILURE;

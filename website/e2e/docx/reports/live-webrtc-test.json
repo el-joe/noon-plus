@@ -1,0 +1,104 @@
+{
+  "title": "Live broadcasts over native WebRTC — browser test report",
+  "area": "Live media (owner decision D18)",
+  "date": "2026-11-19",
+  "summary": "LiveKit was replaced by native WebRTC (one-to-many P2P from the host's browser) with signalling relayed by the API over Reverb private channels. This run drives two browser contexts: the admin studio publishes Chromium's fake camera and microphone, a guest storefront viewer joins over WebRTC and plays real frames, then the host ends the show. Every step passed.",
+  "environment": [
+    "Storefront http://localhost:3000 (next start, production build)",
+    "API + Blade panels http://localhost:8000 / http://admin.nawy.test:8000 (php artisan serve)",
+    "Reverb ws://localhost:8080 (php artisan reverb:start); panels built with VITE_REVERB_ENABLED=true",
+    "Chromium (Playwright) with --use-fake-device-for-media-stream --use-fake-ui-for-media-stream (project live-webrtc only)",
+    "ICE: STUN only (host candidates on the same machine); no TURN"
+  ],
+  "accounts": [
+    {
+      "role": "Super admin (host, live_media.manage)",
+      "login": "e2e admin (E2eSeeder), email two-step code"
+    },
+    {
+      "role": "Viewer",
+      "login": "guest (not signed in)"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/live/webrtc-live.spec.ts"
+  ],
+  "totals": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "LIVE-01",
+      "name": "Host goes live from the admin studio; a guest watches over WebRTC; host ends the show",
+      "goal": "Prove the D18 design end to end: studio publish, join + peer token, signalling over Reverb, P2P media, end-of-show signal.",
+      "preconditions": "Seeded e2e admin; UAE market; Reverb running.",
+      "spec": "e2e/specs/areas/live/webrtc-live.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Admin switches the panel to the UAE and creates a live broadcast",
+          "expected": "Broadcast page with the studio",
+          "result": "pass",
+          "note": "Stream webrtc-e2e-nuw6lk-x3k4fc",
+          "screenshot": "../shots/live-webrtc/live-webrtc-1.png"
+        },
+        {
+          "action": "Start the camera in the studio (fake camera + mic)",
+          "expected": "Preview plays; device pickers filled",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/live-webrtc/live-webrtc-2.png"
+        },
+        {
+          "action": "Go live",
+          "expected": "Studio live; stream status live",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/live-webrtc/live-webrtc-3.png"
+        },
+        {
+          "action": "Guest opens the storefront watch page",
+          "expected": "WebRTC viewer mounts and connects",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/live-webrtc/live-webrtc-4.png"
+        },
+        {
+          "action": "The host's video reaches the viewer over WebRTC",
+          "expected": "<video> playing with non-zero videoWidth",
+          "result": "pass",
+          "note": "Video 320x180, currentTime 0.2s → 1.7s",
+          "screenshot": "../shots/live-webrtc/live-webrtc-5.png"
+        },
+        {
+          "action": "The studio lists the connected viewer and the upload estimate",
+          "expected": "1 connected viewer, upload > 0",
+          "result": "pass",
+          "note": "Upload 1.1 Mbps",
+          "screenshot": "../shots/live-webrtc/live-webrtc-6.png"
+        },
+        {
+          "action": "Host ends the show (confirm)",
+          "expected": "Stream ended in the panel",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/live-webrtc/live-webrtc-7.png"
+        },
+        {
+          "action": "The viewer is told the show ended",
+          "expected": "Viewer shows the ended state",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/live-webrtc/live-webrtc-8.png"
+        }
+      ]
+    }
+  ],
+  "issues": [],
+  "notes": [
+    "Viewer and host run in separate browser contexts (no shared cookies); the viewer is a guest and authorises its private peer channel with the signed peer token.",
+    "The capacity cap (stream_full), token expiry, channel authorisation and TURN credentials are covered by Pest (tests/Feature/LiveWebRtcTest.php); the viewer state machine by Vitest."
+  ]
+}

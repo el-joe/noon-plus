@@ -21,6 +21,7 @@ use App\Domains\Payments\Support\PaymentCaptured;
 use App\Domains\Payments\Support\PaymentMethodCatalog;
 use App\Models\User;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Listeners\AccountLifecycleEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Math\RoundingMode;
@@ -90,6 +91,7 @@ class Memberships
                 'auto_renew' => true,
             ]);
             $this->machine->created($membership, ActorType::Customer, $customer->id, 'Trial');
+            app(AccountLifecycleEmails::class)->membership($membership, 'membership.started');
 
             return [$membership, null];
         }
@@ -153,6 +155,7 @@ class Memberships
         }
 
         $membership->forceFill(['auto_renew' => false])->save();
+        app(AccountLifecycleEmails::class)->membership($membership, 'membership.cancelled');
 
         return $membership;
     }

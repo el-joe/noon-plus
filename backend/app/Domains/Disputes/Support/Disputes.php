@@ -16,6 +16,7 @@ use App\Domains\Refunds\Enums\RefundDestination;
 use App\Domains\Refunds\Enums\RefundSource;
 use App\Domains\Refunds\Support\Refunds;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Money\Money;
@@ -64,6 +65,7 @@ class Disputes
             $this->machine->created($dispute, ActorType::Customer, $customerUserId, $reason->value);
             NotifySellerOfStateChange::notifyVendor($locked->vendor_id, 'dispute.opened', __('Dispute :number opened', ['number' => $dispute->number]), $message, '/disputes/'.$dispute->id);
             app(OrderStatusRollup::class)->sync($order, 'Dispute '.$dispute->number.' opened');
+            app(CommerceLifecycleEmails::class)->disputeOpened($dispute, $message);
 
             return $dispute;
         });
@@ -79,7 +81,8 @@ class Disputes
             throw new TransitionRefused(__('This dispute is closed.'));
         }
 
-        $dispute->messages()->create(['author_type' => $author, 'author_user_id' => $authorUserId, 'body' => $body]);
+        $created = $dispute->messages()->create(['author_type' => $author, 'author_user_id' => $authorUserId, 'body' => $body]);
+        app(CommerceLifecycleEmails::class)->disputeMessage($dispute, $created);
 
         if ($author === ActorType::Vendor && $dispute->status === DisputeStatus::Open) {
             $this->machine->move($dispute, DisputeStatus::SellerResponded, ActorType::Vendor, $authorUserId);

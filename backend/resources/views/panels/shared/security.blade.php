@@ -1,4 +1,7 @@
 <x-layouts.panel :title="__('Sign-in history')" :breadcrumbs="[__('Account')]">
+    <x-slot:actions>
+        <x-ui.button :href="route(request()->route('panel').'.email-preferences')" variant="outline" size="sm">{{ __('Email preferences') }}</x-ui.button>
+    </x-slot:actions>
     <x-ui.card :subtitle="__('Your last 50 sign-ins and attempts. If you do not recognise one, change your password.')">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">

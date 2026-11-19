@@ -26,6 +26,8 @@ use App\Domains\Payments\Support\PaymentMethodCatalog;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Attachments\SubscriptionInvoiceAttachment;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Math\RoundingMode;
@@ -259,7 +261,7 @@ class VendorSubscriptions
         if ($failure === null) {
             $invoice->forceFill(['auto_charge_attempts' => $attempts, 'next_auto_charge_at' => null, 'auto_charge_failure' => null])->save();
             $this->notifyVendor($invoice->vendor_id, 'auto_charged', __('Subscription renewed'),
-                __('Invoice :number for :amount was charged to your card ending :last4.', ['number' => $invoice->number, 'amount' => $invoice->amount.' '.$invoice->currency, 'last4' => $card->last4]));
+                __('Invoice :number for :amount was charged to your card ending :last4.', ['number' => $invoice->number, 'amount' => $invoice->amount.' '.$invoice->currency, 'last4' => $card->last4]), $invoice);
 
             return $payment;
         }
@@ -273,7 +275,7 @@ class VendorSubscriptions
         $this->notifyVendor($invoice->vendor_id, 'auto_charge_failed', __('We could not charge your card for :number', ['number' => $invoice->number]),
             ($retriesLeft
                 ? __(':reason We will try again on :date. You can also pay it now from Seller Center → Subscription.', ['reason' => $failure, 'date' => $invoice->next_auto_charge_at->toDateString()])
-                : __(':reason Pay invoice :number by :date from Seller Center → Subscription to keep your plan.', ['reason' => $failure, 'number' => $invoice->number, 'date' => $invoice->due_at->toDateString()])));
+                : __(':reason Pay invoice :number by :date from Seller Center → Subscription to keep your plan.', ['reason' => $failure, 'number' => $invoice->number, 'date' => $invoice->due_at->toDateString()])), $invoice, reason: $failure);
 
         return $payment;
     }
@@ -434,7 +436,7 @@ class VendorSubscriptions
                     } else {
                         $this->end($subscription, VendorSubscriptionStatus::Expired, ActorType::System, null, 'Grace period over');
                         $this->notifyVendor($subscription->vendor_id, 'expired', __('Subscription expired'),
-                            __('Your plan expired because the invoice was not paid. Subscribe again to restore it.'));
+                            __('Your plan expired because the invoice was not paid. Subscribe again to restore it.'), subscription: $subscription);
                     }
 
                     $counts['expired']++;
@@ -564,10 +566,13 @@ class VendorSubscriptions
     private function remind(VendorSubscriptionInvoice $invoice, string $kind, string $subject, string $body): void
     {
         $invoice->forceFill(['reminders_sent' => $invoice->reminders_sent + 1, 'last_reminded_at' => now()])->save();
-        $this->notifyVendor($invoice->vendor_id, $kind, $subject, $body);
+        $this->notifyVendor($invoice->vendor_id, $kind, $subject, $body, $invoice);
     }
 
-    private function notifyVendor(int $vendorId, string $kind, string $subject, string $body): void
+    /**
+     * Bell + catalogue email ({@see VendorSubscriptionNotice::EVENTS}) to the store owner.
+     */
+    private function notifyVendor(int $vendorId, string $kind, string $subject, string $body, ?VendorSubscriptionInvoice $invoice = null, ?VendorSubscription $subscription = null, ?string $reason = null): void
     {
         $ownerId = Vendor::query()->whereKey($vendorId)->value('owner_user_id');
         $owner = $ownerId === null ? null : User::query()->find($ownerId);
@@ -577,6 +582,23 @@ class VendorSubscriptions
         }
 
         app(PanelNotifications::class)->notify($owner->id, 'partner', "subscription.{$kind}", $subject, $body, '/subscription');
-        $owner->notify(new VendorSubscriptionNotice($kind, $subject, $body, Panel::find('partner')->url('subscription')));
+        $subscription ??= $invoice === null ? null : VendorSubscription::query()->find($invoice->vendor_subscription_id);
+        $plan = VendorSubscriptionPlan::query()->find($invoice?->vendor_subscription_plan_id ?? $subscription?->vendor_subscription_plan_id);
+        $deadline = $subscription?->past_due_since?->addDays($this->graceDays()) ?? $invoice?->due_at;
+        $entity = $invoice ?? $subscription;
+
+        $owner->notify(new VendorSubscriptionNotice($kind, $subject, $body, Panel::find('partner')->url('subscription'), array_filter([
+            'plan' => $plan === null ? '' : ($owner->preferredLocale() === 'ar' ? $plan->name_ar : $plan->name_en),
+            'invoice_number' => $invoice?->number,
+            'amount' => $invoice === null ? null : EmailValue::money((string) $invoice->amount, $invoice->currency),
+            'due' => EmailValue::date($invoice?->due_at),
+            'deadline' => EmailValue::date($deadline),
+        ], fn ($value): bool => $value !== null), array_filter([
+            'entity_type' => $entity === null ? null : class_basename($entity),
+            'entity_id' => $entity === null ? null : (string) $entity->getKey(),
+            'key' => $kind.'#'.($invoice->reminders_sent ?? 0).'#'.($invoice->auto_charge_attempts ?? 0),
+            'blocks' => $reason === null ? null : [['type' => 'facts', 'rows' => [['Reason', $reason]]]],
+            'attachments' => $kind === 'issued' && $invoice !== null ? [[SubscriptionInvoiceAttachment::class, ['invoice' => $invoice->id]]] : null,
+        ])));
     }
 }

@@ -7,6 +7,7 @@ use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Identity\Models\LoginEvent;
 use App\Domains\Identity\Models\RoleMembership;
 use App\Domains\Identity\Models\SocialAccount;
+use App\Domains\Identity\Support\SecurityEmails;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -58,6 +59,13 @@ class User extends Authenticatable implements HasLocalePreference
         static::saving(function (User $user): void {
             if ($user->isDirty('password') && ! $user->isDirty('password_set_at')) {
                 $user->password_set_at = now();
+            }
+        });
+
+        // Two-step sign-in turned on / off (security page or an admin reset): tell the account holder.
+        static::updated(function (User $user): void {
+            if ($user->wasChanged('two_factor_enabled')) {
+                app(SecurityEmails::class)->twoFactorChanged($user);
             }
         });
     }

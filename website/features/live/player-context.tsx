@@ -10,7 +10,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 export type NowPlaying = {
   slug: string;
   title: string;
-  /** Playable file (recorded streams); null for LiveKit rooms (no web SDK yet). */
+  /** Playable file (recorded streams); null for live broadcasts (WebRTC plays on the watch page only, D18). */
   src: string | null;
   mime?: string | null;
   poster?: string | null;

@@ -1,6 +1,7 @@
 // GENERATED-BY-HAND string table (no intl/ARB; project rule). Keep keys in sync
 // with the other language; test/l10n_test.dart checks both tables.
 import 'strings_d16.dart';
+import 'strings_d18.dart';
 import 'strings_w5b_a.dart';
 import 'strings_w5b_b.dart';
 import 'strings_w5b_c.dart';
@@ -10,6 +11,7 @@ const Map<String, String> stringsEn = {
   ...stringsW5bBEn,
   ...stringsW5bCEn,
   ...stringsD16En,
+  ...stringsD18En,
   'account.credits': 'Nawy Credits',
   'account.guestTitle': 'Welcome to Nawy',
   'account.hello': 'Hala, {name}',

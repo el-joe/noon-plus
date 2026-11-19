@@ -54,7 +54,8 @@ test.describe("sign-in", () => {
     await page.getByRole("button", { name: "Send reset email" }).click();
     await expect(page.locator("body")).toContainText(`If ${email} has a Nawy account`);
     const mail = await waitForMail(email, mark, /reset-password\?/);
-    const link = /(http:\/\/localhost:3000\/uae-en\/reset-password\?[^\s)\]]+)/.exec(mail)![1].replace(/&amp;/g, "&");
+    const storefront = (process.env.E2E_STOREFRONT_URL ?? "http://localhost:3000").replace(/\/$/, "").replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+    const link = new RegExp(`(${storefront}\\/uae-en\\/reset-password\\?[^\\s)\\]]+)`).exec(mail)![1].replace(/&amp;/g, "&");
     await page.goto(link);
     await page.locator('input[autocomplete="new-password"]').nth(0).fill(PASSWORD);
     await page.locator('input[autocomplete="new-password"]').nth(1).fill(PASSWORD);

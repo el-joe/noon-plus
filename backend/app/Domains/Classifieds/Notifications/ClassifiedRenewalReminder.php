@@ -2,29 +2,26 @@
 
 namespace App\Domains\Classifieds\Notifications;
 
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\EventEmail;
+use DateTimeInterface;
 
 /**
- * Renewal reminder sent `classified.renewal_reminder_days` before an ad expires.
+ * Renewal reminder (`classified.expiring`) sent `classified.renewal_reminder_days` before an ad expires.
  */
-class ClassifiedRenewalReminder extends Notification
+class ClassifiedRenewalReminder extends EventEmail
 {
-    public function __construct(public string $adNumber, public string $title, public int $daysLeft) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function __construct(public string $adNumber, public string $title, public int $daysLeft, ?DateTimeInterface $expiresAt = null, ?string $url = null)
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject(__('Your ad expires in :days day(s)', ['days' => $this->daysLeft]))
-            ->line(__('“:title” (:number) expires in :days day(s).', ['title' => $this->title, 'number' => $this->adNumber, 'days' => $this->daysLeft]))
-            ->line(__('Renew or republish it from My ads to keep it live.'));
+        parent::__construct('classified.expiring', [
+            'ad_title' => $title,
+            'ad_number' => $adNumber,
+            'expires' => EmailValue::date($expiresAt ?? now()->addDays($daysLeft)),
+        ], array_filter([
+            'url' => $url,
+            'entity_type' => 'ClassifiedAd',
+            'entity_id' => $adNumber,
+            'key' => 'expiring:'.$daysLeft,
+        ]));
     }
 }

@@ -10,6 +10,14 @@
                 <x-ui.button type="submit" size="sm">{{ __('Save') }}</x-ui.button>
             </form>
         </x-ui.card>
+        {{-- D18: live broadcasts are direct WebRTC connections from the host's browser; cap them per stream. --}}
+        <x-ui.card :title="__('Live viewers per broadcast')" :subtitle="__('Each viewer connects directly to the host browser, so the host upload limits the audience. Beyond the cap viewers see “full, try again”.')">
+            <form method="POST" action="{{ route('admin.media.webrtc.settings') }}" class="flex flex-wrap items-end gap-3">
+                @csrf
+                <x-ui.input :label="__('Most viewers at once')" name="max_viewers" type="number" min="1" max="200" :value="$maxViewers" />
+                <x-ui.button type="submit" size="sm">{{ __('Save') }}</x-ui.button>
+            </form>
+        </x-ui.card>
     @endcan
     <x-ui.card flush>
         <x-slot:actions>
@@ -36,7 +44,7 @@
 
     @can('live_media.manage')
         <div class="grid gap-6 lg:grid-cols-2">
-            <x-ui.card :title="__('New live broadcast')" :subtitle="__('Admin studio on LiveKit; leave the time empty to go live when ready')">
+            <x-ui.card :title="__('New live broadcast')" :subtitle="__('Broadcast from the browser studio (WebRTC); leave the time empty to go live when ready')">
                 <form method="POST" action="{{ route('admin.media.store') }}" enctype="multipart/form-data" class="flex flex-col gap-4">
                     @csrf
                     <input type="hidden" name="source" value="live">

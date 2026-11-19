@@ -10,7 +10,11 @@ use App\Domains\Finance\Models\LedgerAccount;
 use App\Domains\Finance\Models\LedgerEntry;
 use App\Domains\Finance\Models\PromotionalCredit;
 use App\Domains\Orders\Enums\ActorType;
+use App\Models\User;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EmailLinks;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use Brick\Money\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,6 +33,7 @@ class Wallets
         private Ledger $ledger,
         private MoneyFactory $money,
         private FinanceSettings $settings,
+        private Emails $emails,
     ) {}
 
     /**
@@ -115,6 +120,7 @@ class Wallets
         $this->ledger->post($idempotencyKey, $type, (new Posting)
             ->debit($counter, $amount)
             ->credit(AccountRef::customerWallet($customerUserId), $amount), $actorType, $actorUserId, $reference, $description);
+        $this->emailCredited($customerUserId, $amount, $idempotencyKey, $type);
     }
 
     /**
@@ -147,6 +153,11 @@ class Wallets
                 ->debit($counter ?? AccountRef::platform(LedgerAccountCode::PromoExpense), $amount)
                 ->credit(AccountRef::customerWallet($customerUserId, WalletBucket::Promotional), $amount), $actorType, $actorUserId, $grant, "Promotional credits ({$source})");
 
+            // A refund's promotional share is part of the refund email (`refund.issued`).
+            if ($source !== 'refund') {
+                $this->emailCredited($customerUserId, $amount, $idempotencyKey, $source, $grant->expires_at);
+            }
+
             return $grant;
         });
     }
@@ -177,6 +188,13 @@ class Wallets
                         ->credit(AccountRef::platform(LedgerAccountCode::PromoExpense), $remaining), reference: $locked, description: 'Promotional credits expired');
                     $locked->forceFill(['status' => PromotionalCreditStatus::Expired, 'remaining' => '0'])->save();
                     $expired++;
+
+                    if ($remaining->isPositive()) {
+                        $this->emails->send('wallet.credit_expired', $locked->customer_user_id, [
+                            'amount' => EmailValue::money((string) $remaining->getAmount(), $locked->currency),
+                            'balance' => EmailValue::money((string) $this->available($locked->customer_user_id, $locked->currency)->getAmount(), $locked->currency),
+                        ], ['entity' => $locked, 'url' => $this->walletLink($locked->customer_user_id)]);
+                    }
                 });
             });
 
@@ -253,5 +271,37 @@ class Wallets
     private function defaultExpiryDays(): int
     {
         return (int) $this->settings->get('promotional_credit.default_expiry_days', 'promotional_credit_expiry_days');
+    }
+
+    /**
+     * `wallet.credited` to the customer (once per wallet movement key).
+     */
+    private function emailCredited(int $customerUserId, Money $amount, string $idempotencyKey, string $source, ?CarbonInterface $expiresAt = null): void
+    {
+        if (! $amount->isPositive()) {
+            return;
+        }
+
+        $currency = $amount->getCurrency()->getCurrencyCode();
+
+        $this->emails->send('wallet.credited', $customerUserId, [
+            'amount' => EmailValue::money((string) $amount->getAmount(), $currency),
+            'source' => EmailValue::t(match ($source) {
+                'gift_card_redeem' => 'gift card redeemed',
+                'voucher' => 'voucher',
+                'carrier_claim' => 'delivery claim',
+                'refund' => 'refund',
+                default => 'credit from Nawy',
+            }),
+            'balance' => EmailValue::money((string) $this->available($customerUserId, $currency)->getAmount(), $currency),
+            'expires' => $expiresAt === null ? '' : EmailValue::t(' It expires on :date.', ['date' => EmailValue::date($expiresAt)]),
+        ], ['key' => 'wallet:'.$idempotencyKey, 'url' => $this->walletLink($customerUserId)]);
+    }
+
+    private function walletLink(int $customerUserId): string
+    {
+        $locale = User::query()->whereKey($customerUserId)->value('preferred_locale');
+
+        return app(EmailLinks::class)->storefront('account/credits', in_array($locale, ['en', 'ar'], true) ? $locale : (string) config('app.locale'));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Contracts\Support;
 
+use App\Domains\Contracts\Enums\ContractKind;
 use App\Domains\Contracts\Enums\ContractVersionStatus;
 use App\Domains\Contracts\Enums\SignatureMethod;
 use App\Domains\Contracts\Enums\SignerType;
@@ -12,6 +13,8 @@ use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Settings\SettingsService;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
@@ -83,18 +86,76 @@ class ContractPublisher
         }
 
         $this->assertComplete($version, $template);
+        $signers = $this->signersToNotify($template, $version);
 
         if ($template->consent_mode === 'notice' && $template->kind->allowsNotice() && $template->publishedVersion()->exists()) {
             $effectiveAt ??= now()->addDays((int) $this->settings->get('contracts.notice_default_days', 14));
 
             if ($effectiveAt->isFuture()) {
                 $version->forceFill(['status' => ContractVersionStatus::Scheduled, 'effective_at' => $effectiveAt, 'published_by' => $adminUserId])->save();
+                $this->mailSigners($template, $version, $signers, $effectiveAt);
 
                 return $version;
             }
         }
 
-        return $this->makeCurrent($version, $adminUserId, continuedUse: false);
+        $published = $this->makeCurrent($version, $adminUserId, continuedUse: false);
+        $this->mailSigners($template, $version, $signers, now());
+
+        return $published;
+    }
+
+    /**
+     * Partners with an active signature of an earlier version, per country
+     * (read before publishing supersedes them): store / agency / marketer /
+     * shipping-company owners — customers and applicants are left out.
+     *
+     * @return array<int, array{country: Country, type: string, id: int}>
+     */
+    private function signersToNotify(ContractTemplate $template, ContractVersion $version): array
+    {
+        $signers = [];
+
+        foreach ($this->countriesOf($template) as $country) {
+            $this->countryContext->runAs($country, function () use ($template, $version, $country, &$signers): void {
+                ContractSignature::query()
+                    ->where('contract_template_id', $template->id)
+                    ->where('contract_version_id', '!=', $version->id)
+                    ->where('status', ContractSignature::STATUS_ACTIVE)
+                    ->whereIn('signer_type', [SignerType::Vendor, SignerType::Marketer, SignerType::Agency])
+                    ->get(['signer_type', 'signer_id'])
+                    ->each(function (ContractSignature $signature) use ($template, $country, &$signers): void {
+                        $type = match ($signature->signer_type) {
+                            SignerType::Marketer => 'marketer',
+                            SignerType::Agency => $template->kind === ContractKind::ShippingCompany ? 'carrier' : 'vendor',
+                            default => 'vendor',
+                        };
+                        $signers[$country->id.':'.$type.':'.$signature->signer_id] = ['country' => $country, 'type' => $type, 'id' => (int) $signature->signer_id];
+                    });
+            });
+        }
+
+        return array_values($signers);
+    }
+
+    /**
+     * `contract.update_to_sign` to every signer of the previous version.
+     *
+     * @param  array<int, array{country: Country, type: string, id: int}>  $signers
+     */
+    private function mailSigners(ContractTemplate $template, ContractVersion $version, array $signers, CarbonInterface $effectiveAt): void
+    {
+        foreach ($signers as $signer) {
+            $this->countryContext->runAs($signer['country'], fn () => app(PartnerEmails::class)->toOwner($signer['type'], $signer['id'], 'contract.update_to_sign', [
+                'contract' => (string) $template->name,
+                'version' => 'v'.$version->version,
+                'effective' => EmailValue::date($effectiveAt),
+            ], match ($signer['type']) {
+                'marketer' => '/contract',
+                'carrier' => '/',
+                default => '/contracts',
+            }, ['entity' => $version]));
+        }
     }
 
     /**

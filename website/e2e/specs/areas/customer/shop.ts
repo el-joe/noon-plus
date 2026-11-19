@@ -38,7 +38,7 @@ export async function routeGateway(page: Page, outcome: "captured" | "failed" | 
     seen.push(gatewayReference);
     const card = opts.tokenise ? `App\\Domains\\Payments\\Support\\Gateways\\FakeGateway::willTokenise("${gatewayReference}", ["token" => "${opts.tokenise.token}", "last4" => "${opts.tokenise.last4}", "brand" => "${opts.tokenise.brand}", "exp_month" => 12, "exp_year" => 2030]);` : "";
     tinkerPhp(`App\\Domains\\Payments\\Support\\Gateways\\FakeGateway::willReport("${gatewayReference}", App\\Domains\\Payments\\Enums\\PaymentStatus::from("${outcome}")); ${card} echo "ok";`);
-    await route.fulfill({ status: 302, headers: { location: `http://localhost:8000/api/v1/${MARKET}/payments/${reference}/return` } });
+    await route.fulfill({ status: 302, headers: { location: `${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/${MARKET}/payments/${reference}/return` } });
   });
   return seen;
 }

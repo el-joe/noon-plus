@@ -33,6 +33,10 @@ use App\Models\User;
 use App\Shared\Money\MoneyFactory;
 use Database\Seeders\AdminRoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
 /*
@@ -379,4 +383,21 @@ function liveCampaign(Vendor $vendor, ?Listing $listing = null, array $data = []
     }
 
     return $campaign->refresh();
+}
+
+/**
+ * Email system: the catalogue emails actually delivered in this test
+ * (MAIL_MAILER=array), filtered by event and optionally recipient. Mail::fake()
+ * cannot see a Mailable returned from a notification, so tests read the
+ * transport instead.
+ *
+ * @return Collection<int, Email>
+ */
+function sentCatalogueEmails(string $event, ?string $to = null): Collection
+{
+    return collect(app('mailer')->getSymfonyTransport()->messages())
+        ->map(fn (SentMessage $sent) => $sent->getOriginalMessage())
+        ->filter(fn (Email $mail): bool => $mail->getHeaders()->get('X-Nawy-Event')?->getBodyAsString() === $event
+            && ($to === null || collect($mail->getTo())->contains(fn (Address $address): bool => $address->getAddress() === $to)))
+        ->values();
 }

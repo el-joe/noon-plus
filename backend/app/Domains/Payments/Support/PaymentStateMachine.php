@@ -6,6 +6,7 @@ use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Payments\Enums\PaymentStatus;
 use App\Domains\Payments\Exceptions\PaymentTransitionRefused;
 use App\Domains\Payments\Models\Payment;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -62,6 +63,9 @@ class PaymentStateMachine
             if ($to === PaymentStatus::Captured) {
                 app(PaymentCaptured::class)->handle($locked);
             }
+
+            // Receipt, failure, review and invoice emails (sent once the move commits).
+            app(CommerceLifecycleEmails::class)->paymentMoved($locked, $from, $to);
 
             $payment->setRawAttributes($locked->getAttributes(), true);
 

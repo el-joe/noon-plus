@@ -42,6 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // WP11 hardening: security headers everywhere, a default per-user/IP limit on every API route.
         $middleware->append(SecurityHeaders::class);
         $middleware->throttleApi('api');
+        // D18: WebRTC SDP must keep its trailing CRLF (browsers refuse a trimmed description).
+        $middleware->trimStrings(except: ['sdp']);
         // Legacy phone-only customers must add an email before using signed-in API routes (data-migration-plan §5.2).
         $middleware->api(append: [EnsureAccountEmail::class]);
         $middleware->redirectGuestsTo(fn (Request $request): string => route(
@@ -112,6 +114,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withCommands([
         __DIR__.'/../app/Domains/Countries/Console',
+        __DIR__.'/../app/Shared/Notifications/Email/Console',
         __DIR__.'/../app/Domains/Identity/Console',
         __DIR__.'/../app/Domains/Cart/Console',
         __DIR__.'/../app/Domains/FlashSales/Console',

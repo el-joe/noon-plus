@@ -15,7 +15,10 @@ use App\Domains\Marketers\Support\CommissionRules;
 use App\Domains\Marketers\Support\MarketingSettings;
 use App\Domains\Marketers\Support\WhatsAppMessenger;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Vendors\Models\Vendor;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Money\Money;
@@ -86,8 +89,30 @@ class Invitations
         }
 
         $this->sendWhatsApp($invitation, $marketer);
+        $this->mailInvitation($invitation, $marketer, $campaign);
 
         return $invitation;
+    }
+
+    /**
+     * `marketer.campaign_invitation`: the brand, the commission offered and
+     * the answer deadline, with a link to the invitation in Creator Studio.
+     */
+    private function mailInvitation(CampaignInvitation $invitation, MarketerProfile $marketer, MarketerCampaign $campaign): void
+    {
+        $rates = (array) $invitation->rate_snapshot;
+        $commission = match (true) {
+            $invitation->influencer_fixed !== null => EmailValue::money((string) $invitation->influencer_fixed, $campaign->currency),
+            ($rates['affiliate_percent'] ?? null) !== null => rtrim(rtrim((string) $rates['affiliate_percent'], '0'), '.').'%',
+            default => '',
+        };
+
+        app(PartnerEmails::class)->toMarketer($marketer->id, 'marketer.campaign_invitation', [
+            'campaign' => (string) $campaign->title,
+            'brand' => (string) (Vendor::query()->whereKey($campaign->vendor_id)->value('store_name') ?? 'Nawy'),
+            'commission' => $commission,
+            'respond_by' => EmailValue::date($invitation->expires_at, time: true),
+        ], '/campaigns/'.$invitation->id, ['entity' => $invitation]);
     }
 
     /**

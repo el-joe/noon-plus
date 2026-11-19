@@ -19,8 +19,6 @@ use App\Domains\FlashSales\Models\FlashSaleEvent;
 use App\Domains\FlashSales\Models\FlashSaleSubmission;
 use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Identity\Models\PushDeviceToken;
-use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
-use App\Domains\LiveMedia\Support\FakeLiveMediaProvider;
 use App\Domains\LiveMedia\Support\LiveStreams;
 use App\Domains\Onboarding\Models\AdvertiseInquiry;
 use App\Domains\Orders\Enums\ActorType;
@@ -405,7 +403,6 @@ it('G-A8: countries carry both the English and the Arabic name', function () {
 
 describe('live comments and viewers (QC-040)', function () {
     beforeEach(function () {
-        app()->instance(LiveMediaProvider::class, new FakeLiveMediaProvider);
         $this->stream = app(LiveStreams::class)->createLive(['title_en' => 'Eid live', 'title_ar' => 'بث العيد'], 1);
     });
 

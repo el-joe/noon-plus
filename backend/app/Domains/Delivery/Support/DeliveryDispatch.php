@@ -20,6 +20,7 @@ use App\Domains\Orders\Models\SubOrder;
 use App\Domains\Orders\Support\SubOrderStateMachine;
 use App\Domains\Payments\Enums\PaymentMethod;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
@@ -107,6 +108,7 @@ class DeliveryDispatch
         });
 
         $this->broadcastAssignment('assigned', $assignment);
+        app(CommerceLifecycleEmails::class)->deliveryAssigned($assignment);
 
         return $assignment;
     }

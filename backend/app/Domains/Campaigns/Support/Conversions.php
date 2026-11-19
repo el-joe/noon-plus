@@ -25,6 +25,8 @@ use App\Domains\Orders\Models\SubOrder;
 use App\Domains\Returns\Enums\ReturnStatus;
 use App\Domains\Returns\Models\ReturnRequest;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use Brick\Math\BigRational;
 use Brick\Math\RoundingMode;
@@ -151,6 +153,11 @@ class Conversions
                 'status' => ConversionStatus::Pending,
             ]);
             $this->machine->created($conversion, ActorType::System);
+            app(PartnerEmails::class)->toMarketer((int) $invitation->marketer_profile_id, 'marketer.conversion', [
+                'campaign' => (string) $campaign->title,
+                'amount' => EmailValue::money((string) $conversion->net, $currency),
+                'order_reference' => (string) $item->subOrder->number,
+            ], '/wallet', ['entity' => $conversion]);
 
             $spent = $this->money->of((string) $campaign->budget_spent, $currency)->plus($gross);
             $campaign->forceFill(['budget_spent' => $this->money->toStorage($spent)])->save();

@@ -6,6 +6,7 @@ use App\Domains\Classifieds\Enums\ClassifiedAdStatus;
 use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Classifieds\Notifications\ClassifiedRenewalReminder;
 use App\Models\User;
+use App\Shared\Notifications\Email\EmailLinks;
 use App\Shared\Settings\VerticalSettings;
 
 /**
@@ -38,7 +39,9 @@ class ClassifiedExpiry
                     return;
                 }
 
-                User::query()->find($ad->owner_user_id)?->notify(new ClassifiedRenewalReminder($ad->number, $ad->title, max(1, $daysLeft)));
+                $owner = User::query()->find($ad->owner_user_id);
+                $owner?->notify(new ClassifiedRenewalReminder($ad->number, $ad->title, max(1, $daysLeft), $ad->expires_at,
+                    app(EmailLinks::class)->storefront('account/my-ads', $owner->preferredLocale())));
                 $ad->forceFill(['reminders_sent' => array_values(array_unique(array_merge($sent, $due->all())))])->save();
                 $reminded++;
             });

@@ -106,10 +106,15 @@ export function NotificationsView() {
           <h1 className="text-h2 font-bold">{t("title")}</h1>
           {list.data ? <p className="text-body-sm text-secondary">{t("unreadCount", { count: unread })}</p> : null}
         </div>
-        <Button variant="outline" size="sm" disabled={unread === 0 || markAll.isPending} onClick={() => markAll.mutate()}>
-          <CheckCheck className="size-4" />
-          {t("readAll")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/${market.slug}/account/notifications/settings`} className="text-body-sm font-medium text-brand hover:underline">
+            {t("emailSettings")}
+          </Link>
+          <Button variant="outline" size="sm" disabled={unread === 0 || markAll.isPending} onClick={() => markAll.mutate()}>
+            <CheckCheck className="size-4" />
+            {t("readAll")}
+          </Button>
+        </div>
       </div>
       <div className="flex gap-2">
         {([false, true] as const).map((only) => (

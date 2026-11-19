@@ -1,6 +1,5 @@
 <?php
 
-use App\Domains\Content\Notifications\TemplatedNotification;
 use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\BusinessCalendar;
 use App\Domains\Countries\Support\CountryContext;
@@ -34,6 +33,7 @@ use App\Domains\Shipping\Models\ShippingZone;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
@@ -147,6 +147,7 @@ it('runs the code-match delivery through the agent API and records the COD cash 
     $parcel = $order->subOrders()->firstOrFail();
     $parcel->forceFill(['status' => SubOrderStatus::Packed])->save();
     $assignment = $this->dispatch->assign($parcel, $agent, ActorType::Admin);
+    Notification::assertSentTo(User::find($agent->user_id), EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'delivery.assignment');
 
     $login = $this->postJson('/api/v1/uae-en/delivery/auth/login', ['email' => User::find($agent->user_id)->email, 'password' => 'agent-password', 'device_name' => 'Pixel'])
         ->assertOk()->json('data');
@@ -164,8 +165,8 @@ it('runs the code-match delivery through the agent API and records the COD cash 
 
     expect($parcel->refresh()->status)->toBe(SubOrderStatus::OutForDelivery)
         ->and(Shipment::query()->where('sub_order_id', $parcel->id)->value('attempts'))->toBe(1);
-    Notification::assertSentTo(User::find($parcel->order->customer_user_id), TemplatedNotification::class,
-        fn (TemplatedNotification $mail): bool => $mail->event === 'delivery.out_for_delivery' && str_contains($mail->body, $assignment->delivery_code));
+    Notification::assertSentTo(User::find($parcel->order->customer_user_id), EventEmail::class,
+        fn (EventEmail $mail): bool => $mail->event === 'delivery.out_for_delivery' && $mail->variables['delivery_code'] === $assignment->delivery_code);
 
     $this->withToken($token)->postJson("{$base}/arrive")->assertOk()->assertJsonPath('data.arrived_at', fn ($value) => $value !== null);
     $this->withToken($token)->postJson("{$base}/confirm", ['codes_match' => false])->assertUnprocessable();
@@ -264,7 +265,7 @@ it('fails with a listed reason, reschedules to a business day and redelivers wit
     expect($shipment->status)->toBe(ShipmentStatus::Failed)
         ->and($shipment->last_failure_reason)->toBe('not_home')
         ->and($parcel->refresh()->status)->toBe(SubOrderStatus::OutForDelivery);
-    Notification::assertSentTo(User::find($parcel->order->customer_user_id), TemplatedNotification::class, fn ($mail): bool => $mail->event === 'delivery.failed');
+    Notification::assertSentTo(User::find($parcel->order->customer_user_id), EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'delivery.failed');
 
     expect(fn () => $this->dispatch->assign($parcel, $agent, ActorType::Admin))->toThrow(TransitionRefused::class, 'cannot be assigned');
 

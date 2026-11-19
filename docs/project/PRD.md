@@ -28,7 +28,7 @@
 | G3 | **Money integrity** across 8 currencies (4 with 3 decimals). | Ledger integrity, webhook idempotency and 3-decimal money tests (M8 exit). |
 | G4 | **Noon-grade customer UX** on web (Next.js) and app (Flutter, Noon app structure). | Web E2E (M13) and app tests (M14); designs per `route-frame-map.md`. |
 | G5 | **Lossless migration** of live data for all 8 countries. | Reconciliation 100% (M15 exit). |
-| G6 | **New verticals and engines**: brokers/real estate, cross-promotion, creator selling, advertising ranking, LiveKit media, gateways. | Vertical E2Es (M10), campaign E2E A–F with clawback (M9). |
+| G6 | **New verticals and engines**: brokers/real estate, cross-promotion, creator selling, advertising ranking, live media (LiveKit at first; native WebRTC since D18), gateways. | Vertical E2Es (M10), campaign E2E A–F with clawback (M9). |
 
 ## 2. Users and personas
 
@@ -329,8 +329,8 @@ Actors and their role memberships come from MASTER_PLAN §2 and SRS §3. Full pe
 | ID | Requirement | Source | Tag |
 |---|---|---|---|
 | **FR-LS-1** | Admin creates a stream: bilingual title/description, thumbnail, optional `scheduled_at`, media mode `audio | video | both`; stream key generated. | SRS §14.1 | K |
-| **FR-LS-2** | Admin studio captures camera/mic and presses Go Live → `live`, `started_at`. *(Transport replaced by LiveKit SFU.)* | SRS §14.1, ADR 11 | R |
-| **FR-LS-3** | *(Replaced.)* P2P mesh + coturn is replaced by **LiveKit SFU** behind a provider adapter; TURN still documented for LiveKit. | SRS §14.1, ADR 11 | R |
+| **FR-LS-2** | Admin studio captures camera/mic and presses Go Live → `live`, `started_at`. *(Transport: LiveKit SFU per ADR 11, then native WebRTC one-to-many from the studio with Reverb signalling — D18, 2026-11-19.)* | SRS §14.1, ADR 11 | R |
+| **FR-LS-3** | *(Replaced twice.)* P2P mesh + coturn was replaced by LiveKit SFU (ADR 11); **D18 (2026-11-19) brings back P2P**: one-to-many from the host's browser, signalling relayed by the API over Reverb, STUN + optional coturn TURN (docs/deploy/webrtc.md), viewer cap `live.webrtc_max_viewers`. | SRS §14.1, ADR 11 | R |
 | **FR-LS-4** | End sets `ended`, `ended_at`; an ended stream cannot go live again. | SRS §14.1 | K |
 | **FR-LS-5** | Public viewers comment and like (30/min); admin deletes comments; peak/total viewers and likes tracked. | SRS §14.1 | K |
 | **FR-LS-6** | Recorded channel: admin uploads media (listed formats, ≤ 500 MB) with required `scheduled_at`. | SRS §14.2 | K |
@@ -469,7 +469,7 @@ Actors and their role memberships come from MASTER_PLAN §2 and SRS §3. Full pe
 | Agent typing the customer's delivery code | Parity kept: code shown to agent, verbal match (DV4). |
 | Drawing every panel content page in Figma | Panels = layouts + components per page type (DV2). |
 | Separate Arabic Figma frames for every page; mobile-web frames for every vertical page | Covered by RTL rules and patterns (`design-coverage.md`). |
-| P2P WebRTC mesh + coturn as the media transport | Replaced by LiveKit (ADR 11). |
+| P2P WebRTC mesh + coturn as the media transport | Replaced by LiveKit (ADR 11); restored as one-to-many P2P by D18 (2026-11-19), LiveKit removed. |
 | Microservices | Modular monolith (ADR 1, Spec §14.1). |
 | Livewire / React in panels | Spec §2.4, ADR 12. |
 | Summing or converting money across currencies in payouts and balances | NFR-1. |

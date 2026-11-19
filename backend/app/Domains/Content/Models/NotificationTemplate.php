@@ -11,7 +11,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * A notification text for one event × channel × language (ADR 10), per
  * country or global (country_id null). Variables are written `{{ name }}`.
  */
-#[Fillable(['country_id', 'event', 'channel', 'locale', 'subject', 'body', 'is_active', 'updated_by'])]
+#[Fillable(['country_id', 'event', 'channel', 'locale', 'subject', 'body', 'is_active', 'version', 'updated_by'])]
 class NotificationTemplate extends Model
 {
     use LogsActivity;

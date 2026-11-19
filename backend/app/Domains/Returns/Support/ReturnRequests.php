@@ -25,6 +25,7 @@ use App\Domains\Warranty\Enums\WarrantyPurchaseStatus;
 use App\Domains\Warranty\Models\WarrantyPurchase;
 use App\Shared\Localization\Label;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Math\RoundingMode;
@@ -132,6 +133,7 @@ class ReturnRequests
 
             $this->machine->created($return, ActorType::Customer, $customerUserId, $reason->value);
             NotifySellerOfStateChange::notifyVendor($locked->vendor_id, 'return.requested', __('Return :number requested', ['number' => $return->number]), Label::of($reason), '/returns/'.$return->id);
+            app(CommerceLifecycleEmails::class)->returnRequested($return->load('items'));
 
             return $return->load('items');
         });

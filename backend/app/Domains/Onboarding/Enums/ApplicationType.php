@@ -114,13 +114,22 @@ enum ApplicationType: string
 
     public function label(): string
     {
+        return __($this->labelKey());
+    }
+
+    /**
+     * The untranslated label (a lang/ar.json key), e.g. for emails rendered
+     * later in the recipient's language.
+     */
+    public function labelKey(): string
+    {
         return match ($this) {
-            self::Vendor => __('Product seller'),
-            self::Classified => __('Open Souq seller'),
-            self::TravelAgency => __('Travel agency'),
-            self::Marketer => __('Creator (influencer / affiliate)'),
-            self::Broker => __('Real-estate broker'),
-            self::Carrier => __('Shipping company'),
+            self::Vendor => 'Product seller',
+            self::Classified => 'Open Souq seller',
+            self::TravelAgency => 'Travel agency',
+            self::Marketer => 'Creator (influencer / affiliate)',
+            self::Broker => 'Real-estate broker',
+            self::Carrier => 'Shipping company',
         };
     }
 }

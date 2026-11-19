@@ -64,6 +64,9 @@ use App\Domains\Vendors\Http\Controllers\Api\SellerStorefrontController;
 use App\Domains\Vendors\Http\Controllers\Api\VendorOpsController;
 use App\Domains\Warranty\Http\Controllers\WarrantyClaimController;
 use App\Shared\Http\Middleware\IdempotentRequest;
+use App\Shared\Notifications\Email\Http\EmailPreferenceController;
+use App\Shared\Notifications\Email\Http\EmailWebhookController;
+use App\Shared\Notifications\Email\Http\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
@@ -73,6 +76,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
     // WP11 extras: 301 target of an old-platform URL (website proxy, only for paths that would 404).
     Route::get('legacy-redirects', [LegacyRedirectController::class, 'show'])->name('legacy-redirects.show');
+
+    // Email system: one-click unsubscribe (RFC 8058 List-Unsubscribe-Post target + website landing) and provider bounce / complaint webhooks.
+    Route::prefix('email/unsubscribe/{token}')->name('email.unsubscribe.')->middleware('throttle:30,1')->group(function (): void {
+        Route::get('/', [UnsubscribeController::class, 'show'])->name('show');
+        Route::post('/', [UnsubscribeController::class, 'unsubscribe'])->name('one-click');
+        Route::delete('/', [UnsubscribeController::class, 'resubscribe'])->name('resubscribe');
+    });
+    Route::post('webhooks/email/{driver}', EmailWebhookController::class)->whereAlpha('driver')->middleware('throttle:240,1')->name('webhooks.email');
 
     // D9: the one OAuth callback URL per provider (Google GET, Apple form POST); the market travels in the state.
     Route::match(['get', 'post'], 'auth/social/{provider}/callback', [SocialAuthController::class, 'callback'])
@@ -123,10 +134,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('unsubscribe');
         });
 
+        // D16: Reverb private-channel auth for token clients (website proxy, apps); D18: guests
+        // may authorise their own WebRTC peer channel with its peer token, everything else needs sign-in.
+        Route::post('broadcasting/auth', BroadcastAuthController::class)->middleware('throttle:60,1')->name('broadcasting.auth');
+
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('auth/logout', [SecurityController::class, 'logout'])->name('auth.logout');
-            // D16: Reverb private-channel auth for token clients (website proxy, apps).
-            Route::post('broadcasting/auth', BroadcastAuthController::class)->middleware('throttle:60,1')->name('broadcasting.auth');
 
             Route::post('reviews', [ReviewController::class, 'store'])->middleware('throttle:10,1')->name('reviews.store');
             Route::post('reviews/{review}/helpful', [ReviewController::class, 'helpful'])->whereNumber('review')->middleware('throttle:60,1')->name('reviews.helpful');
@@ -393,6 +406,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('live-streams/{slug}/comments', [LiveStreamApiController::class, 'comments'])->middleware('throttle:120,1')->name('live-streams.comments');
         Route::post('live-streams/{slug}/comments', [LiveStreamApiController::class, 'comment'])->middleware(['auth:sanctum', 'throttle:10,1'])->name('live-streams.comments.store');
         Route::post('live-streams/{slug}/presence', [LiveStreamApiController::class, 'presence'])->middleware('throttle:12,1')->name('live-streams.presence');
+        // D18: native WebRTC viewers (guests too): take a slot, then relay signalling to the host studio.
+        Route::post('live-streams/{slug}/join', [LiveStreamApiController::class, 'join'])->middleware('throttle:live-join')->name('live-streams.join');
+        Route::post('live-streams/{slug}/signal', [LiveStreamApiController::class, 'signal'])->middleware('throttle:live-signal')->name('live-streams.signal');
 
         /*
         | Delivery app (WP7, SRS §4.6, ADR 15): agent sign-in, then the
@@ -586,6 +602,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
             Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->whereNumber('notification')->name('notifications.read');
             Route::get('contracts/signed', [ContractApiController::class, 'signed'])->name('contracts.signed');
+            Route::get('email-preferences', [EmailPreferenceController::class, 'show'])->name('email-preferences.show');
+            Route::put('email-preferences', [EmailPreferenceController::class, 'update'])->middleware('throttle:30,1')->name('email-preferences.update');
             Route::get('devices', [SecurityController::class, 'devices'])->name('devices.index');
             Route::delete('devices/{tokenId}', [SecurityController::class, 'revokeDevice'])->whereNumber('tokenId')->name('devices.destroy');
             Route::get('login-history', [SecurityController::class, 'loginHistory'])->name('login-history');

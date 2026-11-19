@@ -1,0 +1,11 @@
+127.0.0.1 noon-plus.loc
+127.0.0.1 www.noon-plus.loc
+127.0.0.1 business.noon-plus.loc
+127.0.0.1 api.noon-plus.loc
+127.0.0.1 ws.noon-plus.loc
+127.0.0.1 admin.noon-plus.loc
+127.0.0.1 partner.noon-plus.loc
+127.0.0.1 travel-agency.noon-plus.loc
+127.0.0.1 carrier.noon-plus.loc
+127.0.0.1 delivery.noon-plus.loc
+127.0.0.1 marketer.noon-plus.loc

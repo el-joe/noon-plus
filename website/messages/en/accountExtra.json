@@ -220,7 +220,30 @@
       "open": "Open",
       "new": "New",
       "previous": "Previous",
-      "next": "Next"
-    }
+      "next": "Next",
+      "emailSettings": "Email settings"
+    },
+    "emailPreferences": {
+      "title": "Email settings",
+      "intro": "Choose which emails you receive. Order, payment and security emails are always sent.",
+      "back": "Back to notifications",
+      "alwaysOn": "Always on",
+      "receive": "Receive",
+      "save": "Save settings",
+      "saved": "Your email settings are saved."
+    },
+    "unsubscribe": {
+      "title": "Unsubscribe",
+      "doneTitle": "You are unsubscribed",
+      "question": "Stop receiving “{topic}” emails?",
+      "done": "You will no longer receive “{topic}” emails.",
+      "confirm": "Unsubscribe",
+      "resubscribe": "Subscribe again",
+      "note": "Order, payment and security emails are always sent.",
+      "manage": "Manage all email settings",
+      "invalidTitle": "Link not valid",
+      "invalid": "This unsubscribe link is not valid or has expired. You can change your email settings from your account."
+    },
+    "_link": "Email settings"
   }
 }

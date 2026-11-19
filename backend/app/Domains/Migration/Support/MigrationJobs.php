@@ -5,7 +5,9 @@ namespace App\Domains\Migration\Support;
 use App\Domains\Migration\Jobs\RunMigrationJob;
 use App\Domains\Migration\Models\MigrationJob;
 use App\Domains\Migration\Models\QuarantineEntry;
+use App\Domains\Panels\Support\Panel;
 use App\Models\User;
+use App\Shared\Notifications\Email\Emails;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -93,10 +95,37 @@ class MigrationJobs
                 'redirects' => $this->artisan('legacy:redirects', []),
             };
             $job->forceFill([...$result, 'status' => 'done', 'finished_at' => now()])->save();
+            $this->alertQuarantine($job);
         } catch (Throwable $error) {
             report($error);
             $job->forceFill(['status' => 'failed', 'output' => mb_substr(Reconciler::mask($error->getMessage()), 0, 4000), 'finished_at' => now()])->save();
+            app(Emails::class)->alertAdmins('admin.migration_failed', [
+                'run' => $this->runLabel($job),
+                'error' => mb_substr(Reconciler::mask($error->getMessage()), 0, 300),
+            ], ['entity' => $job, 'url' => Panel::find('admin')->url('/migration/jobs/'.$job->id)]);
         }
+    }
+
+    /**
+     * Ops alert when a real (not dry) migration run left rows in quarantine.
+     */
+    private function alertQuarantine(MigrationJob $job): void
+    {
+        $quarantined = (int) collect($job->metrics['tables'] ?? [])->sum(fn ($table): int => (int) (is_array($table) ? ($table['quarantined'] ?? 0) : 0));
+
+        if ($job->dry_run || $quarantined === 0) {
+            return;
+        }
+
+        app(Emails::class)->alertAdmins('admin.migration_quarantine', [
+            'run' => $this->runLabel($job),
+            'count' => (string) $quarantined,
+        ], ['entity' => $job, 'url' => Panel::find('admin')->url('/migration/quarantine')]);
+    }
+
+    private function runLabel(MigrationJob $job): string
+    {
+        return trim(($job->run_id ? '#'.$job->run_id.' · ' : '').$job->kind.($job->step ? ' '.$job->step : '').' (job '.$job->id.')');
     }
 
     /**

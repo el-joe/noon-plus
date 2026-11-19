@@ -12,6 +12,8 @@ use App\Domains\Marketers\Models\MarketerProfile;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Panels\Support\PanelNotifications;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Money\Money;
@@ -54,6 +56,11 @@ class FlashSaleMarketerInvites
                     __('You are invited to promote :event', ['event' => $event->display_name ?: $event->name]),
                     __('Accept to earn the flash-sale bonus on sales at the flash price.'), '/flash-sales');
             }
+
+            app(PartnerEmails::class)->toMarketer($marketer->id, 'marketer.flash_sale_invite', [
+                'sale' => (string) ($event->display_name ?: $event->name),
+                'starts' => EmailValue::date($event->starts_at, time: true),
+            ], '/flash-sales', ['entity' => $invite]);
         }
 
         return $invite;

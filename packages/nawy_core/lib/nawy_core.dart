@@ -11,6 +11,7 @@ export 'src/l10n.dart';
 export 'src/money.dart';
 export 'src/platform/media_picker.dart';
 export 'src/platform/platform_bridge.dart';
+export 'src/realtime/pusher_socket.dart';
 export 'src/session.dart';
 export 'src/storage/secure_store.dart';
 export 'src/ui/documents.dart';

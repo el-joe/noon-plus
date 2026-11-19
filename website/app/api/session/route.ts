@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_MARKET, parseMarket } from "@/lib/markets";
-import { AUTH_HINT_COOKIE, TOKEN_COOKIE } from "@/lib/session";
+import { AUTH_HINT_COOKIE, TOKEN_COOKIE, isCrossSite } from "@/lib/session";
 
 const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1").replace(/\/$/, "");
 
@@ -9,8 +9,7 @@ const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "htt
  * (G-W7, current token only), then drop the cookies.
  */
 export async function DELETE(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  if (isCrossSite(request)) {
     return NextResponse.json({ error: { code: "forbidden", message: "Cross-site request refused.", fields: {} } }, { status: 403 });
   }
 

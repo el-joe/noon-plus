@@ -34,7 +34,7 @@ test("a path that is neither a page nor in the map is still a 404", async ({ req
 test("an old portal path on a panel host 301s to the website", async ({ request }) => {
   // The API request context does not use Chromium's *.nawy.test host mapping: call the API server with the panel's Host header.
   const panel = new URL(panelUrl("partner", fixtures.legacy_redirect.from));
-  const res = await request.get(`http://127.0.0.1:${panel.port}${panel.pathname}`, { headers: { Host: panel.host }, maxRedirects: 0 });
+  const res = await request.get(`http://127.0.0.1:${panel.port || "80"}${panel.pathname}`, { headers: { Host: panel.host }, maxRedirects: 0 });
   expect(res.status()).toBe(301);
   expect(new URL(res.headers().location).pathname).toBe(fixtures.legacy_redirect.to);
 });

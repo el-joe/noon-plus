@@ -25,7 +25,7 @@ use App\Domains\RealEstate\Support\ExclusiveContracts;
 use App\Domains\RealEstate\Support\SpecialRequests;
 use App\Domains\RealEstate\Support\Viewings;
 use App\Models\User;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -137,8 +137,8 @@ describe('broker leads', function () {
         expect($viewing)->customer_user_id->toBeNull()->contact_phone->toBe('+971557654321')->note->toBe('After 6 pm please')
             ->and($viewing->toArray())->not->toHaveKeys(['status', 'scheduled_at'])
             ->and(BrokerLead::query()->sole())->name->toBe('Sara M.')->phone->toBe('+971557654321')->notes->toBe('After 6 pm please')->status->toBe(LeadStatus::New);
-        Notification::assertSentTo(User::query()->find($broker->user_id), RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'viewing.requested');
-        Notification::assertSentOnDemandTimes(RequestNotification::class, 0);
+        Notification::assertSentTo(User::query()->find($broker->user_id), EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'viewing.requested');
+        Notification::assertSentOnDemandTimes(EventEmail::class, 0);
         expect(method_exists(Viewings::class, 'confirm'))->toBeFalse()
             ->and(method_exists(Viewings::class, 'move'))->toBeFalse()
             ->and(file_exists(app_path('Domains/RealEstate/Enums/ViewingStatus.php')))->toBeFalse();

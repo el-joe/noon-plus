@@ -994,5 +994,13 @@
     "kept": [
       "Help centre empty state 'Articles coming soon' and the 'LIVE SOON' scheduled badge are legitimate labels (left as they are)"
     ]
+  },
+  "emailSystem": {
+    "page": "227:2",
+    "227:3": "Email / Layout EN — branded responsive email (yellow header, button, footer with help/legal/preferences/unsubscribe)",
+    "227:19": "Email / Layout AR (RTL)",
+    "227:35": "Email / Order receipt — lines, totals with VAT, OMR 3 decimals, address, payment",
+    "227:70": "Admin / Notification templates editor — catalogue info, edit, preview with sample data, test send, reset, version history",
+    "227:88": "Admin / Platform / Email log — status counts, filters, table with resend, suppression list"
   }
 }

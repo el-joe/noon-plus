@@ -12,6 +12,8 @@ use App\Domains\Finance\Models\VendorPayout;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Vendors\Models\Vendor;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Money\Money;
@@ -103,6 +105,11 @@ class Payouts
             VendorBalanceItem::query()->whereKey($items->pluck('id'))->update(['vendor_payout_id' => $payout->id]);
             $this->reserve($payout, $total, 'generate');
             $this->machine->created($payout, $adminUserId === null ? ActorType::System : ActorType::Admin, $adminUserId);
+            app(PartnerEmails::class)->toVendor($vendor->id, 'payout.statement', [
+                'payout_number' => $payout->number,
+                'period' => $payout->period_start->toDateString().' – '.$payout->period_end->toDateString(),
+                'amount' => EmailValue::money((string) $payout->total, $payout->currency),
+            ], '/payouts/'.$payout->id, ['entity' => $payout]);
 
             return $payout;
         });

@@ -50,7 +50,7 @@ export async function routeFakeGateway(page: Page, market: string, outcome: "cap
     const [, method, gatewayReference] = new URL(route.request().url()).pathname.split("/");
     const reference = gatewayReference.replace(`fake_${method}_`, "");
     fakeGatewayReports(gatewayReference, outcome);
-    await route.fulfill({ status: 302, headers: { location: `http://localhost:8000/api/v1/${market}/payments/${reference}/return` } });
+    await route.fulfill({ status: 302, headers: { location: `${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/${market}/payments/${reference}/return` } });
   });
 }
 

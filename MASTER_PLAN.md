@@ -88,7 +88,7 @@ Legend: **K** keep · **I** keep and improve · **R** replace the mechanism · *
 | Classifieds & travel §12 | Classified lifecycle with contract, dynamic categories, inquiries, map, wanted ads; travel lifecycles | **K** + seat capacity locking, vouchers, invoices (**N**) |
 | Real-estate brokers (spec §5.7) | — | **N** properties, leads, follow-ups |
 | Contracts §13 | 4 kinds + onboarding + exclusive; editor or file templates; versions; click-wrap; evidence | **K** and applied to all registrations |
-| Live streams §14 | P2P mesh, recorded channels, comments, likes; admin creates | **R** LiveKit; admin-only for all media (ADR 11) |
+| Live streams §14 | P2P mesh, recorded channels, comments, likes; admin creates | **R** native WebRTC one-to-many from the admin studio + Reverb signalling (D18, 2026-11-19; LiveKit removed); admin-only for all media (ADR 11) |
 | Content §15 | Page builder, app contexts, static pages, portal content, blog, knowledge hub, help centre, FAQs, footer, tickets, notifications | **I**: Noon-structure block registry; app contexts drive the app's super-app switcher (§14c) |
 | Roles §16 | Spatie per guard, tenant-prefixed roles | **I**: Spatie teams = country + tenant scoping |
 | Jobs §17 | 30+ schedules | **K** + new jobs (§11) |
@@ -197,7 +197,7 @@ Mobile apps: `customer_app` (full, Noon structure), `delivery_app` (full), `vend
 9. **Search.** `SearchEngine` (MySQL fulltext → Meilisearch per country) + `SponsoredRanker`. Search analytics and popular searches are stored per country.
 10. **Real-time.** Reverb, Horizon. Notification channels: DB, mail, broadcast, FCM, WhatsApp, SMS. Templates are per country and language.
 11. **Live media: admin-only (decided 2026-11-14).**
-    - LiveKit SFU + recorded channels.
+    - ~~LiveKit SFU~~ → native WebRTC one-to-many P2P from the host's browser, signalling relayed over Reverb private channels, viewer cap `live.webrtc_max_viewers` (owner decision D18, 2026-11-19; docs/deploy/webrtc.md) + recorded channels.
     - Only admins create, upload, schedule and publish streams, recorded channels and every video (Admin → Content → Live & videos).
     - Creators, stores and brands are tags only.
     - Sponsored video creatives are uploaded by admin on the booking.

@@ -7,6 +7,9 @@ use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
 use App\Domains\FlashSales\Exceptions\FlashSaleTransitionRefused;
 use App\Domains\FlashSales\Models\FlashSaleEvent;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Vendors\Models\Vendor;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -50,10 +53,25 @@ class FlashSaleEventMachine
 
             if ($to === FlashSaleEventStatus::SubmissionOpen) {
                 app(FlashSaleMarketerInvites::class)->inviteAllActive($event, $actorType, $actorUserId);
+                $this->inviteStores($event);
             }
 
             return $event;
         });
+    }
+
+    /**
+     * `flash_sale.invitation` to the owner of every active product store of
+     * the country — once per event and store (sent after the move commits).
+     */
+    private function inviteStores(FlashSaleEvent $event): void
+    {
+        Vendor::query()->where('status', Vendor::STATUS_ACTIVE)->where('type', 'product')->whereNotNull('owner_user_id')->orderBy('id')
+            ->each(fn (Vendor $vendor) => app(PartnerEmails::class)->toVendor($vendor->id, 'flash_sale.invitation', [
+                'sale' => (string) ($event->display_name ?: $event->name),
+                'starts' => EmailValue::date($event->starts_at, time: true),
+                'submit_by' => EmailValue::date($event->submission_ends_at, time: true),
+            ], '/flash-sales', ['entity' => $event]));
     }
 
     private function moveSubmissions(FlashSaleEvent $event, FlashSaleEventStatus $to, ActorType $actorType, ?int $actorUserId): void

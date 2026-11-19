@@ -23,7 +23,8 @@ use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Shared\Http\StorefrontLinks;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
@@ -367,12 +368,10 @@ class ApplicationWizard
             'requested_changes' => null,
         ], ['agreement_version_id' => $agreement?->id, 'signed_name' => mb_substr(trim($fullName), 0, 160)]);
 
-        Notification::route('mail', $application->email)->notify(new RequestNotification(
-            'partner_application.submitted',
-            __('We received your application'),
-            [__('Thank you, :name. Your :type application is now waiting for review.', ['name' => $application->name, 'type' => $application->type->label()]), __('We will email you when there is a decision.')],
-            $application->number,
-        ));
+        app(Emails::class)->send('partner.application_submitted', $application->email, [
+            'application_number' => $application->number,
+            'type' => EmailValue::t($application->type->labelKey()),
+        ], ['entity' => $application, 'once' => false, 'locale' => $application->locale, 'name' => $application->name, 'panel' => $application->type->panel()]);
 
         return $application;
     }
@@ -392,7 +391,7 @@ class ApplicationWizard
         ])->save();
 
         Notification::route('mail', $application->email)->notify(new ApplicationEmailCodeNotification(
-            $code, $application->number, $minutes, User::query()->where('email', $application->email)->exists(),
+            $code, $application->number, $minutes, User::query()->where('email', $application->email)->exists(), $application->locale, $application->name,
         ));
     }
 

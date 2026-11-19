@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { parseMarket } from "@/lib/markets";
-import { AUTH_HINT_COOKIE, TOKEN_COOKIE, VISITOR_COOKIE, cartCookie, cartHintCookie } from "@/lib/session";
+import { AUTH_HINT_COOKIE, TOKEN_COOKIE, VISITOR_COOKIE, cartCookie, cartHintCookie, secureCookies, isCrossSite } from "@/lib/session";
 
 /**
  * Backend-for-frontend proxy: the browser calls `/api/nawy/{market}/…` on the
@@ -22,7 +22,6 @@ const YEAR = 60 * 60 * 24 * 365;
 const SIGN_IN_ENDPOINTS = new Set(["auth/email-code/verify", "auth/phone-code/verify", "auth/password/login", "auth/password/reset", "auth/social/exchange"]);
 /** 403 codes that mean this browser's session is no longer usable. */
 const SESSION_ENDING_CODES = new Set(["account_suspended", "wrong_token"]);
-const secure = process.env.NODE_ENV === "production";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
@@ -34,8 +33,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   }
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) {
+    if (isCrossSite(request)) {
       return NextResponse.json({ error: { code: "forbidden", message: "Cross-site request refused.", fields: {} } }, { status: 403 });
     }
   }
@@ -101,6 +99,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   }
 
   const response = new NextResponse(body, { status: upstream.status });
+  const secure = secureCookies(request);
   response.headers.set("Content-Type", upstream.headers.get("content-type") ?? "application/json");
   response.headers.set("Cache-Control", "no-store");
   for (const name of ["retry-after", "content-language", "x-ratelimit-limit", "x-ratelimit-remaining"]) {

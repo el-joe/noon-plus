@@ -73,6 +73,7 @@ use App\Domains\Vendors\Http\Controllers\Admin\ChangeRequestAdminController;
 use App\Domains\Vendors\Http\Controllers\Admin\VendorAdminController;
 use App\Domains\Warranty\Http\Controllers\Admin\WarrantyClaimAdminController;
 use App\Domains\Warranty\Http\Controllers\Admin\WarrantyPlanController;
+use App\Shared\Notifications\Email\Http\EmailLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('approvals', [ListingReviewController::class, 'index'])->middleware('can:vendor_listings.view')->name('approvals');
@@ -417,6 +418,10 @@ Route::middleware('can:live_media.manage')->group(function (): void {
     Route::put('media/{stream}', [LiveMediaController::class, 'update'])->whereNumber('stream')->name('media.update');
     Route::post('media/{stream}/live', [LiveMediaController::class, 'goLive'])->whereNumber('stream')->name('media.live');
     Route::post('media/{stream}/end', [LiveMediaController::class, 'end'])->whereNumber('stream')->name('media.end');
+    // D18: the browser studio's WebRTC signalling (offer / ICE per viewer) and heartbeat.
+    Route::post('media/{stream}/webrtc/signal', [LiveMediaController::class, 'webrtcSignal'])->whereNumber('stream')->middleware('throttle:600,1')->name('media.webrtc.signal');
+    Route::post('media/{stream}/webrtc/online', [LiveMediaController::class, 'webrtcOnline'])->whereNumber('stream')->middleware('throttle:60,1')->name('media.webrtc.online');
+    Route::post('media/webrtc-settings', [LiveMediaController::class, 'webrtcSettings'])->name('media.webrtc.settings');
     Route::post('media/{stream}/products', [LiveMediaController::class, 'products'])->whereNumber('stream')->name('media.products');
     Route::post('media/floating', [LiveMediaController::class, 'floating'])->name('media.floating');
     Route::post('media/{stream}/comments/{comment}', [LiveMediaController::class, 'moderateComment'])->whereNumber(['stream', 'comment'])->name('media.comments.moderate');
@@ -445,6 +450,10 @@ Route::middleware('can:footer.manage')->group(function (): void {
 Route::middleware('can:notification_templates.manage')->group(function (): void {
     Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('notification-templates');
     Route::post('notification-templates', [NotificationTemplateController::class, 'store'])->name('notification-templates.store');
+    Route::post('notification-templates/preview', [NotificationTemplateController::class, 'preview'])->name('notification-templates.preview');
+    Route::post('notification-templates/test', [NotificationTemplateController::class, 'test'])->middleware('throttle:10,1')->name('notification-templates.test');
+    Route::post('notification-templates/reset', [NotificationTemplateController::class, 'reset'])->name('notification-templates.reset');
+    Route::post('notification-templates/versions/{version}/restore', [NotificationTemplateController::class, 'restore'])->whereNumber('version')->name('notification-templates.restore');
 });
 
 /*
@@ -750,3 +759,16 @@ Route::middleware('can:packaging.manage')->group(function (): void {
     Route::post('packaging/orders/{order}/{action}', [PackagingAdminController::class, 'move'])->whereNumber('order')->whereIn('action', ['approve', 'reject', 'ship', 'deliver'])->name('packaging.orders.move');
 });
 Route::post('flash-sales/{event}/marketer-invites', [FlashSaleEventController::class, 'inviteMarketers'])->whereNumber('event')->middleware(['can:flash_sales.manage', 'throttle:20,1'])->name('flash-sales.marketer-invites');
+
+/*
+| Email system: Admin → Platform → Email log (delivery log, resend,
+| suppression list).
+*/
+Route::middleware('can:system_health.view')->group(function (): void {
+    Route::get('email-log', [EmailLogController::class, 'index'])->name('email-log');
+});
+Route::middleware('can:system_health.manage')->group(function (): void {
+    Route::post('email-log/{log}/resend', [EmailLogController::class, 'resend'])->whereNumber('log')->middleware('throttle:30,1')->name('email-log.resend');
+    Route::post('email-log/suppressions', [EmailLogController::class, 'suppress'])->name('email-log.suppress');
+    Route::delete('email-log/suppressions/{suppression}', [EmailLogController::class, 'lift'])->whereNumber('suppression')->name('email-log.suppressions.lift');
+});

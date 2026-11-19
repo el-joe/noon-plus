@@ -5,6 +5,7 @@ namespace App\Domains\Classifieds\Support;
 use App\Domains\Classifieds\Models\SavedSearch;
 use App\Domains\Classifieds\Notifications\SavedSearchMatches;
 use App\Models\User;
+use App\Shared\Notifications\Email\EmailLinks;
 
 /**
  * Saved searches and their alerts (MP v2 §14b, catalogue Appendix A): the
@@ -37,7 +38,8 @@ class SavedSearches
             }
 
             $customer = User::query()->find($saved->customer_user_id);
-            $customer?->notify(new SavedSearchMatches($saved->name, $matches->count(), $matches->pluck('title')->all()));
+            $customer?->notify(new SavedSearchMatches($saved->name, $matches->count(), $matches->pluck('title')->all(),
+                app(EmailLinks::class)->storefront('account/saved-searches', $customer->preferredLocale())));
             $saved->forceFill(['last_alerted_at' => now()])->save();
             $sent++;
         });

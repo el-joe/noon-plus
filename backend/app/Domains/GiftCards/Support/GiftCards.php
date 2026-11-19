@@ -20,6 +20,7 @@ use App\Domains\Payments\Support\PaymentMethodCatalog;
 use App\Models\User;
 use App\Shared\Money\MoneyFactory;
 use App\Shared\Money\MoneyFormatter;
+use App\Shared\Notifications\Email\Emails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Brick\Money\Money;
@@ -263,16 +264,29 @@ class GiftCards
 
     private function deliver(GiftCard $card): void
     {
-        $sender = $card->purchaser_user_id === null ? 'Nawy' : User::query()->whereKey($card->purchaser_user_id)->value('name');
+        $purchaser = $card->purchaser_user_id === null ? null : User::query()->find($card->purchaser_user_id);
+        $amount = app(MoneyFormatter::class)->format((string) $card->amount, $card->currency);
+        $recipient = User::query()->where('email', $card->recipient_email)->first();
 
         Notification::route('mail', $card->recipient_email)->notify(new GiftCardDelivered(
             $card->code_encrypted,
-            app(MoneyFormatter::class)->format((string) $card->amount, $card->currency),
-            $sender,
+            $amount,
+            $purchaser === null ? 'Nawy' : $purchaser->name,
             $card->message,
-            $card->expires_at->toDateString(),
+            $card->expires_at,
+            $card->id,
+            $recipient?->preferredLocale(),
         ));
         $card->forceFill(['delivered_at' => now()])->save();
+
+        // The buyer's copy (`gift_card.sent`), never with the code.
+        if ($purchaser !== null) {
+            app(Emails::class)->send('gift_card.sent', $purchaser, [
+                'recipient' => (string) $card->recipient_email,
+                'amount' => $amount,
+                'number' => (string) $card->number,
+            ], ['entity' => $card]);
+        }
     }
 
     private function assertAmountAllowed(Money $amount): void

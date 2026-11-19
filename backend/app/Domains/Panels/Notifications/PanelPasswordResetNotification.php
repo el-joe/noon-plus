@@ -2,31 +2,18 @@
 
 namespace App\Domains\Panels\Notifications;
 
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Shared\Notifications\Email\EventEmail;
 
 /**
- * Business panel reset link (QC-006).
+ * Business panel reset link (QC-006, `panel.password_reset`).
  */
-class PanelPasswordResetNotification extends Notification
+class PanelPasswordResetNotification extends EventEmail
 {
-    public function __construct(public string $url, public string $panelName, public int $minutes) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function __construct(public string $url, public string $panelName, public int $minutes, public ?string $panelKey = null)
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject(__('Reset your Nawy :panel password', ['panel' => $this->panelName]))
-            ->line(__('We received a request to reset the password you use for Nawy :panel.', ['panel' => $this->panelName]))
-            ->action(__('Reset password'), $this->url)
-            ->line(__('The link works for :minutes minutes.', ['minutes' => $this->minutes]))
-            ->line(__('If you did not ask for this, ignore this email. Your password stays the same.'));
+        parent::__construct('panel.password_reset', ['minutes' => (string) $minutes], array_filter([
+            'url' => $url,
+            'panel' => $panelKey,
+        ]));
     }
 }

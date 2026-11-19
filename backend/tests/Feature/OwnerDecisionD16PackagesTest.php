@@ -4,10 +4,7 @@ use App\Domains\Campaigns\Support\Invitations;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Customers\Events\CustomerNotificationCreated;
 use App\Domains\Customers\Support\CustomerNotifications;
-use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
 use App\Domains\LiveMedia\Events\LiveStreamUpdated;
-use App\Domains\LiveMedia\Support\FakeLiveMediaProvider;
-use App\Domains\LiveMedia\Support\LiveKitProvider;
 use App\Domains\LiveMedia\Support\LiveStreams;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Support\InvoicePdf;
@@ -27,8 +24,8 @@ uses(RefreshDatabase::class);
 /*
 | D16: backend side of the approved packages — invoice PDF (dompdf), referral
 | QR codes (chillerlan/php-qrcode), Reverb broadcasts and channel auth for
-| token clients (laravel-echo on the website), and the LiveKit viewer flag
-| (livekit-client on the website).
+| token clients (laravel-echo on the website). The LiveKit viewer flag is
+| gone (D18: native WebRTC, tests/Feature/LiveWebRtcTest.php).
 */
 
 beforeEach(function () {
@@ -195,7 +192,6 @@ describe('realtime (Reverb)', function () {
     it('broadcasts visible live comments, likes and customer notifications', function () {
         useReverbForBroadcasts();
         Event::fake([LiveStreamUpdated::class, CustomerNotificationCreated::class]);
-        app()->instance(LiveMediaProvider::class, new FakeLiveMediaProvider);
         $stream = app(LiveStreams::class)->createLive(['title_en' => 'Eid live', 'title_ar' => 'بث العيد'], 1);
         app(LiveStreams::class)->goLive($stream, 1);
         [$user, $token] = customerWithToken();
@@ -205,7 +201,8 @@ describe('realtime (Reverb)', function () {
         $this->withToken($token)->postJson("{$base}/comments", ['body' => 'cheap at https://spam.example'])->assertCreated()->assertJsonPath('data.status', 'held');
         $this->postJson("{$base}/likes")->assertOk();
 
-        Event::assertDispatchedTimes(LiveStreamUpdated::class, 2);
+        // go-live (D18 `status.changed`), the visible comment and the like; never the held comment.
+        Event::assertDispatchedTimes(LiveStreamUpdated::class, 3);
         Event::assertDispatched(LiveStreamUpdated::class, fn (LiveStreamUpdated $event): bool => $event->name === 'comment.posted' && $event->payload['id'] === $id
             && $event->broadcastOn()[0]->name === "live-stream.{$stream->slug}");
         Event::assertDispatched(LiveStreamUpdated::class, fn (LiveStreamUpdated $event): bool => $event->name === 'likes.updated' && $event->payload === ['likes' => 1]);
@@ -219,7 +216,6 @@ describe('realtime (Reverb)', function () {
 
     it('does not broadcast while broadcasting is off', function () {
         Event::fake([LiveStreamUpdated::class]);
-        app()->instance(LiveMediaProvider::class, new FakeLiveMediaProvider);
         $stream = app(LiveStreams::class)->createLive(['title_en' => 'Eid live', 'title_ar' => 'بث العيد'], 1);
         app(LiveStreams::class)->goLive($stream, 1);
 
@@ -228,7 +224,6 @@ describe('realtime (Reverb)', function () {
     });
 
     it('never fails the request when Reverb is unreachable', function () {
-        app()->instance(LiveMediaProvider::class, new FakeLiveMediaProvider);
         $stream = app(LiveStreams::class)->createLive(['title_en' => 'Eid live', 'title_ar' => 'بث العيد'], 1);
         app(LiveStreams::class)->goLive($stream, 1);
         useReverbForBroadcasts();
@@ -238,20 +233,5 @@ describe('realtime (Reverb)', function () {
 
         $this->postJson("/api/v1/uae-en/live-streams/{$stream->slug}/likes")->assertOk()->assertJsonPath('data.likes', 1);
         Exceptions::assertReported(BroadcastException::class);
-    });
-});
-
-describe('LiveKit viewer flag', function () {
-    it('tells the website when a browser can join the room with WebRTC', function () {
-        app()->instance(LiveMediaProvider::class, new FakeLiveMediaProvider);
-        $stream = app(LiveStreams::class)->createLive(['title_en' => 'Eid live', 'title_ar' => 'بث العيد'], 1);
-        app(LiveStreams::class)->goLive($stream, 1);
-        expect(app(LiveStreams::class)->playback($stream->refresh(), 'guest')['webrtc'])->toBeFalse();
-
-        app()->instance(LiveMediaProvider::class, new LiveKitProvider('https://live.example.test', 'key', 'secret-secret-secret-secret-secret', null));
-        $this->getJson("/api/v1/uae-en/live-streams/{$stream->slug}")->assertOk()
-            ->assertJsonPath('data.playback.webrtc', true)
-            ->assertJsonPath('data.playback.url', 'wss://live.example.test')
-            ->assertJsonPath('data.playback.token', fn (string $token): bool => substr_count($token, '.') === 2);
     });
 });

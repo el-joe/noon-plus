@@ -78,7 +78,7 @@ class DeliveryAgents
         ], ['status' => 'active']);
 
         if ($password !== null) {
-            $user->notify(new AgentCredentialsNotification($country->name_en, $password));
+            $user->notify(new AgentCredentialsNotification($country->name_en, $password, $carrier?->name));
         }
 
         return $agent;

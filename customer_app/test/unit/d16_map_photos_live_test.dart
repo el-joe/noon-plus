@@ -163,7 +163,12 @@ void main() {
     expect(liveFallback({'status': 'scheduled'}), LiveFallback.scheduled);
     expect(liveFallback({'status': 'idle'}), LiveFallback.notStarted);
     expect(liveFallback({'status': 'ended', 'playback': {'type': 'live'}}), LiveFallback.ended);
-    expect(liveFallback({'status': 'live', 'playback': {'webrtc': true, 'hls_url': null}}), LiveFallback.browserOnly);
+    expect(liveFallback({'status': 'live', 'playback': {'webrtc': true}}), LiveFallback.unavailable);
+    expect(liveUsesWebRtc({'status': 'live', 'playback': {'type': 'live', 'webrtc': true}}), isTrue);
+    expect(liveUsesWebRtc({'status': 'live', 'playback': {'webrtc': true}}), isTrue);
+    expect(liveUsesWebRtc({'status': 'live', 'playback': {'type': 'live', 'webrtc': false}}), isFalse);
+    expect(liveUsesWebRtc({'status': 'ended', 'playback': {'type': 'live', 'webrtc': true}}), isFalse);
+    expect(liveUsesWebRtc({'status': 'live', 'playback': {'type': 'recorded', 'webrtc': true, 'media_url': 'x'}}), isFalse);
     expect(liveFallback({'status': 'live', 'playback': {'webrtc': false, 'hls_url': null}}), LiveFallback.unavailable);
     expect(liveFallback({'status': 'live'}), LiveFallback.unavailable);
     expect(liveWebUrl('uae-ar', 'big show'), endsWith('/uae-ar/live/big%20show'));

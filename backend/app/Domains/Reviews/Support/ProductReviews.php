@@ -9,6 +9,7 @@ use App\Domains\Reviews\Enums\ReviewStatus;
 use App\Domains\Reviews\Models\ProductReview;
 use App\Domains\Reviews\Models\ProductReviewPhoto;
 use App\Models\User;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,6 +79,11 @@ class ProductReviews
                 }
 
                 $this->machine->created($review, ActorType::Customer, $customer->id, $flagReason);
+                $product = $item->listing->variant->product;
+                app(PartnerEmails::class)->toVendor((int) $review->vendor_id, 'seller.review_received', fn (string $locale): array => [
+                    'product' => (string) ($locale === 'ar' ? $product?->title_ar : $product?->title_en),
+                    'rating' => $review->rating.'/5',
+                ], '/reviews', ['entity' => $review]);
 
                 return $review;
             });

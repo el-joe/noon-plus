@@ -18,11 +18,12 @@ use App\Domains\Marketers\Enums\MarketerStatus;
 use App\Domains\Marketers\Models\MarketerProfile;
 use App\Domains\RealEstate\Support\BrokerLeads;
 use App\Models\User;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\EmailLinks;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Inquiries and chat on classified ads (FR-CLS-4, lifecycle catalogue §5.4).
@@ -41,6 +42,7 @@ class ClassifiedInquiries
         private ContractSigner $signer,
         private CountryContext $countryContext,
         private BrokerLeads $leads,
+        private Emails $emails,
     ) {}
 
     /**
@@ -113,13 +115,25 @@ class ClassifiedInquiries
         });
 
         if ($isNew) {
-            User::query()->find($ad->owner_user_id)?->notify(new RequestNotification('classified_inquiry.received', __('New inquiry on :title', ['title' => $ad->title]), [
-                __('From :name · :email · :phone', ['name' => $thread->contact_name, 'email' => $thread->contact_email, 'phone' => $thread->contact_phone]),
-                mb_substr($body, 0, 500),
-            ], $ad->number));
-            Notification::route('mail', $thread->contact_email)->notify(new RequestNotification('classified_inquiry.sent', __('Your message about :title was sent', ['title' => $ad->title]), [
-                __('The seller will reply in Nawy chat or contact you directly. Never pay a deposit before seeing the item.'),
-            ], $ad->number));
+            $owner = User::query()->find($ad->owner_user_id);
+
+            if ($owner !== null) {
+                $this->emails->send('classified.new_message', $owner, [
+                    'ad_title' => (string) $ad->title,
+                    'from' => $thread->contact_name,
+                    'message' => mb_substr($body, 0, 500),
+                ], [
+                    'entity' => $thread->messages()->latest('id')->first() ?? $thread,
+                    'url' => $this->conversationLink($owner),
+                    'blocks' => [['type' => 'facts', 'rows' => [['Name', $thread->contact_name], ['Email', $thread->contact_email], ['Phone', $thread->contact_phone]]]],
+                ]);
+            }
+
+            $this->emails->send('classified.inquiry_sent', $thread->contact_email, ['ad_title' => (string) $ad->title], [
+                'entity' => $thread,
+                'locale' => app()->getLocale(),
+                'name' => $thread->contact_name,
+            ]);
         }
 
         return $thread->refresh();
@@ -137,7 +151,20 @@ class ClassifiedInquiries
             $thread->forceFill(['status' => ThreadStatus::Contacted])->save();
         }
 
-        return $this->append($thread, $userId, $isSeller ? 'seller' : 'buyer', $body);
+        $message = $this->append($thread, $userId, $isSeller ? 'seller' : 'buyer', $body);
+        $recipient = User::query()->find($isSeller ? $thread->customer_user_id : $thread->seller_user_id);
+
+        // Each later message emails the other side (a guest buyer only reads replies in chat).
+        if ($recipient !== null) {
+            $thread->loadMissing('ad');
+            $this->emails->send('classified.new_message', $recipient, [
+                'ad_title' => (string) $thread->ad?->title,
+                'from' => $isSeller ? EmailValue::t('the seller') : (string) $thread->contact_name,
+                'message' => mb_substr($body, 0, 500),
+            ], ['entity' => $message, 'url' => $this->conversationLink($recipient)]);
+        }
+
+        return $message;
     }
 
     public function close(ClassifiedThread $thread): ClassifiedThread
@@ -181,6 +208,14 @@ class ClassifiedInquiries
         ]);
 
         return (string) $phone;
+    }
+
+    /**
+     * The storefront Open Souq inbox, in the recipient's language.
+     */
+    private function conversationLink(User $recipient): string
+    {
+        return app(EmailLinks::class)->storefront('account/inquiries', $recipient->preferredLocale());
     }
 
     private function append(ClassifiedThread $thread, ?int $senderUserId, string $role, string $body): ClassifiedMessage

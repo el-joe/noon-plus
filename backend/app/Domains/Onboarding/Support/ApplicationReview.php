@@ -9,13 +9,14 @@ use App\Domains\Documents\Support\Documents;
 use App\Domains\Onboarding\Enums\ApplicationStatus;
 use App\Domains\Onboarding\Models\PartnerApplication;
 use App\Domains\Orders\Enums\ActorType;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\Panels\Support\PanelCountries;
 use App\Domains\Vendors\Models\Vendor;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Admin application review (SRS §4.1.5 "Applications", Figma approvals
@@ -33,6 +34,7 @@ class ApplicationReview
         private ApplicationWizard $wizard,
         private CountryContext $countryContext,
         private AcquirerReferrals $referrals,
+        private Emails $emails,
     ) {}
 
     public function assign(PartnerApplication $application, int $adminUserId): PartnerApplication
@@ -125,7 +127,7 @@ class ApplicationReview
                 ->update(['acquired_by_user_id' => $application->acquired_by_user_id, 'acquired_at' => now()]);
         }
 
-        return $this->machine->move($application, ApplicationStatus::Approved, ActorType::Admin, $adminUserId, $note, [
+        $approved = $this->machine->move($application, ApplicationStatus::Approved, ActorType::Admin, $adminUserId, $note, [
             'reviewed_by_user_id' => $adminUserId,
             'decided_at' => now(),
             'decision_reason' => $note,
@@ -134,6 +136,10 @@ class ApplicationReview
             'tenant_id' => $tenant['tenant_id'],
             'password_hash' => null,
         ], ['tenant_type' => $tenant['tenant_type'], 'tenant_id' => $tenant['tenant_id']]);
+
+        $this->mail($approved, 'partner.application_approved', [], ['url' => Panel::find($approved->type->panel())->url('/login')]);
+
+        return $approved;
     }
 
     public function reject(PartnerApplication $application, int $adminUserId, string $reason): PartnerApplication
@@ -151,11 +157,7 @@ class ApplicationReview
             'password_hash' => null,
         ]);
 
-        $this->mail($application, 'partner_application.rejected', __('Your Nawy application was not approved'), [
-            __('We could not approve your :type application.', ['type' => $application->type->label()]),
-            __('Reason: :reason', ['reason' => $reason]),
-            __('You can apply again at any time.'),
-        ]);
+        $this->mail($application, 'partner.application_rejected', ['reason' => $reason]);
 
         return $application;
     }
@@ -201,20 +203,22 @@ class ApplicationReview
             ? $this->wizard->resumeLink($application, $token)
             : rtrim($resumeBaseUrl, '/').'/'.$this->countryContext->current()->marketSlug($application->locale).'/join/resume?'.http_build_query(['number' => $application->number, 'token' => $token]);
 
-        $this->mail($application, 'partner_application.changes_requested', __('Your Nawy application needs changes'), [
-            __('Please update your :type application.', ['type' => $application->type->label()]),
-            __('What to change: :note', ['note' => $note]),
-            __('Continue your application: :link', ['link' => $link]),
-        ]);
+        $this->mail($application, 'partner.application_changes_requested', ['changes' => $note], ['url' => $link, 'once' => false]);
 
         return $application;
     }
 
     /**
-     * @param  array<int, string>  $lines
+     * The applicant's email about a decision, in the application's language.
+     *
+     * @param  array<string, mixed>  $variables
+     * @param  array<string, mixed>  $options
      */
-    private function mail(PartnerApplication $application, string $kind, string $subject, array $lines): void
+    private function mail(PartnerApplication $application, string $event, array $variables, array $options = []): void
     {
-        Notification::route('mail', $application->email)->notify(new RequestNotification($kind, $subject, $lines, $application->number));
+        $this->emails->send($event, $application->email, $variables + [
+            'application_number' => $application->number,
+            'type' => EmailValue::t($application->type->labelKey()),
+        ], $options + ['entity' => $application, 'locale' => $application->locale, 'name' => $application->name, 'panel' => $application->type->panel()]);
     }
 }

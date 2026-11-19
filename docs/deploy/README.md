@@ -9,6 +9,7 @@ The documents below describe how the Nawy platform runs outside a developer mach
 | [queues-horizon.md](queues-horizon.md) | Redis queues, Horizon supervisors, failed jobs |
 | [scheduler.md](scheduler.md) | the Laravel scheduler (cron, timezone, the per-country jobs) |
 | [reverb.md](reverb.md) | the Reverb websocket server and its proxy |
+| [webrtc.md](webrtc.md) | live broadcasts over native WebRTC (D18): signalling, STUN/TURN (coturn), viewer cap |
 | [country-databases.md](country-databases.md) | provisioning a country database (central + 8 countries) |
 | [reporting-database.md](reporting-database.md) | the `nawy_reporting` database, nightly ETL, backfills, celebrity monthly report job |
 | [exchange-rates.md](exchange-rates.md) | central exchange rates, PayPal charged in USD, the optional rate provider key |

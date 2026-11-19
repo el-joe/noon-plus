@@ -15,9 +15,7 @@ use App\Domains\Identity\Support\AdminRoleLabels;
 use App\Domains\Identity\Support\TokenScopes;
 use App\Domains\Listings\Models\Listing;
 use App\Domains\Listings\Policies\ListingPolicy;
-use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
-use App\Domains\LiveMedia\Support\FakeLiveMediaProvider;
-use App\Domains\LiveMedia\Support\LiveKitProvider;
+use App\Domains\LiveMedia\Support\PeerTokens;
 use App\Domains\Marketers\Support\MarketerWorkspace;
 use App\Domains\Orders\Models\SubOrder;
 use App\Domains\Orders\Policies\SubOrderPolicy;
@@ -28,6 +26,11 @@ use App\Domains\Vendors\Support\VendorWorkspace;
 use App\Models\User;
 use App\Shared\Http\Middleware\ThrottlePerRoute;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Listeners\AccountLifecycleEmails;
+use App\Shared\Notifications\Email\Listeners\CommerceLifecycleEmails;
+use App\Shared\Notifications\Email\Listeners\JobFailureAlerts;
+use App\Shared\Notifications\Email\Listeners\PartnerLifecycleEmails;
+use App\Shared\Notifications\Email\Listeners\RecordEmailSent;
 use App\Shared\Notifications\Push\ArrayPushSender;
 use App\Shared\Notifications\Push\FcmPushSender;
 use App\Shared\Notifications\Push\LogPushSender;
@@ -42,9 +45,12 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
@@ -70,9 +76,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CountryClock::class);
         $this->app->singleton(MoneyFactory::class);
         $this->app->singleton(SettingsService::class);
-        $this->app->singleton(LiveMediaProvider::class, fn (): LiveMediaProvider => config('nawy.streams.driver') === 'livekit'
-            ? new LiveKitProvider(config('services.livekit.url'), config('services.livekit.api_key'), config('services.livekit.api_secret'), config('services.livekit.ws_url'))
-            : new FakeLiveMediaProvider);
         // Push notifications: `log` (development), `array` (tests), `fcm` (needs the owner's Firebase project + service account).
         $this->app->singleton(PushSender::class, fn (): PushSender => match (config('nawy.push.driver')) {
             'array' => new ArrayPushSender,
@@ -101,6 +104,13 @@ class AppServiceProvider extends ServiceProvider
         Validator::resolver(fn ($translator, array $data, array $rules, array $messages, array $attributes) => new FriendlyValidator($translator, $data, $rules, $messages, $attributes));
         Event::listen(StateMoved::class, NotifyCustomerOfStateChange::class);
         Event::listen(StateMoved::class, NotifySellerOfStateChange::class);
+        // Email system (docs/project/email-catalogue.md): lifecycle emails and the delivery log.
+        Event::listen(StateMoved::class, CommerceLifecycleEmails::class);
+        Event::listen(StateMoved::class, AccountLifecycleEmails::class);
+        Event::listen(StateMoved::class, PartnerLifecycleEmails::class);
+        Event::listen(NotificationSent::class, RecordEmailSent::class);
+        Queue::failing(fn (JobFailed $event) => app(JobFailureAlerts::class)->jobFailed($event));
+        Event::listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => app(JobFailureAlerts::class)->taskFailed($event));
         Event::listen([ScheduledTaskFinished::class, ScheduledTaskFailed::class], fn (ScheduledTaskFinished|ScheduledTaskFailed $event) => app(SystemHealth::class)->recordScheduledRun($event));
 
         Gate::policy(Listing::class, ListingPolicy::class);
@@ -162,6 +172,14 @@ class AppServiceProvider extends ServiceProvider
             ? Limit::none()
             : Limit::perMinute((int) config('nawy.api_rate_per_minute', 600))
                 ->by('api:'.($request->user('sanctum')?->id ?? 'ip:'.$request->ip())));
+
+        /*
+        | D18: WebRTC live viewers. Joins per IP (guests share NATs: generous);
+        | signalling per viewer peer (from the signed peer token), else per IP.
+        */
+        RateLimiter::for('live-join', fn (Request $request): Limit => Limit::perMinute(30)->by('live-join:'.$request->ip().'|'.$request->route('market')));
+        RateLimiter::for('live-signal', fn (Request $request): Limit => Limit::perMinute(300)
+            ->by('live-signal:'.(app(PeerTokens::class)->claims(is_string($request->input('peer_token')) ? $request->input('peer_token') : null)['p'] ?? 'ip:'.$request->ip())));
 
         RateLimiter::for('coupon-apply', fn (Request $request): Limit => Limit::perMinute(10)
             ->by('coupon:'.($request->user('sanctum')?->id ?? 'ip:'.$request->ip()).'|'.$request->route('market')));

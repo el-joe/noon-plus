@@ -20,7 +20,7 @@ Values come from the environment only; never commit real values. `backend/.env.e
 | `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT` | Redis primary |
 | `BROADCAST_CONNECTION` | `reverb` |
 | `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME` | see [reverb.md](reverb.md) |
-| `VITE_REVERB_ENABLED`, `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`, `VITE_REVERB_SCHEME` | **build time** (`npm run build` in `backend/`): the panels' live dispatch board (D16). `VITE_REVERB_ENABLED=true` once Reverb runs; otherwise no socket is opened and the board says it refreshes on reload |
+| `VITE_REVERB_ENABLED`, `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`, `VITE_REVERB_SCHEME` | **build time** (`npm run build` in `backend/`): the panels' live dispatch board (D16) and the live studio (D18, needs it). `VITE_REVERB_ENABLED=true` once Reverb runs; otherwise no socket is opened and the board says it refreshes on reload |
 | `MAIL_*` | the transactional mail provider (customers get codes and confirmations by email, D9) |
 | `AWS_*` / `FILESYSTEM_DISK` | object storage for the public and private disks |
 | `NAWY_PAYMENTS_DRIVER` | `http` (real gateways; `fake` is refused in production) — gateway credentials are entered per country in Admin → Payment gateways, never in env |
@@ -30,7 +30,8 @@ Values come from the environment only; never commit real values. `backend/.env.e
 | `NAWY_CORS_ORIGINS` | comma-separated website / app origins allowed by CORS |
 | `NAWY_API_RATE_PER_MINUTE` | default API limit per user or IP (600); raise for load tests, never remove. Only an `APP_ENV=local` app exempts loopback callers (127.0.0.1 / ::1: the storefront's server render and the Playwright e2e run on one machine); every other environment and address is limited |
 | `NAWY_SOCIAL_AUTH_DRIVER` | `live` (`fake` is refused in production) + `GOOGLE_*`, `APPLE_*` |
-| `NAWY_LIVE_MEDIA_DRIVER` | `livekit` + `LIVEKIT_*` once provided (Q-W1); `fake` keeps streams off. Only `livekit` sets `playback.webrtc=true`, which turns on the website's browser viewer (livekit-client, D16); `LIVEKIT_WS_URL` (or `LIVEKIT_URL`) must be reachable from browsers |
+| `NAWY_WEBRTC_STUN_URLS`, `NAWY_WEBRTC_TURN_URL`, `NAWY_WEBRTC_TURN_SECRET` (or `NAWY_WEBRTC_TURN_USERNAME` / `NAWY_WEBRTC_TURN_CREDENTIAL`), `NAWY_WEBRTC_TURN_TTL` | D18 live broadcasts (native WebRTC): STUN (default Google STUN) and the TURN relay (coturn, time-limited credentials from the shared secret) — see [webrtc.md](webrtc.md). LiveKit and its `NAWY_LIVE_MEDIA_DRIVER` / `LIVEKIT_*` variables are gone |
+| `NAWY_REVERB_PUBLIC_HOST` / `_PORT` / `_SCHEME` | the Reverb endpoint the customer app connects to for live signalling (join answer `socket`); default `REVERB_HOST/PORT/SCHEME` |
 | `NAWY_OPS_ALERT_EMAIL` | where scheduler / health alerts go |
 | `DB_LEGACY_DATABASE`, `DB_LEGACY_*`, `LEGACY_STORAGE_ROOT` | **migration only**: the read-only old-platform snapshot and old storage root. Remove after cutover + 30 days |
 

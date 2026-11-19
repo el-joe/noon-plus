@@ -83,6 +83,9 @@ class TenantProvisioner
             $existing,
             $temporaryPassword,
             $existing ? URL::temporarySignedRoute(Panel::find($application->type->panel())->key.'.password.setup', now()->addDays(3), ['user' => $user->id]) : null,
+            $user->email,
+            Panel::find($application->type->panel())->name,
+            $application->type->panel(),
         ));
 
         return ['user' => $user, 'tenant_type' => $tenantType, 'tenant_id' => $tenantId];

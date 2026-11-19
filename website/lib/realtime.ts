@@ -35,12 +35,22 @@ export function realtimeConfig(env: Record<string, string | undefined> = {
   if (!key) return null;
   const scheme = env.NEXT_PUBLIC_REVERB_SCHEME === "http" ? "http" : "https";
   const port = Number(env.NEXT_PUBLIC_REVERB_PORT);
-  return {
+  return tlsOnHttpsPage({
     key,
     host: env.NEXT_PUBLIC_REVERB_HOST?.trim() || (typeof window !== "undefined" ? window.location.hostname : "localhost"),
     port: Number.isFinite(port) && port > 0 ? port : scheme === "https" ? 443 : 80,
     scheme,
-  };
+  });
+}
+
+/**
+ * A page served over https cannot open a plain `ws://` socket (mixed
+ * content): an http socket config is switched to wss on 443 there, so one
+ * build serves both the http and the https local vhosts (deploy/local).
+ */
+function tlsOnHttpsPage(config: RealtimeConfig): RealtimeConfig {
+  if (config.scheme === "https" || typeof window === "undefined" || window.location.protocol !== "https:") return config;
+  return { ...config, scheme: "https", port: 443 };
 }
 
 /** The proxied channel-auth endpoint for a market. */
@@ -139,4 +149,103 @@ export function useRealtimeChannel({ market, channel, private: isPrivate = false
   }, [market, channel, isPrivate, names]);
 
   return live;
+}
+
+/**
+ * D18: the Reverb settings for a WebRTC viewer — the build env when set,
+ * else the public socket the API sent with the join (`join.socket`).
+ */
+export function peerSocketConfig(socket: { key?: string | null; host?: string | null; port?: number | null; scheme?: "http" | "https" } | null | undefined): RealtimeConfig | null {
+  const built = realtimeConfig();
+  if (built) return built;
+  if (!socket?.key) return null;
+  const scheme = socket.scheme === "http" ? "http" : "https";
+  return tlsOnHttpsPage({
+    key: socket.key,
+    host: socket.host || (typeof window !== "undefined" ? window.location.hostname : "localhost"),
+    port: socket.port && socket.port > 0 ? socket.port : scheme === "https" ? 443 : 80,
+    scheme,
+  });
+}
+
+/**
+ * D18: a dedicated socket for one WebRTC viewer's private peer channel. Its
+ * authoriser sends the current peer token (renewed by the heartbeat) through
+ * the same-origin proxy, so guests can subscribe and a reconnect re-authorises
+ * with a fresh token. Resolves once subscribed; rejects on auth / connection
+ * failure. `onDrop` fires when the socket goes away afterwards.
+ */
+export async function subscribePeerChannel(options: {
+  market: string;
+  channel: string;
+  socket: Parameters<typeof peerSocketConfig>[0];
+  token: () => string;
+  onSignal: (payload: unknown) => void;
+  onDrop: () => void;
+}): Promise<{ close(): void }> {
+  const config = peerSocketConfig(options.socket);
+  if (!config || typeof window === "undefined") throw Object.assign(new Error("Realtime is off."), { code: "realtime_off" });
+  const [{ default: EchoClient }, { default: Pusher }] = await Promise.all([import("laravel-echo"), import("pusher-js")]);
+  const endpoint = broadcastAuthEndpoint(options.market);
+  const echo = new EchoClient({
+    broadcaster: "reverb",
+    Pusher,
+    key: config.key,
+    wsHost: config.host,
+    wsPort: config.port,
+    wssPort: config.port,
+    forceTLS: config.scheme === "https",
+    enabledTransports: ["ws", "wss"],
+    authorizer: (channel: { name: string }) => ({
+      authorize: (socketId: string, callback: (error: Error | null, data: { auth: string } | null) => void) => {
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ socket_id: socketId, channel_name: channel.name, peer_token: options.token() }),
+        })
+          .then(async (response) => (response.ok ? callback(null, (await response.json()) as { auth: string }) : callback(new Error(`auth ${response.status}`), null)))
+          .catch((error: Error) => callback(error, null));
+      },
+    }),
+  }) as ReverbEcho;
+  const name = options.channel.replace(/^private-/, "");
+  const close = () => {
+    try {
+      echo.leaveChannel(options.channel);
+      echo.disconnect();
+    } catch {
+      // Already closed.
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    let subscribed = false;
+    const timeout = window.setTimeout(() => {
+      if (!subscribed) {
+        close();
+        reject(Object.assign(new Error("Realtime did not connect."), { code: "realtime_timeout" }));
+      }
+    }, 15_000);
+    echo
+      .private(name)
+      .subscribed(() => {
+        if (subscribed) return;
+        subscribed = true;
+        window.clearTimeout(timeout);
+        resolve({ close });
+      })
+      .error(() => {
+        if (subscribed) {
+          options.onDrop();
+          return;
+        }
+        window.clearTimeout(timeout);
+        close();
+        reject(Object.assign(new Error("Channel refused."), { code: "realtime_refused" }));
+      })
+      .listen(".signal", (payload: unknown) => options.onSignal(payload));
+    echo.connector.pusher.connection.bind("state_change", ({ current }: { current: string }) => {
+      if (subscribed && (current === "unavailable" || current === "failed")) options.onDrop();
+    });
+  });
 }

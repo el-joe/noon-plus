@@ -56,7 +56,6 @@ const Map<String, String> stringsD16En = {
   // Live watch screen when there is no video to play.
   'live.notStarted': 'The host hasn’t started the stream yet. Check back in a few minutes.',
   'live.endedNoReplay': 'This show has ended. No replay is available.',
-  'live.browserOnly': 'This live stream plays in your browser.',
   'live.watchInBrowser': 'Watch in browser',
   'live.refresh': 'Refresh',
 };
@@ -113,7 +112,6 @@ const Map<String, String> stringsD16Ar = {
   'souq.locationUse': 'استخدم هذا الموقع',
   'live.notStarted': 'لم يبدأ المضيف البث بعد. عد بعد بضع دقائق.',
   'live.endedNoReplay': 'انتهى هذا العرض. لا تتوفر إعادة له.',
-  'live.browserOnly': 'يُعرض هذا البث المباشر في متصفحك.',
   'live.watchInBrowser': 'شاهد في المتصفح',
   'live.refresh': 'تحديث',
 };

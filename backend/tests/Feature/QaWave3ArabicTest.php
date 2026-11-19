@@ -4,6 +4,7 @@ use App\Domains\Identity\Enums\MembershipRole;
 use App\Domains\Identity\Notifications\CustomerPasswordResetNotification;
 use App\Models\User;
 use App\Shared\Localization\Label;
+use App\Shared\Notifications\Email\EmailCatalogue;
 use Database\Seeders\CountrySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -99,7 +100,7 @@ describe('locale per request', function () {
 
         $sent = collect(app('mailer')->getSymfonyTransport()->messages())->map(fn ($message) => $message->getOriginalMessage());
         expect($sent)->toHaveCount(1)
-            ->and($sent->first()->getSubject())->toBe(__('Reset your Nawy password', locale: 'ar'))
+            ->and($sent->first()->getSubject())->toBe(EmailCatalogue::get('auth.password_reset')['defaults']['ar']['subject'])
             ->and($sent->first()->getHtmlBody())->toContain('dir="rtl"')
             ->and(Str::contains($sent->first()->getHtmlBody(), 'Reset your Nawy password'))->toBeFalse();
         expect(CustomerPasswordResetNotification::class)->toBeString();

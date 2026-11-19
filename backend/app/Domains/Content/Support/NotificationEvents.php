@@ -2,9 +2,12 @@
 
 namespace App\Domains\Content\Support;
 
+use App\Shared\Notifications\Email\EmailCatalogue;
+
 /**
  * The notification events that have editable templates (ADR 10), their
- * variables and the built-in texts used when no template is saved.
+ * variables and the built-in texts used when no template is saved: the
+ * whole email catalogue ({@see EmailCatalogue}) plus the live-stream event.
  */
 class NotificationEvents
 {
@@ -16,6 +19,16 @@ class NotificationEvents
      * @return array<string, array{label: string, variables: array<int, string>, defaults: array<string, array{subject: string|null, body: string}>}>
      */
     public static function all(): array
+    {
+        return EmailCatalogue::all() + self::own();
+    }
+
+    /**
+     * Events defined here rather than in the email catalogue (the catalogue wins on a clash).
+     *
+     * @return array<string, array{label: string, variables: array<int, string>, defaults: array<string, array{subject: string|null, body: string}>}>
+     */
+    private static function own(): array
     {
         return [
             'delivery.out_for_delivery' => [

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { parseMarket } from "@/lib/markets";
+import { secureCookies, isCrossSite } from "@/lib/session";
 
 /**
  * Same-origin proxy for the portal registration wizards
@@ -20,7 +21,6 @@ import { parseMarket } from "@/lib/markets";
  */
 
 const API_ROOT = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1").replace(/\/$/, "");
-const secure = process.env.NODE_ENV === "production";
 const MAX_APPLICATIONS = 8;
 const NUMBER = /^[A-Za-z0-9-]{3,40}$/;
 
@@ -43,7 +43,8 @@ function readTokens(request: NextRequest, country: string): Tokens {
   }
 }
 
-function writeTokens(response: NextResponse, country: string, tokens: Tokens) {
+function writeTokens(request: NextRequest, response: NextResponse, country: string, tokens: Tokens) {
+  const secure = secureCookies(request);
   const entries = Object.entries(tokens).slice(-MAX_APPLICATIONS);
   if (entries.length === 0) {
     response.cookies.delete(cookieName(country));
@@ -70,8 +71,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   if (!market || rest.some((p) => p === ".." || p === "." || p === "")) return failure("not_found", "Unknown endpoint.", 404);
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) return failure("forbidden", "Cross-site request refused.", 403);
+    if (isCrossSite(request)) return failure("forbidden", "Cross-site request refused.", 403);
   }
 
   const country = market.country.code;
@@ -86,7 +86,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
     const next = { ...tokens };
     delete next[rest[1]];
     const response = json({ data: { forgotten: true }, meta: {} });
-    writeTokens(response, country, next);
+    writeTokens(request, response, country, next);
     return response;
   }
   if (rest[0] === "resume" && request.method === "POST") {
@@ -103,7 +103,7 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
         const next = { ...tokens };
         delete next[number];
         next[number] = token;
-        writeTokens(response, country, next);
+        writeTokens(request, response, country, next);
       }
       return response;
     } catch {
@@ -156,12 +156,12 @@ async function handle(request: NextRequest, { params }: Ctx): Promise<Response> 
   if (retryAfter) response.headers.set("Retry-After", retryAfter);
 
   if (issued) {
-    writeTokens(response, country, { ...tokens, [issued.number]: issued.token });
+    writeTokens(request, response, country, { ...tokens, [issued.number]: issued.token });
   } else if (!collection && rest.length === 1 && request.method === "GET" && upstream.status === 404 && tokens[rest[0]]) {
     // Token rotated (a newer resume link) or application gone: forget it.
     const next = { ...tokens };
     delete next[rest[0]];
-    writeTokens(response, country, next);
+    writeTokens(request, response, country, next);
   }
 
   return response;

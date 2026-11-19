@@ -20,7 +20,7 @@ export const streamSummary = z.object({
 });
 export type StreamSummary = z.infer<typeof streamSummary>;
 
-// LiveStreams::playback — recorded file, or a LiveKit room (`webrtc`: joinable with livekit-client, D16).
+// LiveStreams::playback — recorded file, or a live broadcast over native WebRTC (D18).
 export const playback = z.union([
   z.object({
     type: z.literal("recorded"),
@@ -32,12 +32,15 @@ export const playback = z.union([
   }),
   z.object({
     type: z.literal("live"),
-    /** D16: true when a real LiveKit server issued the token (the browser viewer can join). */
+    /** D18: true while the broadcast is live — the browser joins the host over WebRTC (`join_url`). */
     webrtc: z.boolean().default(false),
-    url: z.string().nullable().optional(),
-    room: z.string().nullable().optional(),
-    token: z.string().nullable().optional(),
-    hls_url: z.string().nullable().optional(),
+    /** The host studio is publishing right now. */
+    host_online: z.boolean().default(false),
+    max_viewers: z.number().default(0),
+    /** WebRTC viewers connected now; `full` when the cap is reached. */
+    viewers: z.number().default(0),
+    full: z.boolean().default(false),
+    join_url: z.string().nullable().optional(),
   }),
 ]);
 export type Playback = z.infer<typeof playback>;
@@ -75,3 +78,45 @@ export const postStreamComment = (market: string, slug: string, body: string) =>
   request(market, `live-streams/${encodeURIComponent(slug)}/comments`, streamComment, { method: "POST", body: { body } });
 export const sendPresence = (market: string, slug: string, viewerId?: string) =>
   request(market, `live-streams/${encodeURIComponent(slug)}/presence`, z.object({ viewers: z.number() }), { method: "POST", body: { viewer_id: viewerId } });
+
+/* D18: native WebRTC viewer — slot, signalling to the host studio, heartbeat with token renewal. */
+export const iceServer = z.object({
+  urls: z.union([z.string(), z.array(z.string())]),
+  username: z.string().optional(),
+  credential: z.string().optional(),
+});
+
+export const liveJoin = z.object({
+  peer_id: z.string(),
+  peer_token: z.string(),
+  expires_at: z.string().nullable().optional(),
+  /** Private channel `private-live.{slug}.peer.{peer}` (Pusher event `signal`). */
+  channel: z.string(),
+  ice_servers: z.array(iceServer).default([]),
+  heartbeat_seconds: z.number().default(30),
+  max_viewers: z.number().default(0),
+  viewers: z.number().default(0),
+  host_online: z.boolean().default(false),
+  /** The public Reverb endpoint (used when the build has no NEXT_PUBLIC_REVERB_* settings). */
+  socket: z
+    .object({ key: z.string().nullable(), host: z.string().nullable(), port: z.number().nullable(), scheme: z.enum(["http", "https"]) })
+    .partial()
+    .nullable()
+    .optional(),
+});
+export type LiveJoin = z.infer<typeof liveJoin>;
+
+export type ViewerSignal =
+  | { type: "ready" | "leave" }
+  | { type: "answer"; sdp: string }
+  | { type: "candidate"; candidate: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null } };
+
+export const joinLiveStream = (market: string, slug: string, resume?: { peer_id: string; peer_token: string }) =>
+  request(market, `live-streams/${encodeURIComponent(slug)}/join`, liveJoin, { method: "POST", body: resume ?? {} });
+export const sendLiveSignal = (market: string, slug: string, peerToken: string, message: ViewerSignal) =>
+  request(market, `live-streams/${encodeURIComponent(slug)}/signal`, z.object({ ok: z.boolean() }), { method: "POST", body: { peer_token: peerToken, ...message } });
+export const sendPeerPresence = (market: string, slug: string, peerToken: string, viewerId?: string) =>
+  request(market, `live-streams/${encodeURIComponent(slug)}/presence`, z.object({ viewers: z.number(), peer_token: z.string().optional(), expires_at: z.string().optional() }), {
+    method: "POST",
+    body: { viewer_id: viewerId, peer_token: peerToken },
+  });

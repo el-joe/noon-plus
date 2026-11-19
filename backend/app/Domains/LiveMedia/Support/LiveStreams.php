@@ -5,12 +5,13 @@ namespace App\Domains\LiveMedia\Support;
 use App\Domains\Countries\Models\Country;
 use App\Domains\Countries\Support\CountryContext;
 use App\Domains\Listings\Models\Listing;
-use App\Domains\LiveMedia\Contracts\LiveMediaProvider;
 use App\Domains\LiveMedia\Enums\StreamSource;
 use App\Domains\LiveMedia\Enums\StreamStatus;
+use App\Domains\LiveMedia\Events\LiveStreamUpdated;
 use App\Domains\LiveMedia\Models\LiveStream;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Settings\SettingsService;
+use App\Shared\Broadcasting\Realtime;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
@@ -23,8 +24,8 @@ use Throwable;
 
 /**
  * Live streams and recorded channels (SRS §14, ADR 11 — admin only):
- * create, schedule, link products, Go Live / End for broadcasts (LiveKit
- * room via {@see LiveMediaProvider}), and the clock-driven lifecycle of
+ * create, schedule, link products, Go Live / End for broadcasts (native
+ * WebRTC from the admin studio, D18 — {@see WebRtcSignalling}), and the clock-driven lifecycle of
  * recorded channels (`streams:sync-recorded` every minute and lazily on
  * the public API). Playback of a channel is synced like radio by default.
  */
@@ -34,7 +35,7 @@ class LiveStreams
 
     public function __construct(
         private StateMachine $machine,
-        private LiveMediaProvider $provider,
+        private WebRtcSignalling $webrtc,
         private CountryContext $countryContext,
     ) {}
 
@@ -58,7 +59,6 @@ class LiveStreams
                 'scheduled_at' => $data['scheduled_at'] ?? null,
                 'stream_key' => Str::random(40),
                 'room_name' => $room,
-                'provider_room_id' => $this->provider->createRoom($room),
                 'thumbnail_path' => $thumbnail?->store($this->folder(), self::DISK),
                 'created_by' => $adminUserId,
             ]);
@@ -166,9 +166,10 @@ class LiveStreams
             throw new TransitionRefused(__('A stream that has ended cannot go live again.'));
         }
 
-        $this->provider->createRoom((string) $stream->room_name);
+        $this->machine->move($stream, StreamStatus::Live, ActorType::Admin, $adminUserId, null, ['started_at' => now()]);
+        Realtime::broadcast(new LiveStreamUpdated($stream->slug, 'status.changed', ['status' => StreamStatus::Live->value]));
 
-        return $this->machine->move($stream, StreamStatus::Live, ActorType::Admin, $adminUserId, null, ['started_at' => now()]);
+        return $stream;
     }
 
     public function end(LiveStream $stream, int $adminUserId): LiveStream
@@ -179,11 +180,9 @@ class LiveStreams
 
         $this->machine->move($stream, StreamStatus::Ended, ActorType::Admin, $adminUserId, null, ['ended_at' => now()]);
 
-        try {
-            $this->provider->deleteRoom((string) $stream->room_name);
-        } catch (Throwable $exception) {
-            report($exception);
-        }
+        // D18: every WebRTC viewer is told the show is over; slots are freed.
+        $this->webrtc->ended($stream);
+        Realtime::broadcast(new LiveStreamUpdated($stream->slug, 'status.changed', ['status' => StreamStatus::Ended->value]));
 
         return $stream;
     }
@@ -254,11 +253,12 @@ class LiveStreams
     /**
      * What a viewer needs to play: a recorded channel's file, mode and the
      * synced offset (now − scheduled_at, capped at the duration — FR-LS-10);
-     * a live broadcast's room and a subscribe-only token.
+     * a live broadcast's WebRTC state (D18): joinable while live, whether the
+     * host studio is publishing, and the viewer cap.
      *
      * @return array<string, mixed>
      */
-    public function playback(LiveStream $stream, string $viewerIdentity): array
+    public function playback(LiveStream $stream): array
     {
         if ($stream->isRecorded()) {
             $offset = 0;
@@ -274,38 +274,22 @@ class LiveStreams
                 'mode' => $stream->playback_mode,
                 'duration_seconds' => $stream->duration_seconds,
                 'offset_seconds' => $offset,
-                'hls_url' => null,
             ];
         }
 
-        $isLive = $stream->status === StreamStatus::Live && $stream->room_name !== null;
-        $template = (string) config('nawy.streams.hls_url_template');
-
-        $token = $stream->status === StreamStatus::Live
-            ? $this->provider->accessToken((string) $stream->room_name, $viewerIdentity, 'viewer', false, (int) config('nawy.streams.viewer_token_minutes'))
-            : null;
+        $webrtc = $this->webrtc->isWebRtc($stream);
+        $viewers = $webrtc ? $this->webrtc->viewers($stream) : 0;
+        $max = $this->webrtc->maxViewers();
 
         return [
             'type' => 'live',
-            // D16: true when a browser can join the room with livekit-client (a real LiveKit server, the stream live).
-            'webrtc' => $isLive && $token !== null && $this->provider instanceof LiveKitProvider && $this->provider->clientUrl() !== null,
-            'url' => $this->provider->clientUrl(),
-            'hls_url' => $isLive && $template !== '' ? str_replace('{room}', rawurlencode((string) $stream->room_name), $template) : null,
-            'room' => $stream->status === StreamStatus::Live ? $stream->room_name : null,
-            'token' => $token,
+            'webrtc' => $webrtc,
+            'host_online' => $webrtc && $this->webrtc->hostOnline($stream),
+            'max_viewers' => $max,
+            'viewers' => $viewers,
+            'full' => $webrtc && $viewers >= $max,
+            'join_url' => $webrtc ? 'live-streams/'.$stream->slug.'/join' : null,
         ];
-    }
-
-    /**
-     * The admin studio's publishing token.
-     */
-    public function publisherToken(LiveStream $stream, int $adminUserId): string
-    {
-        if ($stream->isRecorded()) {
-            throw new TransitionRefused(__('Recorded channels have no studio.'));
-        }
-
-        return $this->provider->accessToken((string) $stream->room_name, 'admin-'.$adminUserId, 'Nawy studio', true, (int) config('nawy.streams.publisher_token_minutes'));
     }
 
     public function probeDuration(string|false $path): ?int

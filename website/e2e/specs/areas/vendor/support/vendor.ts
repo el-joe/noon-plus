@@ -199,7 +199,7 @@ export async function routePayPost(page: Page, pathPattern: RegExp, outcome: "ca
       execFileSync("php", ["artisan", "tinker", "--execute", `App\\Domains\\Payments\\Support\\Gateways\\FakeGateway::willTokenise("${gatewayReference}", ["token" => "pm_e2e_4242", "last4" => "4242", "brand" => "Visa", "exp_month" => 12, "exp_year" => ${new Date().getFullYear() + 3}, "customer_ref" => "cus_e2e"]);`], { cwd: BACKEND, stdio: "pipe" });
     }
     // Laravel's return URL (it settles the payment and answers with the panel page to show); the browser goes straight there.
-    const back = await fetch(`http://localhost:8000/api/v1/${market}/payments/${reference}/return`, { redirect: "manual" });
+    const back = await fetch(`${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/${market}/payments/${reference}/return`, { redirect: "manual" });
     await route.fulfill({ status: 302, headers: { location: back.headers.get("location") ?? panelUrl("partner") } });
   });
 }
@@ -248,11 +248,11 @@ export async function fetchIn(page: Page, url: string) {
  * is 127.0.0.1) that `panelSignIn` waited out and retried. Only those two panel URLs, only status 429.
  */
 export function dropRetriedSignIn429(problems: { console: string[] }) {
-  problems.console = problems.console.filter((m) => !/^http:\/\/[a-z]+\.nawy\.test:8000\/(login|two-factor) :: Failed to load resource: the server responded with a status of 429 /.test(m));
+  problems.console = problems.console.filter((m) => !/^http:\/\/[a-z-]+\.[a-z.-]+(?::\d+)?\/(login|two-factor) :: Failed to load resource: the server responded with a status of 429 /.test(m));
 }
 
 export function dropDevImageCsp(problems: { console: string[] }) {
-  problems.console = problems.console.filter((m) => !/Loading the image 'http:\/\/localhost:8000\/storage\/.*Content Security Policy/.test(m));
+  problems.console = problems.console.filter((m) => !/Loading the image 'http:\/\/[a-z0-9.-]+(?::\d+)?\/storage\/.*Content Security Policy/.test(m));
 }
 
 /** A new browser context signed in to Seller Center as `email` (password + emailed 2FA code). */

@@ -5,10 +5,12 @@ namespace App\Domains\RealEstate\Support;
 use App\Domains\Classifieds\Enums\ClassifiedAdStatus;
 use App\Domains\Classifieds\Models\ClassifiedAd;
 use App\Domains\Classifieds\Support\ClassifiedRequests;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\RealEstate\Models\PropertyViewing;
 use App\Models\User;
-use App\Shared\Localization\InLocale;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\EmailLinks;
+use App\Shared\Notifications\Email\Emails;
+use App\Shared\Notifications\Email\EmailValue;
 use App\Shared\StateMachine\TransitionRefused;
 use App\Shared\Validation\CountryPhone;
 use Carbon\CarbonInterface;
@@ -29,7 +31,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Viewings
 {
-    public function __construct(private BrokerLeads $leads, private ClassifiedRequests $requests) {}
+    public function __construct(private BrokerLeads $leads, private ClassifiedRequests $requests, private Emails $emails) {}
 
     /**
      * @param  array{name: string, email: string, phone: string}  $contact
@@ -69,14 +71,30 @@ class Viewings
         $reserve = $type === 'reserve';
         // QC-028: the advertiser's email in the advertiser's language. D12: the only mail a request sends.
         $owner = User::query()->find($ad->owner_user_id);
-        $owner?->notify(InLocale::run($owner->preferredLocale(), fn (): RequestNotification => new RequestNotification($reserve ? 'reserve.requested' : 'viewing.requested', $reserve ? __('Reserve request for :title', ['title' => $ad->title]) : __('Viewing request for :title', ['title' => $ad->title]), [
-            $reserve
-                ? __(':name would like you to hold it until :at.', ['name' => $viewing->contact_name, 'at' => $preferredAt->toDayDateTimeString()])
-                : __(':name would like to view it on :at.', ['name' => $viewing->contact_name, 'at' => $preferredAt->toDayDateTimeString()]),
-            __('Contact: :email · :phone', ['email' => $viewing->contact_email, 'phone' => $viewing->contact_phone]),
-            (string) $note,
-            __('Contact the customer directly. Nawy keeps this request as a record only.'),
-        ], $ad->number)));
+        if ($owner !== null) {
+            $panel = match (true) {
+                $ad->marketer_profile_id !== null => 'marketer',
+                $ad->vendor_id !== null => 'partner',
+                default => null,
+            };
+
+            $this->emails->send('viewing.requested', $owner, [
+                'ad_title' => (string) $ad->title,
+                'kind' => EmailValue::t($reserve ? 'reserve' : 'viewing'),
+                'requester' => $viewing->contact_name.' · '.$viewing->contact_email,
+                'phone' => (string) $viewing->contact_phone,
+                'preferred_time' => EmailValue::date($preferredAt, time: true),
+                'note' => (string) $note,
+            ], array_filter([
+                'entity' => $viewing,
+                'panel' => $panel,
+                'url' => match ($panel) {
+                    'marketer' => Panel::find('marketer')->url('broker/requests'),
+                    'partner' => Panel::find('partner')->url('marketplace/requests'),
+                    default => app(EmailLinks::class)->storefront('account/my-ads', $owner->preferredLocale()),
+                },
+            ]));
+        }
 
         return $viewing;
     }

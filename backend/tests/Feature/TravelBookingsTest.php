@@ -15,10 +15,11 @@ use App\Domains\Travel\Support\TravelBookings;
 use App\Domains\Travel\Support\TravelPackages;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
-use App\Shared\Notifications\RequestNotification;
+use App\Shared\Notifications\Email\EventEmail;
 use App\Shared\StateMachine\TransitionRefused;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -138,7 +139,7 @@ describe('seat capacity', function () {
         $held = bookingRequest($departure, submit: false);
 
         $this->postJson("/api/v1/uae-en/travel/bookings/{$held->number}/submit", [], ['X-Booking-Token' => $held->access_token])->assertOk()->assertJsonPath('data.status', 'requested');
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.received');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'travel.booking_received');
     });
 });
 
@@ -161,8 +162,8 @@ describe('booking requests (owner decision: no payment)', function () {
             ->and($departure->refresh()->seats_reserved)->toBe(2)
             ->and(Payment::query()->count())->toBe(0)
             ->and(LedgerTransaction::query()->count())->toBe(0);
-        Notification::assertSentTo($owner, RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.requested' && $mail->reference === $number);
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail, array $channels, object $notifiable): bool => $mail->kind === 'travel_booking.received' && $notifiable->routes['mail'] === 'sara@example.com');
+        Notification::assertSentTo($owner, EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'travel.booking_request' && $mail->variables['booking_number'] === $number);
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail, array $channels, object $notifiable): bool => $mail->event === 'travel.booking_received' && array_key_first((array) $notifiable->routes['mail']) === 'sara@example.com');
 
         $this->getJson("/api/v1/uae-en/travel/bookings/{$number}")->assertNotFound();
         $this->getJson("/api/v1/uae-en/travel/bookings/{$number}", ['X-Booking-Token' => 'wrong'])->assertNotFound();
@@ -193,14 +194,14 @@ describe('booking requests (owner decision: no payment)', function () {
 
         app(TravelBookings::class)->confirm($first, 1);
         expect($first->refresh())->status->toBe(BookingStatus::Confirmed)->confirmation_number->toStartWith('TV-AE-');
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.confirmed');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'travel.booking_confirmed');
 
         expect(fn () => app(TravelBookings::class)->reject($second, 1, 'x'))->toThrow(TransitionRefused::class);
         app(TravelBookings::class)->reject($second, 1, 'Hotel is full that week');
         expect($second->refresh())->status->toBe(BookingStatus::Rejected)->decision_reason->toBe('Hotel is full that week')
             ->and($departure->refresh()->seats_reserved)->toBe(2)
             ->and($package->refresh()->status)->toBe(PackageStatus::Active);
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.rejected');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'travel.booking_rejected');
 
         $this->travel(38)->days();
         $this->artisan('nawy:travel:complete-bookings')->assertSuccessful();
@@ -239,7 +240,7 @@ describe('booking requests (owner decision: no payment)', function () {
         $this->postJson("/api/v1/uae-en/travel/packages/{$package->slug}/inquiries", ['name' => 'Ali', 'message' => 'Kids prices?'])->assertUnprocessable()->assertJsonValidationErrors(['email', 'phone'], 'error.fields');
         $this->postJson("/api/v1/uae-en/travel/packages/{$package->slug}/inquiries", ['name' => 'Ali', 'email' => 'ali@example.com', 'phone' => '0501234567', 'message' => 'Kids prices?'])->assertCreated();
         expect(TravelInquiry::query()->sole()->phone)->toBe('+971501234567');
-        Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_inquiry.sent');
+        Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail): bool => $mail->event === 'travel.inquiry_sent');
     });
 });
 
@@ -252,8 +253,8 @@ it('QC-028: sends the D4 confirmation in the language the customer booked in, wh
     app(TravelBookings::class)->confirm($booking, 1);
 
     expect($booking->refresh()->locale)->toBe('ar');
-    Notification::assertSentOnDemand(RequestNotification::class, fn (RequestNotification $mail): bool => $mail->kind === 'travel_booking.confirmed'
-        && $mail->subject === 'تم تأكيد حجز رحلتك '.$booking->number
-        && $mail->locale === 'ar'
-        && str_contains($mail->lines[0], 'عمرة ٧ ليال'));
+    Notification::assertSentOnDemand(EventEmail::class, fn (EventEmail $mail, array $channels, AnonymousNotifiable $notifiable): bool => $mail->event === 'travel.booking_confirmed'
+        && $mail->options['locale'] === 'ar'
+        && $mail->render($notifiable)->subject === 'تم تأكيد الحجز '.$booking->number
+        && str_contains($mail->variables['trip'], 'عمرة ٧ ليال'));
 });

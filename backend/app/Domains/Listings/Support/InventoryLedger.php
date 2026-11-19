@@ -60,6 +60,11 @@ class InventoryLedger
                 $this->stateMachine->transition($locked, ListingStatus::OutOfStock, $actorUserId, 'Sold out');
             } elseif ($balance > 0 && $locked->status === ListingStatus::OutOfStock) {
                 $this->stateMachine->transition($locked, ListingStatus::Active, $actorUserId, 'Restocked');
+                app(ListingEmails::class)->backInStock($locked);
+            }
+
+            if ($quantity < 0 && $balance <= (int) config('nawy.mail.reminders.low_stock_threshold', 5)) {
+                app(ListingEmails::class)->lowStock($locked, $balance);
             }
 
             $listing->setRawAttributes($locked->getAttributes(), true);

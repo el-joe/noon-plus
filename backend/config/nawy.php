@@ -455,21 +455,41 @@ return [
     ],
 
     /*
-    | Live media (WP7, ADR 11, SRS §14): admin-only. Driver `livekit` talks
-    | to the LiveKit server API (config/services.php "livekit"); `fake` keeps
-    | rooms in memory (tests, local without LiveKit credentials).
+    | Live media (WP7, ADR 11, SRS §14; owner decision D18): admin-only.
+    | Live broadcasts are native WebRTC — one-to-many P2P from the host's
+    | browser (admin studio), each viewer its own receive-only peer
+    | connection; signalling is relayed by the API over Reverb private
+    | channels (docs/deploy/webrtc.md). No media server.
     */
     'streams' => [
-        'driver' => env('NAWY_LIVE_MEDIA_DRIVER', 'fake'),
         'recorded_max_mb' => 500,
         'recorded_formats' => ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'mp4', 'webm', 'mov', 'm4v', 'mpeg'],
         'default_playback_mode' => 'synced',
-        'viewer_token_minutes' => 120,
-        'publisher_token_minutes' => 360,
-        // G-W27: web playback of LiveKit rooms through an egress / CDN HLS
-        // stream, e.g. "https://live-cdn.example.com/hls/{room}/index.m3u8"
-        // ({room} = room name). Empty: no HLS (`playback.hls_url` null).
-        'hls_url_template' => env('LIVEKIT_HLS_URL_TEMPLATE'),
+        'webrtc' => [
+            // live.webrtc_max_viewers (country setting) overrides this default.
+            'max_viewers' => 20,
+            // Viewer peer tokens (bound to country + stream + peer); renewed by the presence heartbeat.
+            'peer_token_minutes' => 10,
+            // A viewer slot without a heartbeat / signal for this long is free again.
+            'peer_ttl_seconds' => 90,
+            'heartbeat_seconds' => 30,
+            // The host studio pings every 15 s; "host online" lasts this long.
+            'host_ttl_seconds' => 45,
+            // ICE: comma-separated STUN URLs; TURN with static credentials or
+            // time-limited coturn REST credentials (use-auth-secret).
+            'stun_urls' => env('NAWY_WEBRTC_STUN_URLS', 'stun:stun.l.google.com:19302'),
+            'turn_url' => env('NAWY_WEBRTC_TURN_URL'),
+            'turn_username' => env('NAWY_WEBRTC_TURN_USERNAME'),
+            'turn_credential' => env('NAWY_WEBRTC_TURN_CREDENTIAL'),
+            'turn_secret' => env('NAWY_WEBRTC_TURN_SECRET'),
+            'turn_ttl_seconds' => (int) (env('NAWY_WEBRTC_TURN_TTL') ?: 3600),
+            // The Reverb endpoint native clients (customer app) connect to; browsers use their build env.
+            'socket' => [
+                'host' => env('NAWY_REVERB_PUBLIC_HOST') ?: env('REVERB_HOST'),
+                'port' => env('NAWY_REVERB_PUBLIC_PORT') ?: env('REVERB_PORT'),
+                'scheme' => env('NAWY_REVERB_PUBLIC_SCHEME') ?: env('REVERB_SCHEME', 'https'),
+            ],
+        ],
     ],
 
     /*
@@ -699,6 +719,34 @@ return [
         'reconcile_report' => env('LEGACY_RECONCILE_REPORT', 'docs/project/migration/reconciliation-report.md'),
         // Cache of the 301 lookups (API endpoint + panel fallback), invalidated when legacy:redirects rebuilds the map.
         'redirects_cache_seconds' => 86400,
+    ],
+
+    /*
+    | Email system (docs/project/email-catalogue.md, docs/deploy/email.md):
+    | provider bounce / complaint webhooks (POST /api/v1/webhooks/email/{driver})
+    | and the scheduled reminder windows. The sending provider itself is
+    | Laravel's MAIL_MAILER (log on dev; smtp / ses / postmark / mailgun live).
+    */
+    'mail' => [
+        'webhooks' => [
+            'enabled' => array_filter(explode(',', (string) env('NAWY_MAIL_WEBHOOK_DRIVERS', 'generic'))),
+            'generic' => ['secret' => env('NAWY_MAIL_WEBHOOK_SECRET')],
+            'ses' => ['topic_arn' => env('NAWY_MAIL_SES_TOPIC_ARN')],
+            'postmark' => ['user' => env('NAWY_MAIL_WEBHOOK_USER'), 'password' => env('NAWY_MAIL_WEBHOOK_PASSWORD')],
+            'mailgun' => ['signing_key' => env('MAILGUN_WEBHOOK_SIGNING_KEY')],
+        ],
+        'reminders' => [
+            'seller_unconfirmed_hours' => (int) env('NAWY_MAIL_SELLER_UNCONFIRMED_HOURS', 24),
+            'abandoned_cart_hours' => (int) env('NAWY_MAIL_ABANDONED_CART_HOURS', 24),
+            'review_request_days' => 3,
+            'document_expiry_days' => [30, 7],
+            'credit_expiry_days' => 7,
+            'membership_renewal_days' => 3,
+            'subscription_renewal_days' => 7,
+            'promotion_expiry_days' => 3,
+            'low_stock_threshold' => (int) env('NAWY_MAIL_LOW_STOCK_THRESHOLD', 5),
+            'warehouse_capacity_percent' => 90,
+        ],
     ],
 
 ];

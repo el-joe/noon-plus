@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../core/api/api_client.dart';
 import '../../core/config.dart';
 import '../../core/json.dart';
-import '../../core/platform/platform_bridge.dart';
 import '../../ui/widgets/inline_video.dart';
 import '../../features/page_builder/vertical_cards.dart';
 import '../../l10n/l10n.dart';
@@ -15,6 +14,7 @@ import '../../ui/widgets/common.dart';
 import '../../ui/widgets/product_card.dart';
 import '../../ui/widgets/states.dart';
 import 'live_chat.dart';
+import 'live_webrtc_viewer.dart';
 
 /// Figma "50 Nawy TV feed" / app "16 Nawy Live": live, upcoming and replays
 /// (`GET live-streams`).
@@ -67,9 +67,11 @@ class LiveListScreen extends StatelessWidget {
   }
 }
 
-/// Watch screen: the stream (`playback.hls_url`) or recording (`media_url`)
-/// plays in the app ([InlineVideo], `video_player`, owner-review D16 / P4),
-/// falling back to the system player; the linked products stay shoppable.
+/// Watch screen: a live broadcast plays in the app over native WebRTC
+/// ([LiveWebRtcViewer], owner-review D18; the storefront page is the
+/// fallback); a recording (`media_url`) plays with [InlineVideo]
+/// (`video_player`, D16 / P4), falling back to the system player. The linked
+/// products stay shoppable.
 class LiveWatchScreen extends StatefulWidget {
   const LiveWatchScreen({super.key, required this.slug});
 
@@ -85,7 +87,8 @@ class _LiveWatchScreenState extends State<LiveWatchScreen> {
   Timer? _presence;
 
   /// Presence heartbeat (QC-040): `POST presence` now and every 30 s while
-  /// the live stream is open; the answer is the number watching.
+  /// the live stream is open; the answer is the number watching. The WebRTC
+  /// viewer sends its own heartbeat (with its peer token) instead.
   void _startPresence() {
     if (_presence != null) return;
     _presence = Timer.periodic(LiveTimings.presence, (_) => _beat());
@@ -127,27 +130,42 @@ class _LiveWatchScreenState extends State<LiveWatchScreen> {
           load: () => AppScope.read(context).api.getObject('live-streams/${enc(widget.slug)}'),
           builder: (context, stream, reload) {
             final playback = stream.m('playback');
-            final url = playback?.s('hls_url') ?? playback?.s('media_url');
             final live = stream.s('status') == 'live';
+            final webrtc = liveUsesWebRtc(stream);
+            // Recordings: `media_url`. A legacy `hls_url` is still tolerated
+            // for a live stream that is not on WebRTC.
+            final url = webrtc ? null : playback?.s('media_url') ?? (live ? playback?.s('hls_url') : null);
             final products = stream.l('products');
-            if (live && _presence == null) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _startPresence() : null);
+            if (live && !webrtc && _presence == null) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _startPresence() : null);
             final viewers = _viewers ?? stream.i('viewers');
+            final poster = NetImage(stream.s('thumbnail_url'), icon: Icons.live_tv_rounded, background: NawyColors.bgInverse);
             return ListView(children: [
               AspectRatio(
                 aspectRatio: 16 / 9,
-                // D16 / P4: HLS (live) or the recording plays in the app;
-                // the system player is the fallback.
-                child: url == null
+                // D18: live over native WebRTC; D16 / P4: the recording plays
+                // in the app, the system player is the fallback.
+                child: webrtc
+                    ? LiveWebRtcViewer(
+                        slug: widget.slug,
+                        webUrl: liveWebUrl(AppScope.read(context).market, widget.slug),
+                        poster: poster,
+                        overlay: _badges(context, live, viewers),
+                        onReload: reload,
+                        onViewers: (n) {
+                          if (mounted) setState(() => _viewers = n);
+                        },
+                      )
+                    : url == null
                     ? Stack(fit: StackFit.expand, children: [
-                        NetImage(stream.s('thumbnail_url'), icon: Icons.live_tv_rounded, background: NawyColors.bgInverse),
+                        poster,
                         Container(color: Colors.black54),
-                        Center(child: _NoPlayback(stream: stream, slug: widget.slug, onRefresh: reload)),
+                        Center(child: _NoPlayback(stream: stream, onRefresh: reload)),
                         ..._badges(context, live, viewers),
                       ])
                     : InlineVideo(
                         url: url,
                         playKey: const ValueKey('live-play'),
-                        poster: NetImage(stream.s('thumbnail_url'), icon: Icons.live_tv_rounded, background: NawyColors.bgInverse),
+                        poster: poster,
                         overlay: _badges(context, live, viewers),
                       ),
               ),
@@ -196,7 +214,14 @@ class _LiveWatchScreenState extends State<LiveWatchScreen> {
       );
 }
 
-/// Why the watch screen has no video to play (`playback` has no `hls_url` /
+/// A live broadcast the app joins over native WebRTC (D18): status `live`,
+/// `playback.type == 'live'` and `playback.webrtc`.
+bool liveUsesWebRtc(Json stream) {
+  final playback = stream.m('playback');
+  return stream.s('status') == 'live' && playback != null && playback.str('type', 'live') == 'live' && playback.b('webrtc');
+}
+
+/// Why the watch screen has no video to play (no WebRTC broadcast and no
 /// `media_url`), from the stream's real state.
 enum LiveFallback {
   /// `scheduled`: not started; the start time shows under the title.
@@ -208,11 +233,7 @@ enum LiveFallback {
   /// `ended` without a recording.
   ended,
 
-  /// `live` but only over WebRTC (`playback.webrtc`; no HLS output
-  /// configured): the storefront's LiveKit viewer plays it in a browser.
-  browserOnly,
-
-  /// `live` with neither HLS nor WebRTC right now.
+  /// `live` but nothing to play right now (not on WebRTC).
   unavailable,
 }
 
@@ -220,18 +241,17 @@ LiveFallback liveFallback(Json stream) => switch (stream.s('status')) {
       'scheduled' => LiveFallback.scheduled,
       'idle' => LiveFallback.notStarted,
       'ended' => LiveFallback.ended,
-      'live' when stream.m('playback')?.b('webrtc') ?? false => LiveFallback.browserOnly,
       _ => LiveFallback.unavailable,
     };
 
-/// The storefront watch page (`/{market}/live/{slug}`, LiveKit viewer).
+/// The storefront watch page (`/{market}/live/{slug}`, browser WebRTC
+/// viewer): the fallback when the in-app viewer cannot play.
 String liveWebUrl(String? market, String slug) => '${AppConfig.storefrontUrl}/${market ?? 'uae-en'}/live/${Uri.encodeComponent(slug)}';
 
 class _NoPlayback extends StatelessWidget {
-  const _NoPlayback({required this.stream, required this.slug, required this.onRefresh});
+  const _NoPlayback({required this.stream, required this.onRefresh});
 
   final Json stream;
-  final String slug;
   final Future<void> Function() onRefresh;
 
   @override
@@ -241,7 +261,6 @@ class _NoPlayback extends StatelessWidget {
       LiveFallback.scheduled => (Icons.schedule_rounded, 'live.startsSoon'),
       LiveFallback.notStarted => (Icons.hourglass_empty_rounded, 'live.notStarted'),
       LiveFallback.ended => (Icons.videocam_off_outlined, 'live.endedNoReplay'),
-      LiveFallback.browserOnly => (Icons.open_in_browser_rounded, 'live.browserOnly'),
       LiveFallback.unavailable => (Icons.signal_wifi_statusbar_connected_no_internet_4_outlined, 'live.unavailable'),
     };
     const fg = NawyColors.textInverse;
@@ -253,15 +272,7 @@ class _NoPlayback extends StatelessWidget {
         const SizedBox(height: 8),
         Text(context.t(message), style: NawyText.bodySm.copyWith(color: fg), textAlign: TextAlign.center),
         const SizedBox(height: 8),
-        if (reason == LiveFallback.browserOnly)
-          OutlinedButton.icon(
-            key: const ValueKey('live-open-web'),
-            style: button,
-            onPressed: () => PlatformBridge.openUrl(liveWebUrl(AppScope.read(context).market, slug)),
-            icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: Text(context.t('live.watchInBrowser')),
-          )
-        else if (reason != LiveFallback.ended)
+        if (reason != LiveFallback.ended)
           OutlinedButton.icon(key: const ValueKey('live-refresh'), style: button, onPressed: onRefresh, icon: const Icon(Icons.refresh_rounded, size: 18), label: Text(context.t('live.refresh'))),
       ]),
     );

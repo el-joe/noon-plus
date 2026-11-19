@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:customer_app/core/api/api_client.dart';
 import 'package:customer_app/core/platform/platform_bridge.dart';
 import 'package:customer_app/routing/guards.dart';
+import 'package:customer_app/screens/live/live_webrtc_viewer.dart';
 import 'package:customer_app/screens/souq/listing_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,6 +12,7 @@ import 'package:nawy_core/device.dart' show MediaPicker;
 import 'package:nawy_core/testing.dart' show FakeMediaPicker, fakePdfFile, fakePhoto;
 
 import '../helpers.dart';
+import '../live_fakes.dart';
 
 /// `GET classifieds/map` answers plain GeoJSON (no `{data}` envelope).
 HttpResponseData geoJson(List<Map<String, dynamic>> pins) => HttpResponseData(
@@ -398,12 +400,41 @@ void main() {
       expect(find.byKey(const ValueKey('live-refresh')), findsNothing);
     });
 
-    testWidgets('live over WebRTC only: watch in the browser (storefront LiveKit viewer)', (tester) async {
-      await open(tester, {'status': 'live', 'playback': {'type': 'live', 'webrtc': true, 'hls_url': null, 'room': 'r1'}});
-      expect(find.text('This live stream plays in your browser.'), findsOneWidget);
+    testWidgets('live over WebRTC in a build without a socket: watch in the browser (storefront viewer)', (tester) async {
+      final realSupported = LiveWebRtc.supported;
+      LiveWebRtc.supported = () => false;
+      addTearDown(() => LiveWebRtc.supported = realSupported);
+      await open(tester, {'status': 'live', 'playback': {'type': 'live', 'webrtc': true, 'host_online': true}});
+      expect(find.byType(LiveWebRtcViewer), findsOneWidget);
+      expect(find.text('Live video can’t play in this version of the app. Watch it in your browser.'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('live-open-web')));
       await settle(tester);
       expect(opened.single, endsWith('/uae-en/live/demo'));
+    });
+
+    testWidgets('a live stream on WebRTC no longer needs hls_url; the in-app viewer joins', (tester) async {
+      final sockets = FakeSockets();
+      final peers = FakePeers();
+      final (realSocket, realPeer, realSupported) = (LiveWebRtc.socketFactory, LiveWebRtc.peerFactory, LiveWebRtc.supported);
+      LiveWebRtc.socketFactory = sockets.create;
+      LiveWebRtc.peerFactory = peers.create;
+      LiveWebRtc.supported = () => true;
+      addTearDown(() {
+        LiveWebRtc.socketFactory = realSocket;
+        LiveWebRtc.peerFactory = realPeer;
+        LiveWebRtc.supported = realSupported;
+      });
+      final (state, transport) = await makeState(routes: {
+        'GET live-streams/demo': {'slug': 'demo', 'title': 'Demo show', 'products': [], 'status': 'live', 'playback': {'type': 'live', 'webrtc': true, 'hls_url': 'https://cdn.test/ignored.m3u8'}},
+        ...liveRtcRoutes(),
+      });
+      await pumpApp(tester, state);
+      await pushRoute(tester, Routes.liveWatch, {'slug': 'demo'});
+      await settle(tester);
+      expect(find.byType(LiveWebRtcViewer), findsOneWidget);
+      expect(find.byKey(const ValueKey('live-play')), findsNothing);
+      expect(transport.sent('POST live-streams/demo/join'), hasLength(1));
+      expect(sockets.last.subscriptions.keys, [liveChannel]);
     });
 
     testWidgets('live with nothing to play: not available right now, refresh reloads', (tester) async {

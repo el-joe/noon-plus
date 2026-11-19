@@ -7,6 +7,7 @@ use App\Domains\Customers\Support\CustomerNotifications;
 use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Models\Order;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Panels\Support\Panel;
 use App\Domains\Panels\Support\PanelNotifications;
 use App\Domains\Settings\SettingsService;
 use App\Domains\Support\Enums\TicketCategory;
@@ -17,6 +18,8 @@ use App\Domains\Support\Models\SupportTicket;
 use App\Domains\Support\Models\SupportTicketMessage;
 use App\Models\User;
 use App\Shared\Localization\InLocale;
+use App\Shared\Notifications\Email\EmailLinks;
+use App\Shared\Notifications\Email\Emails;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
@@ -46,6 +49,7 @@ class SupportTickets
         private CountryContext $countryContext,
         private TicketAttachments $attachments,
         private CustomerNotifications $notifications,
+        private Emails $emails,
     ) {}
 
     /**
@@ -87,6 +91,7 @@ class SupportTickets
             'body' => $body,
             'attachments' => $files === [] ? null : $this->attachments->store($ticket, $files),
         ]);
+        $this->email($ticket, 'support.ticket_created', [], ['entity' => $ticket]);
 
         return $ticket;
     }
@@ -127,7 +132,7 @@ class SupportTickets
             throw new TransitionRefused(__('This ticket is closed.'));
         }
 
-        $this->write($ticket, ActorType::Admin, $adminUserId, $body, $files, $internal);
+        $message = $this->write($ticket, ActorType::Admin, $adminUserId, $body, $files, $internal);
 
         if ($internal) {
             return $ticket->refresh();
@@ -147,6 +152,8 @@ class SupportTickets
         } else {
             $this->notify($ticket, 'reply');
         }
+
+        $this->email($ticket, 'support.ticket_reply', ['reply' => mb_substr($body, 0, 2000)], ['entity' => $message]);
 
         return $ticket->refresh();
     }
@@ -189,6 +196,11 @@ class SupportTickets
 
         if (in_array($to, [TicketStatus::WaitingCustomer, TicketStatus::Resolved], true)) {
             $this->notify($ticket, $to->value);
+        }
+
+        // Resolved, or closed without being resolved first (a resolved ticket that closes was already emailed).
+        if ($to === TicketStatus::Resolved || ($to === TicketStatus::Closed && $ticket->resolved_at === null)) {
+            $this->email($ticket, 'support.ticket_closed', [], ['entity' => $ticket, 'key' => $to->value.':'.now()->getTimestamp()]);
         }
 
         return $ticket;
@@ -330,12 +342,48 @@ class SupportTickets
         }
 
         // QC-041: business requesters hear about it in their panel bell.
-        $panel = match ($ticket->requester_type) {
+        app(PanelNotifications::class)->notify($ticket->requester_user_id, (string) $this->panelOf($ticket), 'support_ticket.'.$event, $text['title'], $text['body'], '/support/'.$ticket->id, $data);
+    }
+
+    /**
+     * The catalogue email to the requester (customer or panel user), with
+     * the ticket link of the storefront or of the requester's panel.
+     *
+     * @param  array<string, string>  $variables
+     * @param  array<string, mixed>  $options
+     */
+    private function email(SupportTicket $ticket, string $event, array $variables, array $options): void
+    {
+        $requester = User::query()->find($ticket->requester_user_id);
+
+        if ($requester === null) {
+            return;
+        }
+
+        $panel = $this->panelOf($ticket);
+
+        $this->emails->send($event, $requester, $variables + [
+            'ticket_number' => (string) $ticket->number,
+            'subject' => (string) $ticket->subject,
+        ], $options + array_filter([
+            'panel' => $panel,
+            'url' => $panel === null
+                ? app(EmailLinks::class)->storefront('account/support/'.$ticket->number, $requester->preferredLocale())
+                : Panel::find($panel)->url('support/'.$ticket->id),
+        ]));
+    }
+
+    /**
+     * The panel of a business requester (null for customers).
+     */
+    private function panelOf(SupportTicket $ticket): ?string
+    {
+        return match ($ticket->requester_type) {
+            TicketRequesterType::Customer => null,
             TicketRequesterType::Vendor => 'partner',
             TicketRequesterType::Marketer => 'marketer',
             TicketRequesterType::TravelAgency => 'travel_agency',
             TicketRequesterType::Carrier => 'carrier',
         };
-        app(PanelNotifications::class)->notify($ticket->requester_user_id, $panel, 'support_ticket.'.$event, $text['title'], $text['body'], '/support/'.$ticket->id, $data);
     }
 }

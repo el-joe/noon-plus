@@ -95,7 +95,7 @@ test.describe("signed in", () => {
   });
 
   test("classified viewing request on a property", async ({ page, problems }) => {
-    const ads = JSON.parse(await (await page.request.get("http://localhost:8000/api/v1/uae-en/classifieds/ads?vertical=property&per_page=1")).text()).data;
+    const ads = JSON.parse(await (await page.request.get(`${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/uae-en/classifieds/ads?vertical=property&per_page=1`)).text()).data;
     test.skip(!ads.length, "no property ad in uae");
     await page.goto(`/uae-en/property/${ads[0].number}`);
     await settle(page);
@@ -126,7 +126,7 @@ test.describe("signed in", () => {
 });
 
 test("compare two products", async ({ page, problems }) => {
-  const products = JSON.parse(await (await page.request.get("http://localhost:8000/api/v1/uae-en/products?per_page=2")).text()).data as { slug: string; title: string }[];
+  const products = JSON.parse(await (await page.request.get(`${process.env.E2E_API_URL ?? "http://localhost:8000"}/api/v1/uae-en/products?per_page=2`)).text()).data as { slug: string; title: string }[];
   test.skip(products.length < 2, "fewer than 2 products in uae");
   for (const p of products) {
     await page.goto(`/uae-en/products/${p.slug}`);

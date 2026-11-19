@@ -18,6 +18,9 @@ use App\Domains\Finance\Support\Ledger;
 use App\Domains\Finance\Support\Posting;
 use App\Domains\Orders\Enums\ActorType;
 use App\Shared\Money\MoneyFactory;
+use App\Shared\Notifications\Email\Attachments\PayslipAttachment;
+use App\Shared\Notifications\Email\EmailValue;
+use App\Shared\Notifications\Email\PartnerEmails;
 use App\Shared\Settings\VerticalSettings;
 use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\TransitionRefused;
@@ -152,8 +155,31 @@ class AgentPay
                     ->credit(AccountRef::agentWallet($agent->user_id), $total), reference: $payslip, description: "Payslip {$payslip->number}");
             }
 
+            $this->mailPayslip($payslip);
+
             return $payslip;
         });
+    }
+
+    /**
+     * `delivery.payslip_issued` with the PDF to the agent, and to the
+     * shipping company's owner for its agents.
+     */
+    private function mailPayslip(DeliveryPayslip $payslip): void
+    {
+        $variables = [
+            'payslip_number' => $payslip->number,
+            'period' => $payslip->period_start->toDateString().' – '.$payslip->period_end->toDateString(),
+            'amount' => EmailValue::money((string) $payslip->total, $payslip->currency),
+        ];
+        $options = ['entity' => $payslip, 'attachments' => [[PayslipAttachment::class, ['payslip' => $payslip->id]]]];
+        $emails = app(PartnerEmails::class);
+
+        $emails->toOwner('delivery_agent', (int) $payslip->delivery_agent_id, 'delivery.payslip_issued', $variables, '/payslips/'.$payslip->number, $options);
+
+        if ($payslip->carrier_id !== null) {
+            $emails->toOwner('carrier', (int) $payslip->carrier_id, 'delivery.payslip_issued', $variables, '/agents', $options);
+        }
     }
 
     /**

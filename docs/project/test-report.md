@@ -145,7 +145,7 @@ Test tooling added:
 
   Seeding these is an owner or content decision; the pages are reported as skipped, not failed.
 - **Not exercised in a browser:**
-  - real gateways, LiveKit, FCM and Google/Apple (fake drivers only);
+  - real gateways, FCM and Google/Apple (fake drivers only);
   - the seller-agreement and classified contract gates (there are no contract versions; see RT-007);
   - true concurrency.
 - **Dev DB growth:** each e2e run adds test records (orders `NW-AE-E2E…`, a return, a review, a ticket, travel bookings, one partner application, new `e2e-new-…@nawy.test` / `e2e-traveller-…` / `e2e-partner-…` emails). They are all marked e2e and can be removed with a cleanup query when needed.
@@ -211,3 +211,41 @@ node e2e/docx/summary-report.mjs            # → docx/00-summary.docx (fails on
 
 `refresh-report.mjs` updates the hand-written report JSONs (vendor, travel, Open Souq) from `e2e/results.json`:
 each flow id (VEN-01, TRV-03, SOQ-19 …) takes the result of the test whose title starts with it.
+
+## D18 — live broadcasts over native WebRTC (2026-11-19)
+
+- Playwright project `live-webrtc` (`e2e/specs/areas/live/webrtc-live.spec.ts`, full Chromium with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` and `--unsafely-treat-insecure-origin-as-secure` for the local http admin host; the other projects are unchanged and skip `areas/live/`): the e2e admin creates a broadcast, starts the fake camera in the studio and goes live; a guest storefront context joins over WebRTC and its `<video>` plays (320×180, currentTime advancing); the studio shows 1 connected viewer and ~1.1 Mbps upload; the host ends the show and the viewer shows "This live has ended." **1/1 passed.** Report: `docx/live-webrtc-test.docx`.
+- Run: Reverb (`php artisan reverb:start`), panels built with `VITE_REVERB_ENABLED=true`, then `E2E_NO_GLOBAL_SETUP=1 npx playwright test --project=live-webrtc`.
+
+## Local domain on Apache — `*.noon-plus.loc` (2026-11-19)
+
+The dev stack can run behind the machine's Apache 2.4 instead of `artisan serve` (setup and owner steps: `deploy/local/README.md`):
+
+| Host | Serves |
+|---|---|
+| `noon-plus.loc`, `www.` | storefront (Apache → `next start` on 127.0.0.1:3000) |
+| `business.noon-plus.loc` | public partner portal (same Next app; `/` → `/join` → `/{market}/join`) |
+| `admin.` `partner.` `travel-agency.` `carrier.` `delivery.` `marketer.noon-plus.loc` | Blade panels (mod_php, `backend/public`) |
+| `api.noon-plus.loc` | API, webhooks, `/storage` files, `/broadcasting/auth` (mod_php) |
+| `ws.noon-plus.loc` | Reverb (`/app` websocket, `/apps` HTTP API → 127.0.0.1:8080) |
+
+HTTPS variant on 443 (`noon-plus.loc-ssl.conf`, self-signed `*.noon-plus.loc` certificate from `deploy/local/make-cert.sh`) for camera / microphone in the live studio.
+
+**e2e against the local domain.** Once `backend/.env` has `NAWY_BASE_DOMAIN=noon-plus.loc` and `NAWY_STOREFRONT_URL=http://noon-plus.loc`, the panels no longer answer on `*.nawy.test` and mail links point at `noon-plus.loc`, so run the suite with:
+
+```bash
+E2E_BASE_DOMAIN=noon-plus.loc E2E_API_PORT=80 \
+E2E_API_URL=http://api.noon-plus.loc E2E_STOREFRONT_URL=http://noon-plus.loc \
+npm run e2e
+```
+
+(`E2E_API_PORT=8000 E2E_API_URL=http://localhost:8000` also works while `artisan serve` runs.) The defaults (`nawy.test`, `:8000`, `localhost:3000`) are unchanged for runs against a `.env` on `nawy.test`. Chromium's `--host-resolver-rules` mapping, the live-WebRTC project's insecure-origin flag, `panelUrl()` (no `:80`), the reset-password mail link and the hard-coded API URLs in specs follow these variables.
+
+**Verified (2026-11-19)** with a throwaway non-root Apache on 127.0.0.1:18080 / :18443 loading exactly these vhosts (`apache2 -t`: Syntax OK):
+- all six panels `GET /login` 200 by host; `admin /` 302 → `/login`; panel sign-in POST with CSRF → 302 back to `/login` (no 419);
+- `api /up` 200, `GET /api/v1/uae-en/products` 200, CORS `Access-Control-Allow-Origin: http://business.noon-plus.loc`, a `/storage/products/demo/*.jpg` 200 (symlink followed), Vite `build/assets` 200;
+- storefront `/` 307 → `/uae-en`, `/uae-en` 200 on `noon-plus.loc` and `www.`; `business.` `/` 302 → `/join` 301 → `/uae-en/join` 200;
+- Reverb through `ws.` on http and https: `101 Switching Protocols` + `pusher:connection_established`; signed `GET /apps/{id}/channels` 200;
+- https: certificate verifies against `certs/noon-plus.loc.crt`, panels emit HSTS, Vite asset URLs are `https://`.
+
+Code changes for proxied hosts: the BFF routes' cross-site check compared `Origin` with `nextUrl.origin`, which behind a reverse proxy is the bind address (`http://localhost:3000`), so every write through Apache was refused (403, reproduced with `Host: noon-plus.loc`); it now accepts the forwarded `Host` / `X-Forwarded-Host` (`isCrossSite`, `lib/session.ts`). Production builds set `Secure` cookies, which browsers drop on `http://noon-plus.loc`; plain-http local dev hosts (`*.loc`, `*.test`, localhost) now get them without `Secure` (`secureCookies`), https keeps it. Vitest `tests/lib/session.test.ts`. Panel Echo and the website's Reverb client switch to `wss:443` on https pages, so one build serves both vhosts. `FILESYSTEM_GROUP_WRITABLE=true` makes the local disks create group-writable files (0664/0775, private 0660/0770) so www-data and the CLI can share `storage/`.

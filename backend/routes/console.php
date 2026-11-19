@@ -137,3 +137,12 @@ Schedule::command('nawy:search:rebuild-index')->dailyAt('04:20')->timezone(confi
 
 // PayPal USD conversion: exchange rates from the configured provider (manual driver = admins only; nothing fetched).
 Schedule::command('nawy:exchange-rates:sync')->dailyAt(config('nawy.exchange_rates.sync_time'))->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+
+// Email system: scheduled reminder emails (respect email preferences; idempotent per entity + window).
+Schedule::command('nawy:emails:reminders seller-sla')->hourly()->withoutOverlapping();
+Schedule::command('nawy:emails:reminders abandoned-carts')->hourly()->withoutOverlapping();
+Schedule::command('nawy:emails:reminders document-expiry')->dailyAt('08:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:emails:reminders renewal-reminders')->dailyAt('08:15')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:emails:reminders credit-expiry')->dailyAt('08:30')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:emails:reminders review-requests')->dailyAt('10:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
+Schedule::command('nawy:emails:reminders promotion-expiry')->dailyAt('09:00')->timezone(config('nawy.admin_timezone'))->withoutOverlapping();
