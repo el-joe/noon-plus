@@ -2,17 +2,17 @@
   "market": "kwt-en",
   "currency": "KWD",
   "api": {
-    "listing": 720,
-    "facets": 1099,
-    "filtered": 1770,
-    "search": 1728,
-    "home_page": 1349
+    "listing": 2299,
+    "facets": 2789,
+    "filtered": 3312,
+    "search": 663,
+    "home_page": 702
   },
   "steps": [
     {
       "page": "home",
       "url": "/kwt-en",
-      "load_ms": 4339,
+      "load_ms": 1265,
       "checks": {
         "products": 75,
         "prices": 95,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/kwt-en/electronics",
-      "load_ms": 4162,
+      "load_ms": 2614,
       "checks": {
         "total": 1160,
         "brands": 8,
         "sellers": 20,
         "first_page": 87,
         "after_scroll": 146,
-        "filter_ms": 4712,
+        "filter_ms": 5378,
         "filtered_total": 172
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/kwt-en/products/voltix-elite-65w-fast-charger-130",
-      "load_ms": 4325,
+      "load_ms": 3048,
       "checks": {
         "sellers": 4,
         "sellers_shown": 4
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/kwt-en/search?q=smart",
-      "load_ms": 2604,
+      "load_ms": 3062,
       "checks": {
         "total": 303,
         "products": 68

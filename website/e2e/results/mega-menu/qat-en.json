@@ -2,15 +2,15 @@
   "market": "qat-en",
   "locale": "en",
   "dir": "ltr",
-  "api_ms": 17,
-  "page_load_ms": 1435,
+  "api_ms": 1362,
+  "page_load_ms": 2759,
   "top_level": 16,
   "opened": 16,
   "categories": [
     {
       "slug": "electronics",
       "name": "Electronics",
-      "open_ms": 205,
+      "open_ms": 208,
       "columns": 8,
       "api_columns": 8,
       "leaves": 33,
@@ -23,7 +23,7 @@
     {
       "slug": "health",
       "name": "Health & Wellness",
-      "open_ms": 185,
+      "open_ms": 312,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -36,7 +36,7 @@
     {
       "slug": "books",
       "name": "Books & Stationery",
-      "open_ms": 184,
+      "open_ms": 318,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -49,7 +49,7 @@
     {
       "slug": "automotive",
       "name": "Automotive",
-      "open_ms": 316,
+      "open_ms": 216,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -62,7 +62,7 @@
     {
       "slug": "sports",
       "name": "Sports & Outdoors",
-      "open_ms": 204,
+      "open_ms": 186,
       "columns": 4,
       "api_columns": 4,
       "leaves": 7,
@@ -75,7 +75,7 @@
     {
       "slug": "beauty",
       "name": "Beauty & Personal Care",
-      "open_ms": 292,
+      "open_ms": 302,
       "columns": 3,
       "api_columns": 3,
       "leaves": 7,
@@ -88,7 +88,7 @@
     {
       "slug": "fashion",
       "name": "Fashion",
-      "open_ms": 302,
+      "open_ms": 294,
       "columns": 4,
       "api_columns": 4,
       "leaves": 9,
@@ -101,7 +101,7 @@
     {
       "slug": "beauty-fragrances",
       "name": "Beauty & Fragrances",
-      "open_ms": 295,
+      "open_ms": 315,
       "columns": 3,
       "api_columns": 3,
       "leaves": 9,
@@ -114,7 +114,7 @@
     {
       "slug": "home-kitchen",
       "name": "Home & kitchen",
-      "open_ms": 299,
+      "open_ms": 201,
       "columns": 2,
       "api_columns": 2,
       "leaves": 7,
@@ -127,7 +127,7 @@
     {
       "slug": "home",
       "name": "Home",
-      "open_ms": 297,
+      "open_ms": 306,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -140,7 +140,7 @@
     {
       "slug": "grocery",
       "name": "Grocery",
-      "open_ms": 319,
+      "open_ms": 313,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -153,7 +153,7 @@
     {
       "slug": "mens-fashion",
       "name": "Men's Fashion",
-      "open_ms": 190,
+      "open_ms": 217,
       "columns": 4,
       "api_columns": 4,
       "leaves": 17,
@@ -166,7 +166,7 @@
     {
       "slug": "womens-fashion",
       "name": "Women's Fashion",
-      "open_ms": 294,
+      "open_ms": 309,
       "columns": 3,
       "api_columns": 3,
       "leaves": 11,
@@ -179,7 +179,7 @@
     {
       "slug": "baby-maternity",
       "name": "Baby & Maternity",
-      "open_ms": 184,
+      "open_ms": 297,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -192,7 +192,7 @@
     {
       "slug": "toys",
       "name": "Toys",
-      "open_ms": 329,
+      "open_ms": 197,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -205,7 +205,7 @@
     {
       "slug": "kids-fashion",
       "name": "Kids Fashion",
-      "open_ms": 196,
+      "open_ms": 298,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -219,7 +219,7 @@
   "level3": {
     "from": "electronics",
     "href": "/qat-en/electronics/mobiles-smartphones",
-    "ms": 1909,
+    "ms": 3915,
     "products": 128,
     "menu_closed": true,
     "ok": true
@@ -227,7 +227,7 @@
   "brand": {
     "from": "electronics",
     "href": "/qat-en/electronics?brand=voltix",
-    "ms": 1416,
+    "ms": 2938,
     "products": 189,
     "menu_closed": true,
     "ok": true

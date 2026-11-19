@@ -2,17 +2,17 @@
   "market": "qat-en",
   "currency": "QAR",
   "api": {
-    "listing": 2040,
-    "facets": 1120,
-    "filtered": 2583,
-    "search": 1839,
-    "home_page": 1233
+    "listing": 1126,
+    "facets": 863,
+    "filtered": 861,
+    "search": 745,
+    "home_page": 404
   },
   "steps": [
     {
       "page": "home",
       "url": "/qat-en",
-      "load_ms": 3374,
+      "load_ms": 1320,
       "checks": {
         "products": 77,
         "prices": 91,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/qat-en/electronics",
-      "load_ms": 1816,
+      "load_ms": 5984,
       "checks": {
         "total": 1161,
         "brands": 8,
         "sellers": 20,
         "first_page": 89,
         "after_scroll": 148,
-        "filter_ms": 1559,
+        "filter_ms": 4369,
         "filtered_total": 164
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/qat-en/products/orbit-flex-soundbar-51-870",
-      "load_ms": 1216,
+      "load_ms": 7770,
       "checks": {
         "sellers": 6,
         "sellers_shown": 6
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/qat-en/search?q=smart",
-      "load_ms": 1596,
+      "load_ms": 4287,
       "checks": {
         "total": 301,
         "products": 68

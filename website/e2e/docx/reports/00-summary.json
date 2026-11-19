@@ -1,0 +1,360 @@
+{
+  "title": "Browser tests — summary of all area reports",
+  "area": "All areas (storefront, customer, checkout, orders, admin, Seller Center, Travel Partner, Open Souq, big catalogue)",
+  "date": "2026-11-19",
+  "summary": "Entry point for the 14 browser-test reports in docx/. All of them come from the full Playwright run of 2026-11-19 against the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country). Playwright run: 614 passed, 0 failed, 4 skipped (30 min). Each row below is one report: its number of flows, passed / failed / skipped and its file.",
+  "environment": [
+    "Storefront http://localhost:3000 (npm run build && next start)",
+    "API and panels http://localhost:8000 (php artisan serve); panels on *.nawy.test mapped to 127.0.0.1 by Chromium",
+    "Dev databases with the big catalogue (php artisan nawy:dev:big-catalog) and E2eSeeder test records",
+    "Chromium desktop, Playwright projects panel-auth, pages, links, flows, panels, areas"
+  ],
+  "accounts": [
+    {
+      "role": "All roles",
+      "login": "e2e accounts from E2eSeeder (see each report)"
+    }
+  ],
+  "specs": [
+    "website/e2e/specs/**"
+  ],
+  "totals": {
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "SUM-01",
+      "name": "Admin panel — catalog, vendors & onboarding — browser test report",
+      "goal": "Admin panel: dashboard, sidebar, catalog, vendors, applications, approvals, customers, documents, contracts",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/admin/catalog-vendors.spec.ts, e2e/specs/areas/admin/helpers.ts (recorder, own sessions, staff invitation helper)",
+      "spec": "docx/admin-panel-catalog-and-vendors.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "12 flows (68 steps, 68 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 12 · failed 0 · skipped 0 — file docx/admin-panel-catalog-and-vendors.docx (8211 KB); issues listed: 7 (3 fixed, 4 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-02",
+      "name": "Admin panel — finance — browser test report",
+      "goal": "Admin panel: payouts (maker-checker), COD settlements, acquisition commissions, vendor subscriptions, exchange rates",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/admin/finance.spec.ts",
+      "spec": "docx/admin-panel-finance.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "5 flows (33 steps, 33 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 5 · failed 0 · skipped 0 — file docx/admin-panel-finance.docx (3605 KB); issues listed: 2 (1 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-03",
+      "name": "Admin panel — marketing, content & Open Souq — browser test report",
+      "goal": "Admin panel: coupons, flash sales, gift cards & vouchers, Nawy One, marketers & campaigns, ads, travel promotions, pages & CMS, classifieds",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/admin/marketing-content-souq.spec.ts",
+      "spec": "docx/admin-panel-marketing-content-and-souq.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "9 flows (60 steps, 60 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 9 · failed 0 · skipped 0 — file docx/admin-panel-marketing-content-and-souq.docx (6628 KB); issues listed: 5 (3 fixed, 2 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-04",
+      "name": "Admin panel — orders, delivery & fulfilment — browser test report",
+      "goal": "Admin panel: orders, sub-orders, invoices, refunds, returns, disputes, payments under review, support, warranty, delivery & dispatch, FBN inventory, packaging",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/admin/orders-fulfilment.spec.ts",
+      "spec": "docx/admin-panel-orders-delivery-and-fulfilment.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "9 flows (60 steps, 60 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 9 · failed 0 · skipped 0 — file docx/admin-panel-orders-delivery-and-fulfilment.docx (7676 KB); issues listed: 4 (3 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-05",
+      "name": "Admin panel — system, countries, staff & data migration — browser test report",
+      "goal": "Admin panel: roles & permissions, staff, permission boundaries, Arabic RTL, countries, domains, gateways, holidays, activity, health, analytics, reports, data migration",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/admin/system-staff-migration.spec.ts",
+      "spec": "docx/admin-panel-system-countries-staff-and-migration.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "4 flows (49 steps, 49 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 4 · failed 0 · skipped 0 — file docx/admin-panel-system-countries-staff-and-migration.docx (10520 KB); issues listed: 4 (1 fixed, 3 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-06",
+      "name": "Big catalogue — live storefront test",
+      "goal": "Storefront catalogue (8 countries × EN/AR)",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/catalog/big-catalog.spec.ts, e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "spec": "docx/big-catalog-live-test.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "32 flows (80 steps, 80 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 32 · failed 0 · skipped 0 — file docx/big-catalog-live-test.docx (46560 KB); issues listed: 0 (0 fixed, 0 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-07",
+      "name": "Cart & checkout — browser test report",
+      "goal": "Cart and checkout",
+      "preconditions": "Report date 2026-11-19; specs: website/e2e/specs/areas/customer/checkout.spec.ts (CHK-01…CHK-11), helpers: e2e/specs/areas/customer/shop.ts",
+      "spec": "docx/checkout.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "11 flows (42 steps, 38 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 11 · failed 0 · skipped 0 — file docx/checkout.docx (2029 KB); issues listed: 6 (5 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-08",
+      "name": "Customer profile & account — browser test report",
+      "goal": "Customer account (storefront)",
+      "preconditions": "Report date 2026-11-19; specs: website/e2e/specs/areas/customer/account.spec.ts (CUS-01…CUS-18), helpers: e2e/specs/areas/customer/kit.ts, data.ts",
+      "spec": "docx/customer-profile-and-account.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "18 flows (72 steps, 56 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 18 · failed 0 · skipped 0 — file docx/customer-profile-and-account.docx (4037 KB); issues listed: 4 (3 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-09",
+      "name": "Open Souq (classifieds) — browser test report",
+      "goal": "Open Souq: website, Seller Center classified shop, Creator Studio broker",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/souq/browse.spec.ts (SOQ-01–08), e2e/specs/areas/souq/buyer.spec.ts (SOQ-09–14, 29), e2e/specs/areas/souq/post.spec.ts (SOQ-15–20), e2e/specs/areas/souq/seller-panel.spec.ts (SOQ-21–24), e2e/specs/areas/souq/broker.spec.ts (SOQ-25–28), e2e/specs/areas/souq/support/souq.ts, support/setup.php",
+      "spec": "docx/open-souq.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "29 flows (94 steps, 83 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 29 · failed 0 · skipped 0 — file docx/open-souq.docx (11662 KB); issues listed: 7 (6 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-10",
+      "name": "Order lifecycle & delivery — browser test report",
+      "goal": "Orders across customer, seller, admin, carrier and driver",
+      "preconditions": "Report date 2026-11-19; specs: website/e2e/specs/areas/orders/lifecycle.spec.ts (ORD-01…ORD-04)",
+      "spec": "docx/order-lifecycle-and-delivery.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "4 flows (73 steps, 73 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 4 · failed 0 · skipped 0 — file docx/order-lifecycle-and-delivery.docx (6249 KB); issues listed: 6 (4 fixed, 2 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-11",
+      "name": "Travel agency panel — browser test report",
+      "goal": "Travel Partner panel (travel-agency) and storefront travel",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/travel/agency-account.spec.ts, e2e/specs/areas/travel/agency-trips.spec.ts, e2e/specs/areas/travel/helpers.ts",
+      "spec": "docx/travel-agency-panel.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "14 flows (73 steps, 66 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 14 · failed 0 · skipped 0 — file docx/travel-agency-panel.docx (10329 KB); issues listed: 2 (2 fixed, 0 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-12",
+      "name": "Vendor panel (Seller Center): catalogue, orders and onboarding — browser test report",
+      "goal": "Seller Center (partner panel) and /join",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/vendor/catalog-orders.spec.ts, e2e/specs/areas/vendor/onboarding.spec.ts, e2e/specs/areas/vendor/support/{vendor.ts,test.ts,setup.php}",
+      "spec": "docx/vendor-panel-catalog-and-orders.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "15 flows (84 steps, 77 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 15 · failed 0 · skipped 0 — file docx/vendor-panel-catalog-and-orders.docx (12444 KB); issues listed: 5 (3 fixed, 2 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-13",
+      "name": "Vendor panel (Seller Center): growth, finance, FBN and account — browser test report",
+      "goal": "Seller Center (partner panel)",
+      "preconditions": "Report date 2026-11-19; specs: e2e/specs/areas/vendor/growth.spec.ts, e2e/specs/areas/vendor/finance-fbn.spec.ts, e2e/specs/areas/vendor/account.spec.ts, e2e/specs/areas/vendor/support/{vendor.ts,test.ts,setup.php}",
+      "spec": "docx/vendor-panel-finance-fbn-and-settings.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "16 flows (75 steps, 70 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 16 · failed 0 · skipped 0 — file docx/vendor-panel-finance-fbn-and-settings.docx (9760 KB); issues listed: 7 (6 fixed, 1 open)"
+        }
+      ]
+    },
+    {
+      "id": "SUM-14",
+      "name": "Website pages — browser test report",
+      "goal": "Storefront pages",
+      "preconditions": "Report date 2026-11-19; specs: website/e2e/specs/areas/customer/website.spec.ts (WEB-01…WEB-17)",
+      "spec": "docx/website-pages.docx",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "17 flows (76 steps, 74 screenshots)",
+          "expected": "Every flow passes; no missing screenshots",
+          "result": "pass",
+          "note": "passed 17 · failed 0 · skipped 0 — file docx/website-pages.docx (6481 KB); issues listed: 8 (8 fixed, 0 open)"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "id": "BR-01",
+      "severity": "major",
+      "area": "Website — routing (reports: website-pages)",
+      "description": "/{market}/auth/add-email (old phone-only accounts add their email after the SMS sign-in) answered 404 in every market: the page exists, but the proxy's list of known static routes (lib/missing-routes.ts) did not have it, so the request was rewritten to the not-found page. Found by the pages crawl (uae-en, uae-ar).",
+      "status": "fixed",
+      "fix": "auth/add-email added to ROUTES in website/lib/missing-routes.ts. Vitest tests/lib/missing-routes.test.ts 'renders every static page of app/[market] … without a lookup' reads app/[market]/**/page.tsx, so a new static page can no longer be missed."
+    },
+    {
+      "id": "BR-02",
+      "severity": "minor",
+      "area": "Website — category and search pages (SEO / accessibility) (reports: website-pages)",
+      "description": "The new category page design and the search page had no h1: the results header ('1,166 Results for “Electronics in UAE”') was an h2 and no block rendered a page heading.",
+      "status": "fixed",
+      "fix": "features/listing/product-listing.tsx renders the results header through ResultsHeading as the page h1 on category pages (unless a category_header / brand_header / campaign_hero block already gives one) and on search; h2 elsewhere. Vitest tests/features/category-page.test.tsx."
+    },
+    {
+      "id": "BR-03",
+      "severity": "major",
+      "area": "E2E fixtures (Seller Center setup) (reports: checkout, order-lifecycle-and-delivery, vendor-panel-catalog-and-orders, website-pages)",
+      "description": "The vendor area's setup (e2e/specs/areas/vendor/support/setup.php) keeps an AED 80 seller-fulfilled offer (E2E-VEN-ORD) on the same product as the customer specs. The lowest price wins the buy box, so the product page, cart and orders of the customer / checkout / lifecycle specs got that offer instead of the FBN AED 95 one (CHK-01, WEB-05, ORD-02 failed).",
+      "status": "fixed",
+      "fix": "The order listing is priced AED 135 (above the AED 95 FBN and AED 120 seller offers) and repriced on every run; the dev listing was updated."
+    },
+    {
+      "id": "BR-04",
+      "severity": "major",
+      "area": "E2E harness (global setup) (reports: checkout, customer-profile-and-account, order-lifecycle-and-delivery, website-pages)",
+      "description": "E2E_SKIP_SEED=0 skipped the E2eSeeder run (any non-empty value counted as 'skip'), so stock, delivered sub-orders and returns of the e2e records ran out across runs. With seeding back, two runs within an hour also hit the guest-cart limit of the loopback address (10 new guest carts per hour; every e2e browser is 127.0.0.1).",
+      "status": "fixed",
+      "fix": "e2e/support/setup-options.ts seedRecords(): only a truthy E2E_SKIP_SEED skips the seed (Vitest tests/lib/e2e-setup-options.test.ts); global setup clears the guest-cart limiter of 127.0.0.1 / ::1 after seeding (local app only)."
+    },
+    {
+      "id": "BR-05",
+      "severity": "trivial",
+      "area": "Specs updated for the new pages (reports: website-pages)",
+      "description": "WEB-01 expected the old home ('Nawy United Arab Emirates' title, 'Shop by category'); WEB-03 used an Apply button the new filter rail no longer has (a ticked box applies at once, the price range has 'Go') and counted sponsored cards in the sort check; WEB-04 picked the first 'Nova X12' suggestion, now a big-catalogue TV; WEB-12 clicked the first footer link matching /Returns/, now 'Returns & refunds' (account page).",
+      "status": "fixed",
+      "fix": "website.spec.ts: home title 'Shop Online in United Arab Emirates | Nawy' with 'More reasons to shop' and 'Mega deals'; filter rail located by its fulfilment inputs, FBN filter checks every card has the 'express' badge; sort check on organic cards only (no 'Ad' cards, no sponsored brand rows); suggestion 'Nova X12 Smartphone'; footer 'Terms of use' and 'Returns policy' must exist."
+    },
+    {
+      "id": "BR-06",
+      "severity": "trivial",
+      "area": "Specs updated (reports: checkout)",
+      "description": "CHK-03 clicked the first PDP coupon chip expecting RT10; the PDP shows the 4 best public coupons (FREEBUDS, SALE200, NAWY10, FIRST15 from the big catalogue) and RT10 is 5th. The checkout address helper checked the address form once before it had rendered (empty address, 'Fill in the delivery address').",
+      "status": "fixed",
+      "fix": "CHK-03 applies FIRST15 from its own chip and checks the 18.00 discount; checkoutAddress() waits for the new-address form or a saved address first."
+    },
+    {
+      "id": "BR-07",
+      "severity": "trivial",
+      "area": "Specs updated (reports: order-lifecycle-and-delivery)",
+      "description": "ORD-01 read the new return number right after the redirect to the returns list, before the list had loaded; the checkout address helper could run before the address form rendered.",
+      "status": "fixed",
+      "fix": "lifecycle.spec.ts waits for an RT- number in the list; checkoutAddress() waits for the address form or a saved address."
+    },
+    {
+      "id": "BR-08",
+      "severity": "trivial",
+      "area": "Specs updated (reports: admin-panel-catalog-and-vendors)",
+      "description": "ADM-01 expected 65 sidebar links; PanelNavigation now has 66 (8 groups) and opening all of them took longer than the 90 s test limit while the other workers ran. ADM-09 expected E2E Store on page 1 of Vendors; with the 60 big-catalogue stores per country it is on a later page (25 per page, by name).",
+      "status": "fixed",
+      "fix": "ADM-01 expects 66 links and has a 240 s limit; ADM-09 finds E2E Store with the store-name search."
+    },
+    {
+      "id": "BR-09",
+      "severity": "trivial",
+      "area": "Specs updated (reports: admin-panel-marketing-content-and-souq)",
+      "description": "ADM-52 'void the gift card' passed only because the text 'Void' was on the page (the Void form itself); it opened the card and read its form before the card page had loaded, so the reason was skipped and nothing was voided.",
+      "status": "fixed",
+      "fix": "ADM-52 waits for the card page, fills the reason, and checks 'Gift card voided.', status Cancelled, balance AED 0.00, the reason in the history and that the Void form is gone."
+    },
+    {
+      "id": "BR-10",
+      "severity": "trivial",
+      "area": "Specs updated (reports: admin-panel-orders-delivery-and-fulfilment)",
+      "description": "ADM-26 looked for an old placed SoundMax order in a fixed list of 8 dev orders; earlier runs had packed all of them ('no placed SoundMax order left').",
+      "status": "fixed",
+      "fix": "ADM-26 creates its own placed cash-on-delivery SoundMax order (NW-AE-E2ED…, e2e customer) for each run and packs that one."
+    },
+    {
+      "id": "BR-11",
+      "severity": "trivial",
+      "area": "Specs updated (reports: vendor-panel-finance-fbn-and-settings)",
+      "description": "VEN-36 failed on console errors: two 429 answers of the shared per-IP two-factor limit (6 a minute, every e2e browser is 127.0.0.1) that panelSignIn() waits out and retries.",
+      "status": "fixed",
+      "fix": "VEN-36 drops only those retried 429s of the panel login / two-factor URLs (dropRetriedSignIn429 in support/vendor.ts) before checking the console."
+    },
+    {
+      "id": "BR-12",
+      "severity": "trivial",
+      "area": "Specs updated (reports: open-souq)",
+      "description": "SOQ-19 expected the uploaded video tile to read exactly 'Video'; with the BT-SOQ-03 fix live the wizard reads the duration of the browser-recorded WebM and shows 'Video 0:02'.",
+      "status": "fixed",
+      "fix": "SOQ-19 checks 'Video' with a duration of 0:01–0:03."
+    }
+  ],
+  "notes": [
+    "Playwright totals per project:",
+    "panel-auth: 6 passed, 0 failed, 0 skipped",
+    "pages: 379 passed, 0 failed, 4 skipped",
+    "links: 1 passed, 0 failed, 0 skipped",
+    "flows: 23 passed, 0 failed, 0 skipped",
+    "panels: 10 passed, 0 failed, 0 skipped",
+    "areas: 195 passed, 0 failed, 0 skipped",
+    "Issues found and fixed in this run are listed in each area report and in docs/project/test-report.md."
+  ]
+}

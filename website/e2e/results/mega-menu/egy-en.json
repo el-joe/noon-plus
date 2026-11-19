@@ -2,8 +2,8 @@
   "market": "egy-en",
   "locale": "en",
   "dir": "ltr",
-  "api_ms": 899,
-  "page_load_ms": 5988,
+  "api_ms": 2179,
+  "page_load_ms": 10467,
   "top_level": 16,
   "opened": 16,
   "categories": [
@@ -23,7 +23,7 @@
     {
       "slug": "health",
       "name": "Health & Wellness",
-      "open_ms": 201,
+      "open_ms": 308,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -36,7 +36,7 @@
     {
       "slug": "books",
       "name": "Books & Stationery",
-      "open_ms": 316,
+      "open_ms": 198,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -49,7 +49,7 @@
     {
       "slug": "automotive",
       "name": "Automotive",
-      "open_ms": 296,
+      "open_ms": 186,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -62,7 +62,7 @@
     {
       "slug": "sports",
       "name": "Sports & Outdoors",
-      "open_ms": 307,
+      "open_ms": 299,
       "columns": 4,
       "api_columns": 4,
       "leaves": 7,
@@ -75,7 +75,7 @@
     {
       "slug": "beauty",
       "name": "Beauty & Personal Care",
-      "open_ms": 315,
+      "open_ms": 203,
       "columns": 3,
       "api_columns": 3,
       "leaves": 7,
@@ -88,7 +88,7 @@
     {
       "slug": "fashion",
       "name": "Fashion",
-      "open_ms": 303,
+      "open_ms": 317,
       "columns": 4,
       "api_columns": 4,
       "leaves": 9,
@@ -101,7 +101,7 @@
     {
       "slug": "beauty-fragrances",
       "name": "Beauty & Fragrances",
-      "open_ms": 313,
+      "open_ms": 320,
       "columns": 3,
       "api_columns": 3,
       "leaves": 9,
@@ -114,7 +114,7 @@
     {
       "slug": "home-kitchen",
       "name": "Home & kitchen",
-      "open_ms": 322,
+      "open_ms": 301,
       "columns": 2,
       "api_columns": 2,
       "leaves": 7,
@@ -127,7 +127,7 @@
     {
       "slug": "home",
       "name": "Home",
-      "open_ms": 303,
+      "open_ms": 300,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -140,7 +140,7 @@
     {
       "slug": "grocery",
       "name": "Grocery",
-      "open_ms": 310,
+      "open_ms": 296,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -153,7 +153,7 @@
     {
       "slug": "mens-fashion",
       "name": "Men's Fashion",
-      "open_ms": 309,
+      "open_ms": 298,
       "columns": 4,
       "api_columns": 4,
       "leaves": 17,
@@ -166,7 +166,7 @@
     {
       "slug": "womens-fashion",
       "name": "Women's Fashion",
-      "open_ms": 311,
+      "open_ms": 314,
       "columns": 3,
       "api_columns": 3,
       "leaves": 11,
@@ -179,7 +179,7 @@
     {
       "slug": "baby-maternity",
       "name": "Baby & Maternity",
-      "open_ms": 310,
+      "open_ms": 317,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -192,7 +192,7 @@
     {
       "slug": "toys",
       "name": "Toys",
-      "open_ms": 298,
+      "open_ms": 311,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -205,7 +205,7 @@
     {
       "slug": "kids-fashion",
       "name": "Kids Fashion",
-      "open_ms": 322,
+      "open_ms": 311,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -219,7 +219,7 @@
   "level3": {
     "from": "electronics",
     "href": "/egy-en/electronics/mobiles-smartphones",
-    "ms": 3924,
+    "ms": 6445,
     "products": 128,
     "menu_closed": true,
     "ok": true
@@ -227,7 +227,7 @@
   "brand": {
     "from": "electronics",
     "href": "/egy-en/electronics?brand=lumen",
-    "ms": 1911,
+    "ms": 1950,
     "products": 187,
     "menu_closed": true,
     "ok": true

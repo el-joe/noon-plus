@@ -2,7 +2,7 @@
   "title": "Website pages — browser test report",
   "area": "Storefront pages",
   "date": "2026-11-19",
-  "summary": "The storefront pages were browsed as a guest and as a signed-in shopper: home with header (search, deliver-to, country & language) and footer, the category mega menu and category / sub-category pages, PLP facets (fulfilment, price, seller, colour) with sort and chips, search (popular / trending chips, live suggestions, results, empty state), the product page (variants, other offers and choosing another seller's offer, Fulfilled-by-Nawy badge, frequently bought together, reviews filters, Q&A gate, compare), the seller storefront with follow / unfollow, creators directory and boutique, deals and the flash-sale page, Nawy TV list, watch page, live chat and likes on a live show, blog, help centre with a helpful vote and search, the Ads knowledge hub, static / legal pages, the join / sell / advertise portal pages, real 404s, legacy 301 redirects and the Arabic RTL storefront. 15 of 17 flows passed; the 2 failures are website bugs found here and fixed in code (mega menu left open after a nav-bar click QA-C01, duplicated brand in static page titles QA-C02) — they pass once the storefront is rebuilt.",
+  "summary": "The storefront pages were browsed as a guest and as a signed-in shopper: home with header (search, deliver-to, country & language) and footer, the category mega menu and category / sub-category pages, PLP facets (fulfilment, price, seller, colour) with sort and chips, search (popular / trending chips, live suggestions, results, empty state), the product page (variants, other offers and choosing another seller's offer, Fulfilled-by-Nawy badge, frequently bought together, reviews filters, Q&A gate, compare), the seller storefront with follow / unfollow, creators directory and boutique, deals and the flash-sale page, Nawy TV list, watch page, live chat and likes on a live show, blog, help centre with a helpful vote and search, the Ads knowledge hub, static / legal pages, the join / sell / advertise portal pages, real 404s, legacy 301 redirects and the Arabic RTL storefront. Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; {COUNTS}.",
   "environment": [
     "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
     "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
@@ -44,20 +44,60 @@
   ],
   "issues": [
     {
+      "id": "BR-01",
+      "severity": "major",
+      "area": "Website — routing",
+      "description": "/{market}/auth/add-email (old phone-only accounts add their email after the SMS sign-in) answered 404 in every market: the page exists, but the proxy's list of known static routes (lib/missing-routes.ts) did not have it, so the request was rewritten to the not-found page. Found by the pages crawl (uae-en, uae-ar).",
+      "status": "fixed",
+      "fix": "auth/add-email added to ROUTES in website/lib/missing-routes.ts. Vitest tests/lib/missing-routes.test.ts 'renders every static page of app/[market] … without a lookup' reads app/[market]/**/page.tsx, so a new static page can no longer be missed."
+    },
+    {
+      "id": "BR-02",
+      "severity": "minor",
+      "area": "Website — category and search pages (SEO / accessibility)",
+      "description": "The new category page design and the search page had no h1: the results header ('1,166 Results for “Electronics in UAE”') was an h2 and no block rendered a page heading.",
+      "status": "fixed",
+      "fix": "features/listing/product-listing.tsx renders the results header through ResultsHeading as the page h1 on category pages (unless a category_header / brand_header / campaign_hero block already gives one) and on search; h2 elsewhere. Vitest tests/features/category-page.test.tsx."
+    },
+    {
+      "id": "BR-03",
+      "severity": "major",
+      "area": "E2E fixtures (Seller Center setup)",
+      "description": "The vendor area's setup (e2e/specs/areas/vendor/support/setup.php) keeps an AED 80 seller-fulfilled offer (E2E-VEN-ORD) on the same product as the customer specs. The lowest price wins the buy box, so the product page, cart and orders of the customer / checkout / lifecycle specs got that offer instead of the FBN AED 95 one (CHK-01, WEB-05, ORD-02 failed).",
+      "status": "fixed",
+      "fix": "The order listing is priced AED 135 (above the AED 95 FBN and AED 120 seller offers) and repriced on every run; the dev listing was updated."
+    },
+    {
+      "id": "BR-04",
+      "severity": "major",
+      "area": "E2E harness (global setup)",
+      "description": "E2E_SKIP_SEED=0 skipped the E2eSeeder run (any non-empty value counted as 'skip'), so stock, delivered sub-orders and returns of the e2e records ran out across runs. With seeding back, two runs within an hour also hit the guest-cart limit of the loopback address (10 new guest carts per hour; every e2e browser is 127.0.0.1).",
+      "status": "fixed",
+      "fix": "e2e/support/setup-options.ts seedRecords(): only a truthy E2E_SKIP_SEED skips the seed (Vitest tests/lib/e2e-setup-options.test.ts); global setup clears the guest-cart limiter of 127.0.0.1 / ::1 after seeding (local app only)."
+    },
+    {
+      "id": "BR-05",
+      "severity": "trivial",
+      "area": "Specs updated for the new pages",
+      "description": "WEB-01 expected the old home ('Nawy United Arab Emirates' title, 'Shop by category'); WEB-03 used an Apply button the new filter rail no longer has (a ticked box applies at once, the price range has 'Go') and counted sponsored cards in the sort check; WEB-04 picked the first 'Nova X12' suggestion, now a big-catalogue TV; WEB-12 clicked the first footer link matching /Returns/, now 'Returns & refunds' (account page).",
+      "status": "fixed",
+      "fix": "website.spec.ts: home title 'Shop Online in United Arab Emirates | Nawy' with 'More reasons to shop' and 'Mega deals'; filter rail located by its fulfilment inputs, FBN filter checks every card has the 'express' badge; sort check on organic cards only (no 'Ad' cards, no sponsored brand rows); suggestion 'Nova X12 Smartphone'; footer 'Terms of use' and 'Returns policy' must exist."
+    },
+    {
       "id": "QA-C01",
       "severity": "minor",
       "area": "Website — header",
       "description": "With the 'All categories' mega menu open, clicking a category in the nav bar navigates but the menu stays open over the new page (the nav bar sits inside the menu's outside-click boundary).",
-      "status": "fixed in code — verify after rebuild",
-      "fix": "components/layout/mega-menu.tsx closes the menu on nav-bar link click; Vitest tests/components/mega-menu.test.tsx."
+      "status": "fixed",
+      "fix": "components/layout/mega-menu.tsx closes the menu on nav-bar link click; Vitest tests/components/mega-menu.test.tsx. Verified live in the 2026-11-19 re-run (rebuilt storefront)."
     },
     {
       "id": "QA-C02",
       "severity": "minor",
       "area": "Website — static pages / SEO",
       "description": "Static page tab title shows the brand twice ('Privacy Policy | Nawy | Nawy'): the admin SEO title already ends with '| Nawy' and the layout title template appends it again.",
-      "status": "fixed in code — verify after rebuild",
-      "fix": "withoutBrandSuffix() in lib/format.ts used by pages/[slug], the category / CMS catch-all and brand pages; Vitest tests/lib/format.test.ts."
+      "status": "fixed",
+      "fix": "withoutBrandSuffix() in lib/format.ts used by pages/[slug], the category / CMS catch-all and brand pages; Vitest tests/lib/format.test.ts. Verified live in the 2026-11-19 re-run (rebuilt storefront)."
     },
     {
       "id": "QA-C07",
@@ -69,8 +109,8 @@
     }
   ],
   "notes": [
-    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
-    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
+    "Pages crawl (pages project): 383 pages (uae-en and uae-ar), 379 passed and 4 skipped (dispute and warranty-claim detail: the e2e customer has none), 0 failures after BR-01; link check (links project): 4,885 internal links (about 1,800 product pages from the big catalogue), none broken; its timeout is now 60 min with 8 parallel requests.",
     "Help centre: the customer help centre also lists seller collections whose text says 'noon' (e.g. 'Everything you need to start selling on noon'); content, not code.",
     "Live chat only opens while a show is live: WEB-09 puts a copy of the demo show on air (status live) with artisan tinker, then ends it.",
     "Next.js keeps the previous page hidden in the DOM after client navigation; selectors in these specs use :visible / role queries for that reason."

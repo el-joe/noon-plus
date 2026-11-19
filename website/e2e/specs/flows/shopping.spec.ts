@@ -56,6 +56,7 @@ test("browse, filter, buy as a guest, merge on sign-in, pay, cancel", async ({ p
 
   // Address: a saved one when present, otherwise a new one.
   const name = page.getByLabel("Full name");
+  await expect(name.or(page.locator('input[type="radio"][name="address"]')).first()).toBeVisible();
   if (await name.isVisible().catch(() => false)) {
     await name.fill("E2E Customer");
     await page.getByLabel("Mobile number").fill("+971501234567");

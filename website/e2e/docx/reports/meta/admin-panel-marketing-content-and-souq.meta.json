@@ -2,7 +2,7 @@
   "title": "Admin panel — marketing, content & Open Souq — browser test report",
   "area": "Admin panel: coupons, flash sales, gift cards & vouchers, Nawy One, marketers & campaigns, ads, travel promotions, pages & CMS, classifieds",
   "date": "2026-11-19",
-  "summary": "Coupons (category-scoped percentage, BOGO with validation, edit, toggle, filter) and coupon participation; a flash-sale event created (Oman-time hints, end-before-start refused), moved and cancelled; gift cards issued and voided, vouchers created and voided; Nawy One plans added and the existing plan saved unchanged; marketers suspended/reactivated, a platform campaign created and paused, settings saved, celebrity report regenerated; ads review queues, travel-promotion options and slot, advertise requests, exclusive-contract validation; pages created in the page builder, scheduled; app contexts, live broadcasts, blog, help centre, static pages, footer and notification templates; Open Souq review (reject with reason, approve), abuse reports, category photo limits and contract requirement (changed and restored), travel review queue. One bug fixed (BT-ADM-004), the hidden-error bug BT-ADM-001 found here as well.",
+  "summary": "Coupons (category-scoped percentage, BOGO with validation, edit, toggle, filter) and coupon participation; a flash-sale event created (Oman-time hints, end-before-start refused), moved and cancelled; gift cards issued and voided, vouchers created and voided; Nawy One plans added and the existing plan saved unchanged; marketers suspended/reactivated, a platform campaign created and paused, settings saved, celebrity report regenerated; ads review queues, travel-promotion options and slot, advertise requests, exclusive-contract validation; pages created in the page builder, scheduled; app contexts, live broadcasts, blog, help centre, static pages, footer and notification templates; Open Souq review (reject with reason, approve), abuse reports, category photo limits and contract requirement (changed and restored), travel review queue. One bug fixed (BT-ADM-004), the hidden-error bug BT-ADM-001 found here as well. Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; {COUNTS}.",
   "environment": [
     "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
     "Storefront http://localhost:3000 (next start) — not used by these flows",
@@ -21,6 +21,14 @@
     "e2e/specs/areas/admin/marketing-content-souq.spec.ts"
   ],
   "issues": [
+    {
+      "id": "BR-09",
+      "severity": "trivial",
+      "area": "Specs updated",
+      "description": "ADM-52 'void the gift card' passed only because the text 'Void' was on the page (the Void form itself); it opened the card and read its form before the card page had loaded, so the reason was skipped and nothing was voided.",
+      "status": "fixed",
+      "fix": "ADM-52 waits for the card page, fills the reason, and checks 'Gift card voided.', status Cancelled, balance AED 0.00, the reason in the history and that the Void form is gone."
+    },
     {
       "id": "BT-ADM-004",
       "severity": "major",
@@ -55,6 +63,7 @@
     }
   ],
   "notes": [
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
     "Travel packages: nothing was waiting for review in dev, and packages of the E2E travel agency are reserved for the travel suite, so approve/reject was not exercised here.",
     "Ads review queues (sponsored campaigns, slot bookings, bank-transfer packages) were empty in dev.",
     "Celebrity monthly report 2026-10: no influencer earnings in dev, so no report row/PDF exists to open.",

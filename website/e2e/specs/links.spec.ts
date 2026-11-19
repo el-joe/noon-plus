@@ -12,7 +12,8 @@ import { CUSTOMER_STATE } from "../support/accounts";
 test.use({ storageState: CUSTOMER_STATE });
 
 test("no broken internal links", async ({ request }) => {
-  test.setTimeout(20 * 60_000);
+  // The big development catalogue makes this about 4,900 links (1,800 product pages), each requested once.
+  test.setTimeout(60 * 60_000);
   const dir = path.join(GENERATED, "links");
   const sources = new Map<string, string>();
   for (const file of readdirSync(dir)) {
@@ -23,7 +24,7 @@ test("no broken internal links", async ({ request }) => {
   const broken: string[] = [];
   const queue = [...urls];
   await Promise.all(
-    Array.from({ length: 6 }, async () => {
+    Array.from({ length: 8 }, async () => {
       for (let url = queue.shift(); url; url = queue.shift()) {
         const res = await request.get(url, { maxRedirects: 5, timeout: 60_000 }).catch((e: Error) => ({ status: () => 0, e }));
         const status = res.status();

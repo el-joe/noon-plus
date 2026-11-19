@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Fixtures } from "./routes";
 import { CUSTOMER, CUSTOMER_STATE } from "./accounts";
-import { reuseStoredSession } from "./setup-options";
+import { reuseStoredSession, seedRecords } from "./setup-options";
 
 export const GENERATED = path.resolve(__dirname, "../.generated");
 const BACKEND = path.resolve(__dirname, "../../../backend");
@@ -20,9 +20,14 @@ const STOREFRONT = new URL(process.env.E2E_STOREFRONT_URL ?? "http://localhost:3
  *    (QA-C07: the password sign-in is rate limited); E2E_FRESH_LOGIN forces
  *    a new sign-in. E2E_NO_GLOBAL_SETUP skips this whole file (setup-options.ts).
  */
+const GUEST_CART_LIMIT_RESET = `if (app()->environment('local')) { foreach (['127.0.0.1', '::1'] as $ip) { Illuminate\\Support\\Facades\\RateLimiter::clear('guest-carts:'.App\\Domains\\Cart\\Support\\CartService::ipHash($ip)); } }`;
+
 export default async function globalSetup() {
-  if (!process.env.E2E_SKIP_SEED) {
+  if (seedRecords(process.env)) {
     execFileSync("php", ["artisan", "db:seed", "--class=E2eSeeder", "--no-interaction"], { cwd: BACKEND, stdio: "inherit" });
+    // Every e2e browser is 127.0.0.1, so all guest carts of a run count against one address
+    // (`checkout.guest_carts_per_hour`, 10): a new run starts with that budget again. Local app only.
+    execFileSync("php", ["artisan", "tinker", "--execute", GUEST_CART_LIMIT_RESET], { cwd: BACKEND, stdio: "inherit" });
   }
   const fixtures = JSON.parse(readFileSync(path.join(BACKEND, "storage/app/private/e2e-fixtures.json"), "utf8")) as Fixtures;
 

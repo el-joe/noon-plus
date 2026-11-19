@@ -2,17 +2,17 @@
   "market": "omn-ar",
   "currency": "OMR",
   "api": {
-    "listing": 1667,
-    "facets": 1233,
-    "filtered": 719,
-    "search": 626,
-    "home_page": 750
+    "listing": 874,
+    "facets": 1220,
+    "filtered": 766,
+    "search": 636,
+    "home_page": 510
   },
   "steps": [
     {
       "page": "home",
       "url": "/omn-ar",
-      "load_ms": 1537,
+      "load_ms": 1530,
       "checks": {
         "products": 78,
         "prices": 95,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/omn-ar/electronics",
-      "load_ms": 2097,
+      "load_ms": 7121,
       "checks": {
         "total": 1162,
         "brands": 8,
         "sellers": 20,
         "first_page": 88,
         "after_scroll": 147,
-        "filter_ms": 1707,
+        "filter_ms": 4926,
         "filtered_total": 156
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/omn-ar/products/nova-max-soundbar-51-855",
-      "load_ms": 6754,
+      "load_ms": 5984,
       "checks": {
         "sellers": 4,
         "sellers_shown": 4
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/omn-ar/search?q=smart",
-      "load_ms": 1167,
+      "load_ms": 4137,
       "checks": {
         "total": 298,
         "products": 67

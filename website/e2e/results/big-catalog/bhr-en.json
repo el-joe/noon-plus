@@ -2,17 +2,17 @@
   "market": "bhr-en",
   "currency": "BHD",
   "api": {
-    "listing": 1859,
-    "facets": 462,
-    "filtered": 531,
-    "search": 731,
-    "home_page": 396
+    "listing": 2540,
+    "facets": 2291,
+    "filtered": 1028,
+    "search": 588,
+    "home_page": 1106
   },
   "steps": [
     {
       "page": "home",
       "url": "/bhr-en",
-      "load_ms": 1598,
+      "load_ms": 1299,
       "checks": {
         "products": 79,
         "prices": 95,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/bhr-en/electronics",
-      "load_ms": 1572,
+      "load_ms": 4296,
       "checks": {
         "total": 1158,
         "brands": 8,
         "sellers": 20,
         "first_page": 89,
         "after_scroll": 147,
-        "filter_ms": 2964,
+        "filter_ms": 3018,
         "filtered_total": 163
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/bhr-en/products/orbit-pro-5-streaming-stick-889",
-      "load_ms": 5220,
+      "load_ms": 3755,
       "checks": {
         "sellers": 6,
         "sellers_shown": 6
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/bhr-en/search?q=smart",
-      "load_ms": 1715,
+      "load_ms": 2877,
       "checks": {
         "total": 300,
         "products": 67

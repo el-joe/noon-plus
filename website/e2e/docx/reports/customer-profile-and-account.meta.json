@@ -2,7 +2,7 @@
   "title": "Customer profile & account — browser test report",
   "area": "Customer account (storefront)",
   "date": "2026-11-19",
-  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. All 18 flows passed. One website bug was found and fixed in code (gift card expiry without the year, QA-C03); the saved-cards screen is missing on the website (QA-C05, known gap). The Google / Apple OAuth round trip itself was not run (real provider apps needed).",
+  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. The Google / Apple OAuth round trip itself was not run (real provider apps needed). Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; {COUNTS}.",
   "environment": [
     "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
     "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
@@ -45,12 +45,20 @@
   ],
   "issues": [
     {
+      "id": "BR-04",
+      "severity": "major",
+      "area": "E2E harness (global setup)",
+      "description": "E2E_SKIP_SEED=0 skipped the E2eSeeder run (any non-empty value counted as 'skip'), so stock, delivered sub-orders and returns of the e2e records ran out across runs. With seeding back, two runs within an hour also hit the guest-cart limit of the loopback address (10 new guest carts per hour; every e2e browser is 127.0.0.1).",
+      "status": "fixed",
+      "fix": "e2e/support/setup-options.ts seedRecords(): only a truthy E2E_SKIP_SEED skips the seed (Vitest tests/lib/e2e-setup-options.test.ts); global setup clears the guest-cart limiter of 127.0.0.1 / ::1 after seeding (local app only)."
+    },
+    {
       "id": "QA-C03",
       "severity": "minor",
       "area": "Website — account gift cards",
       "description": "Gift card expiry is shown as 'Expires 19 Nov' for a card bought on 19 Nov 2026 that expires in 2027: formatDay never shows the year.",
-      "status": "fixed in code — verify after rebuild",
-      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts."
+      "status": "fixed",
+      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts. Verified live in the 2026-11-19 re-run (rebuilt storefront)."
     },
     {
       "id": "QA-C05",
@@ -70,8 +78,7 @@
     }
   ],
   "notes": [
-    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
-    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
     "Social sign-in: Google / Apple buttons render; the OAuth round trip needs real provider apps and is not driven (production provider pages may not be automated).",
     "Saved cards are checked through the API (GET me/cards) here and after a real tokenised card payment in CHK-04.",
     "An unknown referral code (/r/NOPE0000) answers a real HTTP 404 page by design (QA-012 proxy check), not the in-page 'This referral link does not exist' message."

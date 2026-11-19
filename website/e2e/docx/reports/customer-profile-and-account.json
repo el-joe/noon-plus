@@ -2,7 +2,7 @@
   "title": "Customer profile & account — browser test report",
   "area": "Customer account (storefront)",
   "date": "2026-11-19",
-  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. All 18 flows passed. One website bug was found and fixed in code (gift card expiry without the year, QA-C03); the saved-cards screen is missing on the website (QA-C05, known gap). The Google / Apple OAuth round trip itself was not run (real provider apps needed).",
+  "summary": "Every customer-account flow on the UAE storefront was run in Chromium against the dev API: sign-up and sign-in by email code (code read from the mail log), password sign-in with a wrong-password refusal and the forgot-password mail, the legacy phone-only SMS code sign-in (SMS log driver) ending on 'add your email', social buttons, profile edit (name, email language, marketing channels, photo, email change by code), the address book (add, edit, default, delete), wishlist and recently viewed, saved cards (tokens only, API), Nawy One membership paid through the fake card gateway, gift card purchase → emailed code → redeem to Nawy Credits (and a refused second redeem), vouchers, support tickets with a reply, the referral landing, a product question, setting / changing a password and signing out / in, the notifications centre, orders with the HTML and PDF invoice, the EN↔AR (RTL) switch and the country switch to Saudi Arabia. The Google / Apple OAuth round trip itself was not run (real provider apps needed). Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; 18 of 18 flows passed, 0 failed, 0 skipped.",
   "environment": [
     "Storefront http://localhost:3000 — production build served by `next start` (built before this run; website fixes below are in code but NOT in this build).",
     "API + Blade panels http://localhost:8000 (`php artisan serve`, APP_ENV=local, MAIL_MAILER=log, NAWY_PAYMENTS_DRIVER=fake, SMS log driver).",
@@ -45,12 +45,20 @@
   ],
   "issues": [
     {
+      "id": "BR-04",
+      "severity": "major",
+      "area": "E2E harness (global setup)",
+      "description": "E2E_SKIP_SEED=0 skipped the E2eSeeder run (any non-empty value counted as 'skip'), so stock, delivered sub-orders and returns of the e2e records ran out across runs. With seeding back, two runs within an hour also hit the guest-cart limit of the loopback address (10 new guest carts per hour; every e2e browser is 127.0.0.1).",
+      "status": "fixed",
+      "fix": "e2e/support/setup-options.ts seedRecords(): only a truthy E2E_SKIP_SEED skips the seed (Vitest tests/lib/e2e-setup-options.test.ts); global setup clears the guest-cart limiter of 127.0.0.1 / ::1 after seeding (local app only)."
+    },
+    {
       "id": "QA-C03",
       "severity": "minor",
       "area": "Website — account gift cards",
       "description": "Gift card expiry is shown as 'Expires 19 Nov' for a card bought on 19 Nov 2026 that expires in 2027: formatDay never shows the year.",
-      "status": "fixed in code — verify after rebuild",
-      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts."
+      "status": "fixed",
+      "fix": "formatDay (lib/format.ts) adds the year for dates outside the current year; Vitest tests/lib/format.test.ts. Verified live in the 2026-11-19 re-run (rebuilt storefront)."
     },
     {
       "id": "QA-C05",
@@ -70,8 +78,7 @@
     }
   ],
   "notes": [
-    "Results are from the real Playwright run listed in the totals; each step's screenshot is the page right after the step. Steps marked FAIL that are tagged 'fixed in code — verify after rebuild' fail on the current production build because the website fix needs `npm run build` (not run: the servers are shared).",
-    "Run of 2026-11-19 (Chromium, 3 workers): all 50 customer-side tests (customer + orders specs) ran together — 45 passed, 5 failed. Two of those failures (CUS-12 reply box, WEB-04 Enter after a hovered suggestion) were selectors in the spec (a hidden previous page / the pointer resting on the suggestion list), fixed and re-run green; the flows here show that latest run. The 3 remaining failures are the website bugs QA-C01, QA-C02 and QA-C04, fixed in code but not in the running production build.",
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
     "Social sign-in: Google / Apple buttons render; the OAuth round trip needs real provider apps and is not driven (production provider pages may not be automated).",
     "Saved cards are checked through the API (GET me/cards) here and after a real tokenised card payment in CHK-04.",
     "An unknown referral code (/r/NOPE0000) answers a real HTTP 404 page by design (QA-012 proxy check), not the in-page 'This referral link does not exist' message."
@@ -98,7 +105,7 @@
           "screenshot": "../shots/customer-profile-and-account/cus-01-1.png"
         },
         {
-          "action": "Type a new email (qa-signup-9pktvry1@nawy.test) and ask for a code",
+          "action": "Type a new email (qa-signup-qr4cl3u1@nawy.test) and ask for a code",
           "expected": "The code step opens and says where the code was sent",
           "result": "pass",
           "note": "",
@@ -108,7 +115,7 @@
           "action": "Read the code from the mail log and enter it",
           "expected": "Signed in, sent away from /login; session cookie set",
           "result": "pass",
-          "note": "code 249811 accepted",
+          "note": "code 567971 accepted",
           "screenshot": "../shots/customer-profile-and-account/cus-01-3.png"
         },
         {
@@ -163,7 +170,7 @@
           "action": "Create a legacy phone-only account (test data)",
           "expected": "User row with requires_email=true",
           "result": "pass",
-          "note": "id=225"
+          "note": "id=974"
         },
         {
           "action": "Login → 'Had an old Nawy account with only a phone number?' → enter the number → send code",
@@ -200,7 +207,7 @@
           "action": "Ask the API where 'Continue with Google' would go",
           "expected": "The API answers with a provider redirect, or a clear 'not configured' error in dev",
           "result": "pass",
-          "note": "GET auth/social/google/redirect → 200 {\"data\":{\"url\":\"http:\\/\\/localhost:8000\\/api\\/v1\\/auth\\/social\\/google\\/callback?state=myyLFBBGk81WdcVFNiGPDoEMj1wm2r2Bh523esBJ&fake=1\"},\"meta\":{}}"
+          "note": "GET auth/social/google/redirect → 200 {\"data\":{\"url\":\"http:\\/\\/localhost:8000\\/api\\/v1\\/auth\\/social\\/google\\/callback?state=3ikhf10ajFUvJTSgyW0WkbEpCZurCU9o2ge8GVa1&fake=1\"},\"meta\":{}}"
         },
         {
           "action": "Complete the Google / Apple OAuth round trip",
@@ -246,7 +253,7 @@
           "screenshot": "../shots/customer-profile-and-account/cus-05-4.png"
         },
         {
-          "action": "Change email → qa-changed-9pktvry3@nawy.test, enter the code mailed to the new address",
+          "action": "Change email → qa-changed-qr82xxy3@nawy.test, enter the code mailed to the new address",
           "expected": "'Your email is now …'",
           "result": "pass",
           "note": "",
@@ -352,7 +359,7 @@
     {
       "id": "CUS-08",
       "name": "Saved cards",
-      "goal": "Saved cards are listed as gateway tokens with brand / last 4 only (no card numbers).",
+      "goal": "Saved cards are listed as gateway tokens with brand / last 4 only (no card numbers); Account → Saved cards shows them (QA-C05).",
       "preconditions": "A new shopper signed in by email code.",
       "spec": "e2e/specs/areas/customer/account.spec.ts",
       "result": "pass",
@@ -370,11 +377,18 @@
           "note": "200: {\"data\":[],\"meta\":{}}"
         },
         {
-          "action": "Look for a saved-cards screen in My account",
-          "expected": "No 'cards' link in the account menu (known website gap, cards are managed in the customer app)",
+          "action": "Account menu → Saved cards",
+          "expected": "A 'Saved cards' link opens /account/cards: heading, token note and the empty state (a new shopper has no cards)",
           "result": "pass",
-          "note": "no saved-cards screen on the website (STATUS.md M13 'Left: saved cards'); API GET me/cards only",
+          "note": "",
           "screenshot": "../shots/customer-profile-and-account/cus-08-3.png"
+        },
+        {
+          "action": "Saved cards in Arabic",
+          "expected": "The AR page shows the RTL heading 'البطاقات المحفوظة'",
+          "result": "pass",
+          "note": "",
+          "screenshot": "../shots/customer-profile-and-account/cus-08-4.png"
         }
       ]
     },
@@ -454,7 +468,7 @@
           "action": "Read the gift card email",
           "expected": "A mail to the recipient with the redeem code",
           "result": "pass",
-          "note": "code 7L2J…"
+          "note": "code 967U…"
         },
         {
           "action": "Account → Gift cards: the bought card is listed; redeem the code to Nawy Credits",
@@ -684,7 +698,7 @@
           "screenshot": "../shots/customer-profile-and-account/cus-17-1.png"
         },
         {
-          "action": "Open order NW-AE-E2E3NZXP4",
+          "action": "Open order NW-AE-E2EQQOTJS",
           "expected": "Order detail with the shipment, its status timeline and an invoice link",
           "result": "pass",
           "note": "",
@@ -694,14 +708,14 @@
           "action": "Open the invoice (HTML)",
           "expected": "Tax invoice page with the order number and VAT",
           "result": "pass",
-          "note": "opened http://localhost:3000/api/invoice/uae-en/NW-AE-E2E3NZXP4",
+          "note": "opened http://localhost:3000/api/invoice/uae-en/NW-AE-E2EQQOTJS",
           "screenshot": "../shots/customer-profile-and-account/cus-17-3.png"
         },
         {
           "action": "Download the invoice PDF",
           "expected": "A PDF file (application/pdf, %PDF header)",
           "result": "pass",
-          "note": "API pdf 948913 bytes; PDF control on page: true"
+          "note": "API pdf 948902 bytes; PDF control on page: true"
         }
       ]
     },

@@ -2,17 +2,17 @@
   "market": "omn-en",
   "currency": "OMR",
   "api": {
-    "listing": 1331,
-    "facets": 635,
-    "filtered": 973,
-    "search": 848,
-    "home_page": 636
+    "listing": 2391,
+    "facets": 807,
+    "filtered": 850,
+    "search": 595,
+    "home_page": 1221
   },
   "steps": [
     {
       "page": "home",
       "url": "/omn-en",
-      "load_ms": 1384,
+      "load_ms": 1096,
       "checks": {
         "products": 78,
         "prices": 95,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/omn-en/electronics",
-      "load_ms": 3713,
+      "load_ms": 2776,
       "checks": {
         "total": 1162,
         "brands": 8,
         "sellers": 20,
         "first_page": 88,
         "after_scroll": 147,
-        "filter_ms": 1384,
+        "filter_ms": 8747,
         "filtered_total": 156
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/omn-en/products/nova-x12-65w-fast-charger-133",
-      "load_ms": 4238,
+      "load_ms": 1507,
       "checks": {
         "sellers": 3,
         "sellers_shown": 3
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/omn-en/search?q=smart",
-      "load_ms": 2828,
+      "load_ms": 2012,
       "checks": {
         "total": 298,
         "products": 67

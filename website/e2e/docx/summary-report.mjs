@@ -6,6 +6,7 @@
  *
  *   node e2e/docx/summary-report.mjs [--results e2e/results.json] [--date 2026-11-19] [--no-build]
  *
+ * Issues: the ones found in this run (ids BR-xx) across all reports, each listed once.
  * Inputs: every area report JSON in e2e/docx/reports/ (not *.meta.json) and the JSON reporter output.
  * Fails when a report references a screenshot that does not exist.
  */
@@ -23,8 +24,15 @@ const results = JSON.parse(fs.readFileSync(path.resolve(opt("--results", path.jo
 
 const names = fs.readdirSync(reports).filter((f) => f.endsWith(".json") && !f.endsWith(".meta.json") && !f.startsWith("00-")).map((f) => f.replace(/\.json$/, "")).sort();
 const missing = [];
+const runIssues = new Map(); // issues found in this run (ids BR-xx), listed once with the reports that carry them
 const flows = names.map((name, i) => {
   const r = JSON.parse(fs.readFileSync(path.join(reports, `${name}.json`), "utf8"));
+  for (const issue of r.issues ?? []) {
+    if (!/^BR-/.test(issue.id)) continue;
+    const seen = runIssues.get(issue.id) ?? { ...issue, reports: [] };
+    seen.reports.push(name);
+    runIssues.set(issue.id, seen);
+  }
   const t = r.totals ?? { passed: 0, failed: 0, skipped: 0 };
   const steps = r.flows.reduce((n, f) => n + f.steps.length, 0);
   const shots = r.flows.flatMap((f) => f.steps.map((s) => s.screenshot).filter(Boolean));
@@ -78,7 +86,7 @@ const report = {
   specs: ["website/e2e/specs/**"],
   totals,
   flows,
-  issues: [],
+  issues: [...runIssues.values()].sort((a, b) => a.id.localeCompare(b.id, "en", { numeric: true })).map(({ reports: rs, ...issue }) => ({ ...issue, area: `${issue.area} (reports: ${rs.join(", ")})` })),
   notes: [
     "Playwright totals per project:",
     ...Object.entries(per).map(([p, t]) => `${p}: ${t.passed} passed, ${t.failed} failed, ${t.skipped} skipped${t.flaky ? `, ${t.flaky} flaky` : ""}`),

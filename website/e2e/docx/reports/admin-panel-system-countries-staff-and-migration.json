@@ -2,7 +2,7 @@
   "title": "Admin panel — system, countries, staff & data migration — browser test report",
   "area": "Admin panel: roles & permissions, staff, permission boundaries, Arabic RTL, countries, domains, gateways, holidays, activity, health, analytics, reports, data migration",
   "date": "2026-11-19",
-  "summary": "A narrow custom role (orders.view + categories.view) was created, a staff member invited with it through the UI and the invitation accepted from the e-mail; signed in separately (password + emailed code) the member sees 6 sidebar links, gets 403 on /staff, /finance/payouts, /roles, /migration/quarantine and /coupons/create, sees no admin action forms on an order and a direct POST is refused (403). The member switched to Arabic: pages render dir=rtl with Arabic labels and the Oman-time label ('بتوقيت عُمان'). Countries: switcher (Oman/UAE), gateway checkout preview and validation, a test domain added/edited/deleted, holidays validated/added/renamed/removed. Activity log, system health, notifications, sign-in history, portal analytics, cross-country reports (filter, reload, CSV). Data migration: quarantine filter/detail/reveal/dry-run preview/decision, runs, step re-try preview, legacy records reveal, redirects search/export/rebuild, reconciliation.",
+  "summary": "A narrow custom role (orders.view + categories.view) was created, a staff member invited with it through the UI and the invitation accepted from the e-mail; signed in separately (password + emailed code) the member sees 6 sidebar links, gets 403 on /staff, /finance/payouts, /roles, /migration/quarantine and /coupons/create, sees no admin action forms on an order and a direct POST is refused (403). The member switched to Arabic: pages render dir=rtl with Arabic labels and the Oman-time label ('بتوقيت عُمان'). Countries: switcher (Oman/UAE), gateway checkout preview and validation, a test domain added/edited/deleted, holidays validated/added/renamed/removed. Activity log, system health, notifications, sign-in history, portal analytics, cross-country reports (filter, reload, CSV). Data migration: quarantine filter/detail/reveal/dry-run preview/decision, runs, step re-try preview, legacy records reveal, redirects search/export/rebuild, reconciliation. Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; 4 of 4 flows passed, 0 failed, 0 skipped.",
   "environment": [
     "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
     "Storefront http://localhost:3000 (next start) — not used by these flows",
@@ -59,6 +59,7 @@
     }
   ],
   "notes": [
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
     "Reconciliation and some reloads are queued jobs. Horizon is inactive in dev (System health: 0 supervisors, ~158 queued jobs), so a queued reconciliation stays 'queued' and the run button stays hidden until a worker runs it.",
     "The narrow role also sees 'Classified categories' (categories.view), 'My acquisition commissions' and 'Platform settings' (no permission gate on the settings hub; its links lead to pages that answer 403 for this role) — noted, not changed.",
     "Cross-country reports had data (nawy:reporting:etl not needed); 'Reload now' answered 'Reporting data reloaded.'",
@@ -76,10 +77,10 @@
       "id": "ADM-60",
       "name": "Roles & permissions, staff, permission boundary, Arabic (RTL)",
       "goal": "Admin creates a narrow role (orders + categories view only), invites a staff member with it through the UI, and the new member — signed in separately with 2FA — sees only those sidebar items and gets 403 elsewhere; the member then switches to Arabic and the pages render right-to-left with Oman-time labels.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:56 UTC.",
       "spec": "e2e/specs/areas/admin/system-staff-migration.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:11 UTC",
+      "run": "2026-11-19 15:56 UTC",
       "steps": [
         {
           "action": "Roles & permissions: create role with no name",
@@ -89,10 +90,10 @@
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-60-1.png"
         },
         {
-          "action": "Create role \"qa_narrow_9tko2gy\" with orders.view and categories.view",
+          "action": "Create role \"qa_narrow_q7itk7n\" with orders.view and categories.view",
           "expected": "Role listed with 2 permissions",
           "result": "pass",
-          "note": "Role qa_narrow_9tko2gy created.",
+          "note": "Role qa_narrow_q7itk7n created.",
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-60-2.png"
         },
         {
@@ -110,10 +111,10 @@
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-60-4.png"
         },
         {
-          "action": "Invite a staff member with role \"qa_narrow_9tko2gy\" and accept the emailed invitation (sets a password)",
+          "action": "Invite a staff member with role \"qa_narrow_q7itk7n\" and accept the emailed invitation (sets a password)",
           "expected": "Invitation accepted; account listed as staff",
           "result": "pass",
-          "note": "qa-narrow-9tko2gy-321746@nawy.test",
+          "note": "qa-narrow-q7itk7n-701995@nawy.test",
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-60-5.png"
         },
         {
@@ -213,10 +214,10 @@
       "id": "ADM-61",
       "name": "Countries & gateways, domains, holidays, settings",
       "goal": "Admin switches the working country (data is scoped), previews and validates a gateway config without changing checkout, adds/edits/removes a test domain and a holiday, and opens platform settings.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:56 UTC.",
       "spec": "e2e/specs/areas/admin/system-staff-migration.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:11 UTC",
+      "run": "2026-11-19 15:56 UTC",
       "steps": [
         {
           "action": "Switch the country to Oman",
@@ -254,7 +255,7 @@
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-61-5.png"
         },
         {
-          "action": "Add inactive portal domain qa-9tkok5e.example-qa.test",
+          "action": "Add inactive portal domain qa-q61m3x0.example-qa.test",
           "expected": "Domain listed",
           "result": "pass",
           "note": "",
@@ -294,10 +295,10 @@
       "id": "ADM-62",
       "name": "Activity log, health, notifications, analytics, reports",
       "goal": "Admin filters the activity log, checks system health, reads notifications and sign-in history, switches portal-analytics periods, and filters / reloads / exports cross-country reports.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:56 UTC.",
       "spec": "e2e/specs/areas/admin/system-staff-migration.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:11 UTC",
+      "run": "2026-11-19 15:56 UTC",
       "steps": [
         {
           "action": "Activity log: filter log 'coupons', scope country, today",
@@ -352,7 +353,7 @@
           "action": "Export CSV",
           "expected": "CSV file with a header row",
           "result": "pass",
-          "note": "349 bytes, text/csv; charset=utf-8",
+          "note": "453 bytes, text/csv; charset=utf-8",
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-62-8.png"
         }
       ]
@@ -361,10 +362,10 @@
       "id": "ADM-63",
       "name": "Data migration",
       "goal": "Admin works the quarantine queue (filter, detail, reveal personal data, dry-run preview, decision), browses runs, previews a step re-try, searches legacy records (reveal), searches/exports/rebuilds redirects and runs reconciliation.",
-      "preconditions": "Reads the dev migration tables only; the legacy snapshot database is never written. Last run: 2026-11-19 08:12 UTC.",
+      "preconditions": "Reads the dev migration tables only; the legacy snapshot database is never written. Last run: 2026-11-19 15:57 UTC.",
       "spec": "e2e/specs/areas/admin/system-staff-migration.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:12 UTC",
+      "run": "2026-11-19 15:57 UTC",
       "steps": [
         {
           "action": "Quarantine queue: filter step 'orders' (open entries)",
@@ -419,7 +420,7 @@
           "action": "Re-try a step: preview (dry run) step 'reference' for UAE",
           "expected": "Dry-run job page; Apply offered, not clicked",
           "result": "pass",
-          "note": "http://admin.nawy.test:8000/migration/jobs/9",
+          "note": "http://admin.nawy.test:8000/migration/jobs/18",
           "screenshot": "../shots/admin-panel-system-countries-staff-and-migration/adm-63-8.png"
         },
         {

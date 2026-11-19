@@ -2,17 +2,17 @@
   "market": "jor-ar",
   "currency": "JOD",
   "api": {
-    "listing": 960,
-    "facets": 849,
-    "filtered": 600,
-    "search": 958,
-    "home_page": 512
+    "listing": 772,
+    "facets": 838,
+    "filtered": 836,
+    "search": 338,
+    "home_page": 1422
   },
   "steps": [
     {
       "page": "home",
       "url": "/jor-ar",
-      "load_ms": 1337,
+      "load_ms": 4511,
       "checks": {
         "products": 82,
         "prices": 95,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/jor-ar/electronics",
-      "load_ms": 1373,
+      "load_ms": 2309,
       "checks": {
         "total": 1161,
         "brands": 8,
         "sellers": 20,
         "first_page": 89,
         "after_scroll": 148,
-        "filter_ms": 3843,
+        "filter_ms": 3477,
         "filtered_total": 168
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/jor-ar/products/orbit-one-3-smart-bulb-1162",
-      "load_ms": 1261,
+      "load_ms": 6309,
       "checks": {
         "sellers": 3,
         "sellers_shown": 3
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/jor-ar/search?q=smart",
-      "load_ms": 1434,
+      "load_ms": 1418,
       "checks": {
         "total": 296,
         "products": 68

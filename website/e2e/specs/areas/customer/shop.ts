@@ -52,6 +52,8 @@ export function gatewayNowReports(gatewayReference: string, outcome: "captured" 
 export async function checkoutAddress(page: Page) {
   await visit(page, "/checkout");
   const name = page.getByLabel("Full name");
+  // The address step renders after the saved addresses load: wait for the new-address form or a saved address.
+  await expect(name.or(page.locator('input[type="radio"][name="address"]')).first()).toBeVisible();
   if (await name.isVisible().catch(() => false)) {
     await name.fill("QA Customer");
     await page.getByLabel("Mobile number").fill("+971501234567");

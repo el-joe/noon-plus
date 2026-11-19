@@ -2,7 +2,7 @@
   "title": "Admin panel — orders, delivery & fulfilment — browser test report",
   "area": "Admin panel: orders, sub-orders, invoices, refunds, returns, disputes, payments under review, support, warranty, delivery & dispatch, FBN inventory, packaging",
   "date": "2026-11-19",
-  "summary": "Orders were filtered and opened (Oman time), the invoice PDF downloaded, sub-orders moved by state with reason and force-cancelled, a manual refund requested and approved under four-eyes by a second (finance) admin invited through Staff, returns approved/rejected, a dispute thread answered, a payment held under review resolved, a support ticket worked, delivery zones/areas/rates, shipping companies, agent invitations and carrier claims set up, a parcel brought to Packed and assigned on the dispatch board, and the FBN flow run end-to-end: new warehouse, seller inbound plan, arrive, start receiving, receive with damaged units and put-away bin, stock adjustments with audit note, inter-warehouse transfer, removals and pick & pack queues, FBN fees (all 0.00 by owner decision) and packaging supplies. One bug fixed (BT-ADM-002).",
+  "summary": "Orders were filtered and opened (Oman time), the invoice PDF downloaded, sub-orders moved by state with reason and force-cancelled, a manual refund requested and approved under four-eyes by a second (finance) admin invited through Staff, returns approved/rejected, a dispute thread answered, a payment held under review resolved, a support ticket worked, delivery zones/areas/rates, shipping companies, agent invitations and carrier claims set up, a parcel brought to Packed and assigned on the dispatch board, and the FBN flow run end-to-end: new warehouse, seller inbound plan, arrive, start receiving, receive with damaged units and put-away bin, stock adjustments with audit note, inter-warehouse transfer, removals and pick & pack queues, FBN fees (all 0.00 by owner decision) and packaging supplies. One bug fixed (BT-ADM-002). Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; {COUNTS}.",
   "environment": [
     "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
     "Storefront http://localhost:3000 (next start) — not used by these flows",
@@ -30,6 +30,14 @@
   ],
   "issues": [
     {
+      "id": "BR-10",
+      "severity": "trivial",
+      "area": "Specs updated",
+      "description": "ADM-26 looked for an old placed SoundMax order in a fixed list of 8 dev orders; earlier runs had packed all of them ('no placed SoundMax order left').",
+      "status": "fixed",
+      "fix": "ADM-26 creates its own placed cash-on-delivery SoundMax order (NW-AE-E2ED…, e2e customer) for each run and packs that one."
+    },
+    {
       "id": "BT-ADM-002",
       "severity": "major",
       "area": "Delivery → Carrier claims",
@@ -55,6 +63,8 @@
     }
   ],
   "notes": [
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
+    "ADM-26 uses a placed COD SoundMax order created for the run (NW-AE-E2ED…); the old orders NW-AE-1000002/3/5/6 are still used by the other flows.",
     "Orders used: NW-AE-1000002/3/5/6 from 15 Nov (old dev data). ADM-21 and ADM-24 change one-time data (cancel order 3, resolve payment 19): their latest run is the one that performed the action.",
     "Pick & pack shows its empty state: no FBN customer order exists in dev (creating one needs a storefront checkout of an FBN listing, covered by the customer suite).",
     "Warranty claims and agent withdrawals were only listed/filtered: no records in dev.",

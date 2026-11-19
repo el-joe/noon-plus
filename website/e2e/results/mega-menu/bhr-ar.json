@@ -2,15 +2,15 @@
   "market": "bhr-ar",
   "locale": "ar",
   "dir": "rtl",
-  "api_ms": 663,
-  "page_load_ms": 2716,
+  "api_ms": 541,
+  "page_load_ms": 4342,
   "top_level": 16,
   "opened": 16,
   "categories": [
     {
       "slug": "electronics",
       "name": "إلكترونيات",
-      "open_ms": 234,
+      "open_ms": 209,
       "columns": 8,
       "api_columns": 8,
       "leaves": 33,
@@ -23,7 +23,7 @@
     {
       "slug": "health",
       "name": "الصحة والعافية",
-      "open_ms": 198,
+      "open_ms": 203,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -36,7 +36,7 @@
     {
       "slug": "books",
       "name": "الكتب والقرطاسية",
-      "open_ms": 193,
+      "open_ms": 187,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -49,7 +49,7 @@
     {
       "slug": "automotive",
       "name": "السيارات",
-      "open_ms": 260,
+      "open_ms": 184,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -62,7 +62,7 @@
     {
       "slug": "sports",
       "name": "الرياضة والهواء الطلق",
-      "open_ms": 183,
+      "open_ms": 196,
       "columns": 4,
       "api_columns": 4,
       "leaves": 7,
@@ -75,7 +75,7 @@
     {
       "slug": "beauty",
       "name": "الجمال والعناية الشخصية",
-      "open_ms": 185,
+      "open_ms": 309,
       "columns": 3,
       "api_columns": 3,
       "leaves": 7,
@@ -88,7 +88,7 @@
     {
       "slug": "fashion",
       "name": "أزياء",
-      "open_ms": 301,
+      "open_ms": 299,
       "columns": 4,
       "api_columns": 4,
       "leaves": 9,
@@ -101,7 +101,7 @@
     {
       "slug": "beauty-fragrances",
       "name": "الجمال والعطور",
-      "open_ms": 305,
+      "open_ms": 313,
       "columns": 3,
       "api_columns": 3,
       "leaves": 9,
@@ -114,7 +114,7 @@
     {
       "slug": "home-kitchen",
       "name": "المنزل والمطبخ",
-      "open_ms": 302,
+      "open_ms": 187,
       "columns": 2,
       "api_columns": 2,
       "leaves": 7,
@@ -127,7 +127,7 @@
     {
       "slug": "home",
       "name": "المنزل",
-      "open_ms": 319,
+      "open_ms": 304,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -140,7 +140,7 @@
     {
       "slug": "grocery",
       "name": "البقالة",
-      "open_ms": 186,
+      "open_ms": 302,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -166,7 +166,7 @@
     {
       "slug": "womens-fashion",
       "name": "أزياء النساء",
-      "open_ms": 200,
+      "open_ms": 189,
       "columns": 3,
       "api_columns": 3,
       "leaves": 11,
@@ -179,7 +179,7 @@
     {
       "slug": "baby-maternity",
       "name": "مستلزمات الأم والبيبي",
-      "open_ms": 185,
+      "open_ms": 303,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -192,7 +192,7 @@
     {
       "slug": "toys",
       "name": "الألعاب",
-      "open_ms": 307,
+      "open_ms": 302,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -205,7 +205,7 @@
     {
       "slug": "kids-fashion",
       "name": "أزياء الأطفال",
-      "open_ms": 304,
+      "open_ms": 317,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -219,7 +219,7 @@
   "level3": {
     "from": "electronics",
     "href": "/bhr-ar/electronics/mobiles-smartphones",
-    "ms": 909,
+    "ms": 10997,
     "products": 127,
     "menu_closed": true,
     "ok": true
@@ -227,7 +227,7 @@
   "brand": {
     "from": "electronics",
     "href": "/bhr-ar/electronics?brand=kairo",
-    "ms": 1919,
+    "ms": 2929,
     "products": 189,
     "menu_closed": true,
     "ok": true

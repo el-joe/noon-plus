@@ -2,17 +2,17 @@
   "market": "uae-en",
   "currency": "AED",
   "api": {
-    "listing": 2652,
-    "facets": 424,
-    "filtered": 695,
-    "search": 572,
-    "home_page": 444
+    "listing": 701,
+    "facets": 607,
+    "filtered": 472,
+    "search": 596,
+    "home_page": 388
   },
   "steps": [
     {
       "page": "home",
       "url": "/uae-en",
-      "load_ms": 1443,
+      "load_ms": 1042,
       "checks": {
         "products": 77,
         "prices": 91,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/uae-en/electronics",
-      "load_ms": 1642,
+      "load_ms": 5032,
       "checks": {
         "total": 1166,
         "brands": 8,
         "sellers": 26,
         "first_page": 92,
         "after_scroll": 151,
-        "filter_ms": 1408,
+        "filter_ms": 3918,
         "filtered_total": 159
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/uae-en/products/soundmax-go-5g-smartphone-4",
-      "load_ms": 1361,
+      "load_ms": 4629,
       "checks": {
         "sellers": 4,
         "sellers_shown": 4
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/uae-en/search?q=smart",
-      "load_ms": 1456,
+      "load_ms": 1797,
       "checks": {
         "total": 297,
         "products": 68

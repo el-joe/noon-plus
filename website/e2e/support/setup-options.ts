@@ -9,6 +9,8 @@
  * - By default the stored customer session is reused while its token still
  *   works; the password sign-in runs only when there is none (or it expired).
  *   `E2E_FRESH_LOGIN=1` forces a new sign-in.
+ * - `E2E_SKIP_SEED=1` skips seeding only; `E2E_SKIP_SEED=0` (or false / no /
+ *   off) seeds, like leaving it unset.
  */
 type Env = Record<string, string | undefined>;
 
@@ -24,4 +26,9 @@ export function globalSetupFor(env: Env): string | undefined {
 /** Whether global setup may reuse the stored customer session before signing in with the password. */
 export function reuseStoredSession(env: Env): boolean {
   return !truthy(env.E2E_FRESH_LOGIN);
+}
+
+/** Whether global setup seeds the e2e records (E2eSeeder): yes unless E2E_SKIP_SEED is truthy ("0" still seeds). */
+export function seedRecords(env: Env): boolean {
+  return !truthy(env.E2E_SKIP_SEED);
 }

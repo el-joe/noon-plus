@@ -15,6 +15,7 @@ The last step in BUILD_QUEUE: automated tests on every layer, then Playwright en
 | Website e2e (Playwright, Chromium) | `npm run e2e` | **399 passed, 14 skipped (no data, listed below), 0 failed** (3.1 min, 4 workers) |
 | **Re-run after WP11** (legacy data in the dev DBs) | Pest / `npm run test` / `npm run e2e` | Pest **1,328 / 1,328** (9,062 assertions, 726 s); website **224 / 224**; e2e **404 passed, 12 skipped, 0 failed** (4.5 min) after E2E-006…008 below; `legacy:reconcile` clean |
 | **Final full run** (2026-11-19, after D16 packages + last design pass) | Pest, Pint, `npm test`, `tsc`, `npm run build`, `npm run e2e`, `flutter analyze` + `flutter test` ×7 | Pest **1,330 / 1,330** (9,079 assertions); Pint clean; website **227 / 227**; tsc clean; build OK; e2e **404 passed, 12 skipped, 0 failed** (4.4 min); Flutter analyze clean in all 7; tests nawy_core 71, customer 192, delivery 60, vendor 46, marketer 26, supervisor 26, travel 38 (**459**) |
+| **Browser re-run after big catalogue** (2026-11-19; 5,000 products, ~30k offers, 60 sellers per country, new home / category pages, mega menu; fresh production build) | `cd website && E2E_SKIP_SEED=0 npx playwright test` (4 workers) | **614 passed, 4 skipped, 0 failed** (29.8 min): panel-auth **6/6**; pages **379 passed, 4 skipped** (dispute / warranty-claim detail in uae-en and uae-ar: the e2e customer has none); links **1/1** (4,885 internal links, none broken; 23.7 min); flows **23/23**; panels **10/10**; areas **195/195** (incl. big catalogue 16 + mega menu 16). First run 595 passed / 18 failed; fixes BR-01…BR-12 below. Website Vitest **328 / 328**, tsc clean, build OK. Reports: `docx/00-summary.docx` + 14 area reports |
 | Flutter `flutter analyze` | per package | 0 issues in all 7 |
 | Flutter `flutter test` | per package | nawy_core 58, customer_app 167, delivery_app 51, vendor_app 43, marketer_app 26, supervisor_app 25, travel_agency_app 25: **395 / 395 passed** (322 before, 73 added) |
 
@@ -32,7 +33,7 @@ Website unit tests cover:
 Notes:
 - **Panel hosts:** Chromium maps `*.nawy.test` to 127.0.0.1 with `--host-resolver-rules`, so `/etc/hosts` needs no entries.
 - **Global setup** (`e2e/support/global-setup.ts`):
-  - runs `php artisan db:seed --class=E2eSeeder` (no `--env`, never migrates); set `E2E_SKIP_SEED=1` to skip it;
+  - runs `php artisan db:seed --class=E2eSeeder` (no `--env`, never migrates); set `E2E_SKIP_SEED=1` to skip it (`0` / `false` still seed, BR-04), then clears the guest-cart limit of 127.0.0.1 / ::1 (local app only);
   - signs the e2e customer in through the API for the signed-in crawl. A stored session (`e2e/.auth/customer.json`) whose token still works is reused without a sign-in; the password sign-in (30 an hour, 5 a minute per account) runs only when there is none, and on a 429 the stored session is kept if it still works (QA-C07). `E2E_FRESH_LOGIN=1` forces a new sign-in.
   - `E2E_NO_GLOBAL_SETUP=1` skips global setup altogether (no seed, no sign-in) and reuses the files of the last run (`e2e/.generated/*`, `e2e/.auth/*.json`). Use it to re-run one area without touching the sign-in limit: `E2E_NO_GLOBAL_SETUP=1 npx playwright test --project=areas --no-deps [file]` (`--no-deps` also skips the `panel-auth` project, so the panel sessions of the last run are used). The admin specs' own `e2e/specs/areas/admin/.qa.config.ts` does the same (`npx playwright test -c e2e/specs/areas/admin/.qa.config.ts …`). Switches: `e2e/support/setup-options.ts` (Vitest `tests/lib/e2e-setup-options.test.ts`).
 - **Mail codes** (customer sign-in, panel 2FA, partner application, password reset) are read from `backend/storage/logs/laravel.log` (`e2e/support/mail.ts`).
@@ -123,6 +124,11 @@ All paths are under `website/e2e/screenshots/`. There are about 500 PNGs (about 
 | E2E-006 (major, backend, after WP11) | The default API limit (600/min per user or IP) answered 164 × 429 in the e2e run, where every request comes from 127.0.0.1. Only an `APP_ENV=local` app now exempts loopback callers; every other environment and address keeps the limit. | `SecurityHardeningTest` "spares loopback callers … only in a local app" |
 | E2E-007 (major, migration) | `/{market}/electronics/accessories_el` and `/smart_home` were 404 in every market. The storefront's category segment is `[a-z0-9-]`, and WP11 kept 17 legacy slugs with underscores. `CatalogStep::categorySlug()` normalises them (`smart-home`; `mens_clothing` → `mens-clothing-legacy`, because a seeded `mens-clothing` holds the slug), the dev DBs were updated by `legacy:migrate catalog` (136 rows renamed in place, a second run changes nothing), and `legacy:redirects` maps the old URLs. | `LegacyMigrationTest` "category slugs become storefront URL segments …", `links.spec.ts` |
 | E2E-008 (major, migration) | Seller "confirms a sub-order" was sent to "Sign the updated Seller Agreement": WP11 imported the legacy global Seller Agreement ("French · v1") as published, so it applied to every store in every country. Legacy template versions are now imported as drafts for admin review (dev data updated by `legacy:migrate contracts`; publishing a draft keeps the migrated signatures of that version), and `E2eSeeder` signs whatever Seller Agreement is in force for the e2e stores. | `LegacyMigrationTest` "legacy contract templates arrive as drafts …", `E2eSeederTest` "signs the Seller Agreement …", `panels.spec.ts` |
+| BR-01 (major, website; big-catalogue re-run) | `/{market}/auth/add-email` answered 404 in every market: the proxy's list of static routes (`lib/missing-routes.ts`) did not have the page. Added; a Vitest case now reads every static `app/[market]/**/page.tsx` so a new page cannot be missed. | `tests/lib/missing-routes.test.ts`, `pages.spec.ts` |
+| BR-02 (minor, website) | The new category page and the search page had no h1 (the results header was an h2). `ResultsHeading` renders it as the page h1 there (h2 when a `category_header` / `brand_header` / `campaign_hero` block gives the page its own h1). | `tests/features/category-page.test.tsx`, `website.spec.ts` WEB-02 |
+| BR-03 (major, e2e fixture) | The vendor area setup kept an AED 80 seller offer (`E2E-VEN-ORD`) on the customer specs' product; the cheapest offer wins the buy box, so CHK-01, WEB-05 and ORD-02 bought it instead of the AED 95 FBN offer. Now priced AED 135 and repriced every run. | `e2e/specs/areas/vendor/support/setup.php` |
+| BR-04 (major, e2e harness) | `E2E_SKIP_SEED=0` skipped seeding (any value counted), so e2e stock, delivered sub-orders and returns ran out. `seedRecords()` treats only a truthy value as "skip"; after seeding, global setup clears the loopback guest-cart limiter (10 new guest carts per hour per IP; local app only). | `tests/lib/e2e-setup-options.test.ts` |
+| BR-05…BR-12 (specs) | Updated to the new pages and data, no check weakened: home title and sections (WEB-01); filter rail applies on tick, price "Go", FBN filter checks every card's `express` badge, sort checked on organic cards only (WEB-03, `flows/shopping`); "Nova X12 Smartphone" suggestion (WEB-04); footer "Terms of use" / "Returns policy" required (WEB-12); PDP coupon chip FIRST15 (CHK-03); checkout waits for the address form; ORD-01 waits for the RT number; ADM-01 66 sidebar links, 240 s; ADM-09 store-name search (60 stores per country); ADM-26 creates its own placed COD SoundMax order (the old ones were used up); ADM-52 checks the void really happened (status Cancelled, balance 0, reason, form gone) after waiting for the card page; SOQ-19 expects "Video 0:0x" (duration read); VEN-36 drops only the retried sign-in 429s; link check 8 parallel requests, 60 min. | the specs named |
 
 Test tooling added:
 - `website`: devDependencies `@playwright/test`, `vitest`, `@testing-library/react`, `@testing-library/dom` (peer of the former) and `jsdom`. Chromium was downloaded with `npx playwright install chromium`; no system packages were needed.
@@ -188,3 +194,20 @@ several sellers (other offers listed), search; no broken images, no console erro
 call. `mega-menu.spec.ts` (16 tests): every top-level category flyout. Results: `e2e/results/big-catalog/*.json`,
 `e2e/results/mega-menu.json`; screenshots: `e2e/docx/shots/big-catalog/`, `e2e/docx/shots/mega-menu/`.
 Backend: `tests/Feature/BigCatalogCommandTest.php` (idempotency on a small size, production refusal).
+
+## Browser-test Word reports (`docx/`)
+
+`docx/00-summary.docx` is the entry point: one row per area report (flows, passed / failed / skipped, file, issues)
+and the Playwright totals per project. All reports come from one full run; rebuild them after a run with:
+
+```bash
+cd website
+for r in customer-profile-and-account website-pages checkout order-lifecycle-and-delivery; do node e2e/docx/customer-report.mjs $r; done
+for r in admin-panel-catalog-and-vendors admin-panel-finance admin-panel-marketing-content-and-souq admin-panel-orders-delivery-and-fulfilment admin-panel-system-countries-staff-and-migration; do node e2e/docx/admin-report.mjs $r && node e2e/docx/build-docx.mjs e2e/docx/reports/$r.json; done
+for r in vendor-panel-catalog-and-orders vendor-panel-finance-fbn-and-settings travel-agency-panel open-souq; do node e2e/docx/refresh-report.mjs $r; done
+node e2e/docx/big-catalog-report.mjs
+node e2e/docx/summary-report.mjs            # → docx/00-summary.docx (fails on a missing screenshot)
+```
+
+`refresh-report.mjs` updates the hand-written report JSONs (vendor, travel, Open Souq) from `e2e/results.json`:
+each flow id (VEN-01, TRV-03, SOQ-19 …) takes the result of the test whose title starts with it.

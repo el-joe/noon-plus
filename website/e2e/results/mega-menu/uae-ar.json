@@ -2,15 +2,15 @@
   "market": "uae-ar",
   "locale": "ar",
   "dir": "rtl",
-  "api_ms": 982,
-  "page_load_ms": 7637,
+  "api_ms": 3366,
+  "page_load_ms": 5448,
   "top_level": 16,
   "opened": 16,
   "categories": [
     {
       "slug": "electronics",
       "name": "إلكترونيات",
-      "open_ms": 238,
+      "open_ms": 219,
       "columns": 8,
       "api_columns": 8,
       "leaves": 33,
@@ -23,7 +23,7 @@
     {
       "slug": "health",
       "name": "الصحة والعافية",
-      "open_ms": 202,
+      "open_ms": 223,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -49,7 +49,7 @@
     {
       "slug": "automotive",
       "name": "السيارات",
-      "open_ms": 201,
+      "open_ms": 187,
       "columns": 3,
       "api_columns": 3,
       "leaves": 5,
@@ -75,7 +75,7 @@
     {
       "slug": "beauty",
       "name": "الجمال والعناية الشخصية",
-      "open_ms": 212,
+      "open_ms": 208,
       "columns": 3,
       "api_columns": 3,
       "leaves": 7,
@@ -88,7 +88,7 @@
     {
       "slug": "fashion",
       "name": "أزياء",
-      "open_ms": 205,
+      "open_ms": 188,
       "columns": 4,
       "api_columns": 4,
       "leaves": 9,
@@ -101,7 +101,7 @@
     {
       "slug": "beauty-fragrances",
       "name": "الجمال والعطور",
-      "open_ms": 185,
+      "open_ms": 208,
       "columns": 3,
       "api_columns": 3,
       "leaves": 9,
@@ -114,7 +114,7 @@
     {
       "slug": "home-kitchen",
       "name": "المنزل والمطبخ",
-      "open_ms": 307,
+      "open_ms": 186,
       "columns": 2,
       "api_columns": 2,
       "leaves": 7,
@@ -127,7 +127,7 @@
     {
       "slug": "home",
       "name": "المنزل",
-      "open_ms": 217,
+      "open_ms": 309,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -140,7 +140,7 @@
     {
       "slug": "grocery",
       "name": "البقالة",
-      "open_ms": 198,
+      "open_ms": 220,
       "columns": 4,
       "api_columns": 4,
       "leaves": 8,
@@ -153,7 +153,7 @@
     {
       "slug": "mens-fashion",
       "name": "أزياء الرجال",
-      "open_ms": 187,
+      "open_ms": 186,
       "columns": 4,
       "api_columns": 4,
       "leaves": 17,
@@ -166,7 +166,7 @@
     {
       "slug": "womens-fashion",
       "name": "أزياء النساء",
-      "open_ms": 202,
+      "open_ms": 186,
       "columns": 3,
       "api_columns": 3,
       "leaves": 11,
@@ -179,7 +179,7 @@
     {
       "slug": "baby-maternity",
       "name": "مستلزمات الأم والبيبي",
-      "open_ms": 318,
+      "open_ms": 322,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -192,7 +192,7 @@
     {
       "slug": "toys",
       "name": "الألعاب",
-      "open_ms": 300,
+      "open_ms": 304,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -205,7 +205,7 @@
     {
       "slug": "kids-fashion",
       "name": "أزياء الأطفال",
-      "open_ms": 201,
+      "open_ms": 199,
       "columns": 3,
       "api_columns": 3,
       "leaves": 6,
@@ -219,7 +219,7 @@
   "level3": {
     "from": "electronics",
     "href": "/uae-ar/electronics/mobiles-smartphones",
-    "ms": 3932,
+    "ms": 2408,
     "products": 128,
     "menu_closed": true,
     "ok": true
@@ -227,7 +227,7 @@
   "brand": {
     "from": "electronics",
     "href": "/uae-ar/electronics?brand=orbit",
-    "ms": 4451,
+    "ms": 2435,
     "products": 189,
     "menu_closed": true,
     "ok": true

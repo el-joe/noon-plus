@@ -2,17 +2,17 @@
   "market": "uae-ar",
   "currency": "AED",
   "api": {
-    "listing": 1412,
-    "facets": 2302,
-    "filtered": 1975,
-    "search": 1134,
-    "home_page": 2087
+    "listing": 3299,
+    "facets": 672,
+    "filtered": 710,
+    "search": 513,
+    "home_page": 1133
   },
   "steps": [
     {
       "page": "home",
       "url": "/uae-ar",
-      "load_ms": 3191,
+      "load_ms": 1630,
       "checks": {
         "products": 77,
         "prices": 91,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/uae-ar/electronics",
-      "load_ms": 5453,
+      "load_ms": 5539,
       "checks": {
         "total": 1166,
         "brands": 8,
         "sellers": 26,
         "first_page": 92,
         "after_scroll": 151,
-        "filter_ms": 2397,
+        "filter_ms": 1909,
         "filtered_total": 159
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/uae-ar/products/orbit-lite-27-monitor-693",
-      "load_ms": 6888,
+      "load_ms": 3825,
       "checks": {
         "sellers": 4,
         "sellers_shown": 4
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/uae-ar/search?q=smart",
-      "load_ms": 1817,
+      "load_ms": 2949,
       "checks": {
         "total": 297,
         "products": 68

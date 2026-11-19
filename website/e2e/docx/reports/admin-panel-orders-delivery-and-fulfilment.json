@@ -2,7 +2,7 @@
   "title": "Admin panel — orders, delivery & fulfilment — browser test report",
   "area": "Admin panel: orders, sub-orders, invoices, refunds, returns, disputes, payments under review, support, warranty, delivery & dispatch, FBN inventory, packaging",
   "date": "2026-11-19",
-  "summary": "Orders were filtered and opened (Oman time), the invoice PDF downloaded, sub-orders moved by state with reason and force-cancelled, a manual refund requested and approved under four-eyes by a second (finance) admin invited through Staff, returns approved/rejected, a dispute thread answered, a payment held under review resolved, a support ticket worked, delivery zones/areas/rates, shipping companies, agent invitations and carrier claims set up, a parcel brought to Packed and assigned on the dispatch board, and the FBN flow run end-to-end: new warehouse, seller inbound plan, arrive, start receiving, receive with damaged units and put-away bin, stock adjustments with audit note, inter-warehouse transfer, removals and pick & pack queues, FBN fees (all 0.00 by owner decision) and packaging supplies. One bug fixed (BT-ADM-002).",
+  "summary": "Orders were filtered and opened (Oman time), the invoice PDF downloaded, sub-orders moved by state with reason and force-cancelled, a manual refund requested and approved under four-eyes by a second (finance) admin invited through Staff, returns approved/rejected, a dispute thread answered, a payment held under review resolved, a support ticket worked, delivery zones/areas/rates, shipping companies, agent invitations and carrier claims set up, a parcel brought to Packed and assigned on the dispatch board, and the FBN flow run end-to-end: new warehouse, seller inbound plan, arrive, start receiving, receive with damaged units and put-away bin, stock adjustments with audit note, inter-warehouse transfer, removals and pick & pack queues, FBN fees (all 0.00 by owner decision) and packaging supplies. One bug fixed (BT-ADM-002). Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; 9 of 9 flows passed, 0 failed, 0 skipped.",
   "environment": [
     "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
     "Storefront http://localhost:3000 (next start) — not used by these flows",
@@ -30,6 +30,14 @@
   ],
   "issues": [
     {
+      "id": "BR-10",
+      "severity": "trivial",
+      "area": "Specs updated",
+      "description": "ADM-26 looked for an old placed SoundMax order in a fixed list of 8 dev orders; earlier runs had packed all of them ('no placed SoundMax order left').",
+      "status": "fixed",
+      "fix": "ADM-26 creates its own placed cash-on-delivery SoundMax order (NW-AE-E2ED…, e2e customer) for each run and packs that one."
+    },
+    {
       "id": "BT-ADM-002",
       "severity": "major",
       "area": "Delivery → Carrier claims",
@@ -55,6 +63,8 @@
     }
   ],
   "notes": [
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
+    "ADM-26 uses a placed COD SoundMax order created for the run (NW-AE-E2ED…); the old orders NW-AE-1000002/3/5/6 are still used by the other flows.",
     "Orders used: NW-AE-1000002/3/5/6 from 15 Nov (old dev data). ADM-21 and ADM-24 change one-time data (cancel order 3, resolve payment 19): their latest run is the one that performed the action.",
     "Pick & pack shows its empty state: no FBN customer order exists in dev (creating one needs a storefront checkout of an FBN listing, covered by the customer suite).",
     "Warranty claims and agent withdrawals were only listed/filtered: no records in dev.",
@@ -72,10 +82,10 @@
       "id": "ADM-20",
       "name": "Orders list, detail and invoice PDF",
       "goal": "Admin filters orders by country/status/date/search, opens an order (Oman time shown) and downloads the invoice PDF.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:53 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:53 UTC",
       "steps": [
         {
           "action": "Open Orders",
@@ -118,10 +128,10 @@
       "id": "ADM-21",
       "name": "Sub-order state change and force-cancel",
       "goal": "Admin moves a sub-order to the next allowed state (reason required) and force-cancels another (reason required).",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 07:48 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 07:48 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Order NW-AE-1000002: change state without reason",
@@ -134,21 +144,21 @@
           "action": "Change state to the next allowed state with a reason",
           "expected": "Timeline shows the new state with actor and Oman time",
           "result": "pass",
-          "note": "moved to confirmed",
+          "note": "moved to completed",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-2.png"
         },
         {
           "action": "Order NW-AE-1000003: force-cancel without a reason",
           "expected": "Refused: reason required",
           "result": "pass",
-          "note": "",
+          "note": "already cancelled in an earlier run",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-3.png"
         },
         {
           "action": "Force-cancel with a reason",
           "expected": "Sub-order Cancelled; force-cancel action gone",
           "result": "pass",
-          "note": "",
+          "note": "already cancelled in an earlier run",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-21-4.png"
         }
       ]
@@ -157,10 +167,10 @@
       "id": "ADM-22",
       "name": "Manual refund (four-eyes)",
       "goal": "Admin A requests a refund on a paid order; A cannot approve own request; finance admin B (invited through Staff) approves it. Refunds list filters.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Order NW-AE-1000006: request refund with no amount/reason",
@@ -194,7 +204,7 @@
           "action": "Invite a Finance staff member and accept the invitation",
           "expected": "Staff member created with role Finance",
           "result": "pass",
-          "note": "qa-fin-9skpzyq-585490@nawy.test",
+          "note": "qa-fin-q7itk7n-348292@nawy.test",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-22-5.png"
         },
         {
@@ -217,10 +227,10 @@
       "id": "ADM-23",
       "name": "Returns",
       "goal": "Admin filters return requests, approves one and rejects one with a reason (reason validated).",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Open Returns, filter Requested",
@@ -270,10 +280,10 @@
       "id": "ADM-24",
       "name": "Disputes, payments under review, support tickets, warranty claims",
       "goal": "Admin reviews the dispute queue and a dispute thread; resolves a payment held under review; works a support ticket (internal note, assign, priority, status); checks warranty claims filters.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 07:48 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 07:48 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Disputes: list and filter Resolved",
@@ -337,10 +347,10 @@
       "id": "ADM-25",
       "name": "Delivery & logistics setup",
       "goal": "Admin creates a shipping zone (validation first), adds an area and a rate, adds a shipping company, invites a delivery agent, files a carrier claim (validation) and opens the scorecard.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:55 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:11 UTC",
+      "run": "2026-11-19 15:55 UTC",
       "steps": [
         {
           "action": "Open Delivery & logistics (zones & rates)",
@@ -357,7 +367,7 @@
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-25-2.png"
         },
         {
-          "action": "Create zone \"QA Zone 9ubj3g1\" (inactive, 50% subsidy)",
+          "action": "Create zone \"QA Zone q7itk7n\" (inactive, 50% subsidy)",
           "expected": "Zone created",
           "result": "pass",
           "note": "",
@@ -404,16 +414,16 @@
       "id": "ADM-26",
       "name": "Dispatch (live board)",
       "goal": "Admin brings an old placed sub-order to Packed, sees it on the dispatch board, assigns an agent, opens assignments and the shipping label; agent withdrawals list.",
-      "preconditions": "Uses the first old SoundMax cash-on-delivery order that is not packed yet (NW-AE-10000xx, 15–18 Nov; unpaid card orders cannot be confirmed). Today's E2E Store parcels are not touched. Last run: 2026-11-19 08:14 UTC.",
+      "preconditions": "Uses a placed cash-on-delivery SoundMax order created for this run (NW-AE-E2ED…, e2e customer, one stocked SoundMax listing): the old placed SoundMax orders were used up by earlier runs. Today's E2E Store parcels are not touched. Last run: 2026-11-19 15:55 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:14 UTC",
+      "run": "2026-11-19 15:55 UTC",
       "steps": [
         {
-          "action": "Pick an old placed SoundMax order and move its sub-order to Packed (state by state, with reasons)",
+          "action": "Create a placed COD SoundMax order for this run, then move its sub-order to Packed (state by state, with reasons)",
           "expected": "Sub-order Packed",
           "result": "pass",
-          "note": "NW-AE-1000002-1 moved to Packed",
+          "note": "NW-AE-E2EDQ61M3X0-1 moved to Packed",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-26-1.png"
         },
         {
@@ -457,10 +467,10 @@
       "id": "ADM-27",
       "name": "Inventory & fulfilment (FBN)",
       "goal": "Admin adds a warehouse, receives a seller's inbound shipment with put-away bins, adjusts stock, requests and moves a transfer, checks removals and pick & pack.",
-      "preconditions": "The inbound plan is created by an own E2E Store seller session into the admin's new QA warehouse. Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "The inbound plan is created by an own E2E Store seller session into the admin's new QA warehouse. Last run: 2026-11-19 15:55 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:55 UTC",
       "steps": [
         {
           "action": "Inventory overview",
@@ -529,7 +539,7 @@
           "action": "Transfers: request 1 unit AE-FC1 → AE-FC2, then act on it",
           "expected": "Transfer created and moved to its next state",
           "result": "pass",
-          "note": "http://admin.nawy.test:8000/inventory/transfers/2/receive",
+          "note": "http://admin.nawy.test:8000/inventory/transfers/6/receive",
           "screenshot": "../shots/admin-panel-orders-delivery-and-fulfilment/adm-27-10.png"
         },
         {
@@ -545,10 +555,10 @@
       "id": "ADM-28",
       "name": "FBN fees and packaging supplies",
       "goal": "FBN fee settings show the owner-decided 0.00 defaults and save; packaging supplies, packaging delivery fee and packaging orders.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:55 UTC.",
       "spec": "e2e/specs/areas/admin/orders-fulfilment.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:55 UTC",
       "steps": [
         {
           "action": "Open FBN fees",

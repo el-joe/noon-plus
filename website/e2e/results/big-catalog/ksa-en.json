@@ -2,17 +2,17 @@
   "market": "ksa-en",
   "currency": "SAR",
   "api": {
-    "listing": 480,
-    "facets": 624,
-    "filtered": 1138,
-    "search": 645,
-    "home_page": 546
+    "listing": 1931,
+    "facets": 2003,
+    "filtered": 1553,
+    "search": 2400,
+    "home_page": 1727
   },
   "steps": [
     {
       "page": "home",
       "url": "/ksa-en",
-      "load_ms": 761,
+      "load_ms": 5967,
       "checks": {
         "products": 78,
         "prices": 91,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/ksa-en/electronics",
-      "load_ms": 1955,
+      "load_ms": 2693,
       "checks": {
         "total": 1165,
         "brands": 8,
         "sellers": 20,
         "first_page": 90,
         "after_scroll": 149,
-        "filter_ms": 1245,
+        "filter_ms": 7214,
         "filtered_total": 166
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/ksa-en/products/orbit-one-27-monitor-515",
-      "load_ms": 1816,
+      "load_ms": 2132,
       "checks": {
         "sellers": 4,
         "sellers_shown": 4
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/ksa-en/search?q=smart",
-      "load_ms": 2001,
+      "load_ms": 1169,
       "checks": {
         "total": 301,
         "products": 68

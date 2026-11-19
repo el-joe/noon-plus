@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GLOBAL_SETUP, globalSetupFor, reuseStoredSession } from "@/e2e/support/setup-options";
+import { GLOBAL_SETUP, globalSetupFor, reuseStoredSession, seedRecords } from "@/e2e/support/setup-options";
 
 /**
  * QA-C07 follow-up: `npx playwright test --project=areas --no-deps` must be
@@ -22,5 +22,13 @@ describe("e2e global setup switches", () => {
     expect(reuseStoredSession({})).toBe(true);
     expect(reuseStoredSession({ E2E_FRESH_LOGIN: "1" })).toBe(false);
     expect(reuseStoredSession({ E2E_FRESH_LOGIN: "off" })).toBe(true);
+  });
+
+  it("seeds unless E2E_SKIP_SEED is truthy: E2E_SKIP_SEED=0 still seeds", () => {
+    expect(seedRecords({})).toBe(true);
+    expect(seedRecords({ E2E_SKIP_SEED: "0" })).toBe(true);
+    expect(seedRecords({ E2E_SKIP_SEED: "false" })).toBe(true);
+    expect(seedRecords({ E2E_SKIP_SEED: "1" })).toBe(false);
+    expect(seedRecords({ E2E_SKIP_SEED: "yes" })).toBe(false);
   });
 });

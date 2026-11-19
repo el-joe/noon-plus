@@ -2,17 +2,17 @@
   "market": "egy-en",
   "currency": "EGP",
   "api": {
-    "listing": 801,
-    "facets": 652,
-    "filtered": 455,
-    "search": 636,
-    "home_page": 1393
+    "listing": 1038,
+    "facets": 847,
+    "filtered": 1273,
+    "search": 1092,
+    "home_page": 1363
   },
   "steps": [
     {
       "page": "home",
       "url": "/egy-en",
-      "load_ms": 4071,
+      "load_ms": 4830,
       "checks": {
         "products": 83,
         "prices": 91,
@@ -27,14 +27,14 @@
     {
       "page": "category",
       "url": "/egy-en/electronics",
-      "load_ms": 1657,
+      "load_ms": 2498,
       "checks": {
         "total": 1162,
         "brands": 8,
         "sellers": 20,
         "first_page": 87,
         "after_scroll": 146,
-        "filter_ms": 2767,
+        "filter_ms": 2025,
         "filtered_total": 170
       },
       "broken_images": 0,
@@ -45,7 +45,7 @@
     {
       "page": "product",
       "url": "/egy-en/products/zentra-go-5g-smartphone-59",
-      "load_ms": 7201,
+      "load_ms": 2184,
       "checks": {
         "sellers": 5,
         "sellers_shown": 5
@@ -58,7 +58,7 @@
     {
       "page": "search",
       "url": "/egy-en/search?q=smart",
-      "load_ms": 1812,
+      "load_ms": 972,
       "checks": {
         "total": 303,
         "products": 68

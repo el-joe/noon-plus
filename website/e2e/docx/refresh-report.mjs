@@ -6,8 +6,8 @@
  *   node e2e/docx/refresh-report.mjs <report> [--results e2e/results.json] [--date 2026-11-19] [--no-build]
  *
  * Every flow id (VEN-01, TRV-03, SOQ-19 …) is matched to the test whose title starts with that id.
- * The flow result becomes the test's last status; a passed flow marks its steps passed (a step that
- * failed in an earlier run keeps its old note, prefixed "Earlier run:"); a failed flow gets a
+ * The flow result becomes the test's last status; a passed flow marks its failed steps passed (their
+ * old note is kept, prefixed "Earlier run:"; skipped steps stay skipped); a failed flow gets a
  * "(test end)" step with the error. Totals are recounted; a flow whose test did not run is an error.
  * Optional meta: e2e/docx/reports/meta/<report>.rerun.json {summary?, issues?: [...], notes?: [...]}
  * replaces the summary and is prepended to issues / notes. Missing screenshots fail the refresh.
@@ -56,7 +56,8 @@ for (const flow of report.flows) {
   flow.steps = flow.steps.filter((s) => s.action !== "(test end)");
   if (flow.result === "pass") {
     for (const s of flow.steps) {
-      if (s.result !== "pass" && s.note && !s.note.startsWith("Earlier run:")) s.note = `Earlier run: ${s.note} — passes in this run.`;
+      if (s.result !== "fail") continue; // a step skipped by design (no data on that path) stays skipped
+      if (s.note && !s.note.startsWith("Earlier run:")) s.note = `Earlier run: ${s.note} — passes in this run.`;
       s.result = "pass";
     }
   } else if (flow.result === "fail") {

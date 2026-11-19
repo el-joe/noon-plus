@@ -2,7 +2,7 @@
   "title": "Admin panel — marketing, content & Open Souq — browser test report",
   "area": "Admin panel: coupons, flash sales, gift cards & vouchers, Nawy One, marketers & campaigns, ads, travel promotions, pages & CMS, classifieds",
   "date": "2026-11-19",
-  "summary": "Coupons (category-scoped percentage, BOGO with validation, edit, toggle, filter) and coupon participation; a flash-sale event created (Oman-time hints, end-before-start refused), moved and cancelled; gift cards issued and voided, vouchers created and voided; Nawy One plans added and the existing plan saved unchanged; marketers suspended/reactivated, a platform campaign created and paused, settings saved, celebrity report regenerated; ads review queues, travel-promotion options and slot, advertise requests, exclusive-contract validation; pages created in the page builder, scheduled; app contexts, live broadcasts, blog, help centre, static pages, footer and notification templates; Open Souq review (reject with reason, approve), abuse reports, category photo limits and contract requirement (changed and restored), travel review queue. One bug fixed (BT-ADM-004), the hidden-error bug BT-ADM-001 found here as well.",
+  "summary": "Coupons (category-scoped percentage, BOGO with validation, edit, toggle, filter) and coupon participation; a flash-sale event created (Oman-time hints, end-before-start refused), moved and cancelled; gift cards issued and voided, vouchers created and voided; Nawy One plans added and the existing plan saved unchanged; marketers suspended/reactivated, a platform campaign created and paused, settings saved, celebrity report regenerated; ads review queues, travel-promotion options and slot, advertise requests, exclusive-contract validation; pages created in the page builder, scheduled; app contexts, live broadcasts, blog, help centre, static pages, footer and notification templates; Open Souq review (reject with reason, approve), abuse reports, category photo limits and contract requirement (changed and restored), travel review queue. One bug fixed (BT-ADM-004), the hidden-error bug BT-ADM-001 found here as well. Re-run of 2026-11-19 after the big development catalogue (5,000 products, about 30,000 offers and 60 sellers per country, new home and category pages, mega menu): the full Playwright suite ran on a fresh production build with E2eSeeder records; 9 of 9 flows passed, 0 failed, 0 skipped.",
   "environment": [
     "Admin panel http://admin.nawy.test:8000 (php artisan serve on :8000, Blade panels; Chromium maps *.nawy.test to 127.0.0.1)",
     "Storefront http://localhost:3000 (next start) — not used by these flows",
@@ -21,6 +21,14 @@
     "e2e/specs/areas/admin/marketing-content-souq.spec.ts"
   ],
   "issues": [
+    {
+      "id": "BR-09",
+      "severity": "trivial",
+      "area": "Specs updated",
+      "description": "ADM-52 'void the gift card' passed only because the text 'Void' was on the page (the Void form itself); it opened the card and read its form before the card page had loaded, so the reason was skipped and nothing was voided.",
+      "status": "fixed",
+      "fix": "ADM-52 waits for the card page, fills the reason, and checks 'Gift card voided.', status Cancelled, balance AED 0.00, the reason in the history and that the Void form is gone."
+    },
     {
       "id": "BT-ADM-004",
       "severity": "major",
@@ -55,6 +63,7 @@
     }
   ],
   "notes": [
+    "Re-run of 2026-11-19: results, steps and screenshots are from the full Playwright run after the big catalogue (servers on a fresh production build). Issues BR-xx were found and fixed in this run; older issues are kept for reference.",
     "Travel packages: nothing was waiting for review in dev, and packages of the E2E travel agency are reserved for the travel suite, so approve/reject was not exercised here.",
     "Ads review queues (sponsored campaigns, slot bookings, bank-transfer packages) were empty in dev.",
     "Celebrity monthly report 2026-10: no influencer earnings in dev, so no report row/PDF exists to open.",
@@ -73,10 +82,10 @@
       "id": "ADM-50",
       "name": "Coupons (incl. BOGO and scopes)",
       "goal": "Admin creates a category-scoped percentage coupon and a BOGO coupon (validation first), edits one, switches it off/on and filters the list.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:52 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:52 UTC",
       "steps": [
         {
           "action": "Open New coupon and submit empty",
@@ -86,28 +95,28 @@
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-50-1.png"
         },
         {
-          "action": "Create QAPCT9T3ROHX: 15% off, max AED 50, platform-funded, scoped to one category, new customers, 100 uses",
+          "action": "Create QAPCTQ6B2JPS: 15% off, max AED 50, platform-funded, scoped to one category, new customers, 100 uses",
           "expected": "Coupon created and shown",
           "result": "pass",
           "note": "",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-50-2.png"
         },
         {
-          "action": "Create BOGO QABOGO9T3ROHX with get quantity missing",
+          "action": "Create BOGO QABOGOQ6B2JPS with get quantity missing",
           "expected": "Refused: buy/get quantities required for BOGO",
           "result": "pass",
           "note": "",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-50-3.png"
         },
         {
-          "action": "Create BOGO QABOGO9T3ROHX: buy 2 get 1, vendor-scoped (E2E Store), vendor-funded",
+          "action": "Create BOGO QABOGOQ6B2JPS: buy 2 get 1, vendor-scoped (E2E Store), vendor-funded",
           "expected": "Coupon created",
           "result": "pass",
           "note": "",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-50-4.png"
         },
         {
-          "action": "Open QAPCT9T3ROHX, edit the usage limit to 50",
+          "action": "Open QAPCTQ6B2JPS, edit the usage limit to 50",
           "expected": "Saved",
           "result": "pass",
           "note": "",
@@ -140,10 +149,10 @@
       "id": "ADM-51",
       "name": "Flash sales",
       "goal": "Admin creates a flash-sale event (validation, Oman-time hints), opens it, invites marketers and moves it through its states; existing live events are not touched.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:52 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:52 UTC",
       "steps": [
         {
           "action": "Open Flash sales; create empty",
@@ -160,7 +169,7 @@
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-51-2.png"
         },
         {
-          "action": "Create draft \"QA Flash 9t3rsbp\" (submissions now→+24h, sale +48h→+72h, max 2 per customer)",
+          "action": "Create draft \"QA Flash q7itk7n\" (submissions now→+24h, sale +48h→+72h, max 2 per customer)",
           "expected": "Draft event created",
           "result": "pass",
           "note": "",
@@ -200,10 +209,10 @@
       "id": "ADM-52",
       "name": "Gift cards & vouchers",
       "goal": "Admin issues a gift card (validation first), opens and voids it; creates a voucher, opens and voids it.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:52 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:52 UTC",
       "steps": [
         {
           "action": "Issue gift card empty",
@@ -221,7 +230,7 @@
         },
         {
           "action": "Open the card and void it",
-          "expected": "Status Voided",
+          "expected": "'Gift card voided.'; status Cancelled, balance AED 0.00, history row active → Cancelled with the reason; no Void form left",
           "result": "pass",
           "note": "",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-52-3.png"
@@ -246,10 +255,10 @@
       "id": "ADM-53",
       "name": "Nawy One (membership)",
       "goal": "Admin adds a membership plan (validation first), edits the existing plan without changes (round-trip of a stored price) and filters members.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:52 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:52 UTC",
       "steps": [
         {
           "action": "Open Nawy One",
@@ -266,7 +275,7 @@
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-53-2.png"
         },
         {
-          "action": "Add annual plan QA-ONE-9t3rsf9 (AED 199, 7 trial days, free delivery, closed to new members)",
+          "action": "Add annual plan QA-ONE-q7itk7n (AED 199, 7 trial days, free delivery, closed to new members)",
           "expected": "Plan listed",
           "result": "pass",
           "note": "",
@@ -292,10 +301,10 @@
       "id": "ADM-54",
       "name": "Marketers & creators",
       "goal": "Admin filters marketers, suspends and reactivates one, creates a marketer campaign and invites influencers, saves marketer settings, regenerates and opens the celebrity monthly report PDF, sees cross-promotion and withdrawals.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:53 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:53 UTC",
       "steps": [
         {
           "action": "Marketers: filter Active and search 'Yasmin'",
@@ -352,10 +361,10 @@
       "id": "ADM-55",
       "name": "Ads review, travel promotions, advertise requests, real estate",
       "goal": "Admin reviews the ads queues, configures travel-promotion slot and options (validation first), moves an advertise request, and checks the exclusive-contract form validation.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:11 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:53 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:11 UTC",
+      "run": "2026-11-19 15:53 UTC",
       "steps": [
         {
           "action": "Ads review",
@@ -368,7 +377,7 @@
           "action": "Approve the first waiting ad item (if any)",
           "expected": "Decision saved",
           "result": "pass",
-          "note": "nothing waiting in dev data",
+          "note": "",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-55-2.png"
         },
         {
@@ -389,7 +398,7 @@
           "action": "Advertise requests: move the open request to its next status (Contacted / Converted)",
           "expected": "Status saved",
           "result": "pass",
-          "note": "moved with \"Converted\"",
+          "note": "no open request",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-55-5.png"
         },
         {
@@ -405,10 +414,10 @@
       "id": "ADM-56",
       "name": "Pages & page builder",
       "goal": "Admin creates a campaign page draft, saves a revision in the builder, schedules and archives it; saves an app context; creates a live broadcast.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:53 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:53 UTC",
       "steps": [
         {
           "action": "Pages: create draft empty",
@@ -418,7 +427,7 @@
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-56-1.png"
         },
         {
-          "action": "Create campaign page draft /qa-page-9t3rohx",
+          "action": "Create campaign page draft /qa-page-q7itk7n",
           "expected": "Builder opens for the new page",
           "result": "pass",
           "note": "",
@@ -458,10 +467,10 @@
       "id": "ADM-57",
       "name": "Blog, help centre, static pages, footer, templates",
       "goal": "Admin adds a blog category and a draft post (validation first) and archives it; adds a help collection and article; saves a static page, the footer and a notification template.",
-      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 08:10 UTC.",
+      "preconditions": "Signed in as the e2e super admin (e2e-admin@nawy.test) in its own session (password + emailed two-step code). Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:10 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Blog: add post empty",
@@ -518,10 +527,10 @@
       "id": "ADM-58",
       "name": "Classifieds (Open Souq) and travel review",
       "goal": "Admin approves one pending classified ad and rejects another (reason required), checks abuse reports, changes a category's photo limits and contract requirement (and restores them), and opens the travel review queue.",
-      "preconditions": "Uses only the two older pending QA ads (CL-AE-0000005/7; E2E ads of the Open Souq suite are left alone) and the parent category 'Mobiles & electronics'; settings are restored at the end. Last run: 2026-11-19 08:03 UTC.",
+      "preconditions": "Uses only the two older pending QA ads (CL-AE-0000005/7; E2E ads of the Open Souq suite are left alone) and the parent category 'Mobiles & electronics'; settings are restored at the end. Last run: 2026-11-19 15:54 UTC.",
       "spec": "e2e/specs/areas/admin/marketing-content-souq.spec.ts",
       "result": "pass",
-      "run": "2026-11-19 08:03 UTC",
+      "run": "2026-11-19 15:54 UTC",
       "steps": [
         {
           "action": "Classifieds review queue",
@@ -534,21 +543,21 @@
           "action": "Reject CL-AE-0000005 with an empty reason (browser check bypassed)",
           "expected": "Refused; the reason error is shown",
           "result": "pass",
-          "note": "",
+          "note": "already decided in an earlier run",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-58-2.png"
         },
         {
           "action": "Reject CL-AE-0000005 with a reason",
           "expected": "Ad leaves the queue",
           "result": "pass",
-          "note": "",
+          "note": "already decided in an earlier run",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-58-3.png"
         },
         {
           "action": "Approve CL-AE-0000007",
           "expected": "Ad leaves the queue (now public)",
           "result": "pass",
-          "note": "",
+          "note": "already decided in an earlier run",
           "screenshot": "../shots/admin-panel-marketing-content-and-souq/adm-58-4.png"
         },
         {
