@@ -24,11 +24,11 @@ test("browse, filter, buy as a guest, merge on sign-in, pay, cancel", async ({ p
   await expect(page).toHaveURL(/\/uae-en\/electronics/);
   await settle(page);
 
-  // PLP filter: "Shipped by seller" (fulfilment facet), applied with the filter form.
-  const filters = page.locator("form").filter({ has: page.getByRole("button", { name: "Apply" }) }).first();
-  await filters.getByLabel(/Shipped by seller/).first().check();
-  await filters.getByRole("button", { name: "Apply" }).click();
-  await expect(page).toHaveURL(/fulfil/);
+  // PLP filter: marketplace sellers (fulfilment facet "fbm", label "global · Shipped by marketplace sellers").
+  // A checkbox in the filter rail applies at once (FilterForm); only the price inputs keep an Apply button.
+  const filters = page.locator("form").filter({ has: page.locator('input[name="fulfilment"]') }).first();
+  await filters.getByLabel(/Shipped by marketplace sellers/).first().check();
+  await expect(page).toHaveURL(/fulfilment=fbm/);
   await settle(page);
   await shoot(page, "flows", "shop-01-plp-filtered");
 

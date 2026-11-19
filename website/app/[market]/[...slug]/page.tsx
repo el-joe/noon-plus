@@ -128,7 +128,7 @@ async function CategoryContent({ params, searchParams }: Pick<PageProps<"/[marke
       <div className="flex flex-col gap-4">
         {breadcrumb}
         {listingBlock || detail ? (
-          <ProductListing market={market} query={listingQuery} basePath={basePath} category={category ?? null} tree={tree} lead={lead} after={after} heading={heading} subcategories={subcategoryChips} />
+          <ProductListing market={market} query={listingQuery} basePath={basePath} category={category ?? null} tree={tree} lead={lead} after={after} heading={heading} headingLevel={hasOwnH1(zones) ? "h2" : "h1"} subcategories={subcategoryChips} />
         ) : (
           <div className="flex flex-col gap-6">
             {lead}
@@ -150,7 +150,13 @@ async function CategoryContent({ params, searchParams }: Pick<PageProps<"/[marke
   return (
     <div className="flex flex-col gap-4">
       {breadcrumb}
-      <ProductListing market={market} query={query} basePath={basePath} category={detail!.slug} tree={tree} lead={lead} heading={heading} subcategories={subcategoryChips} />
+      <ProductListing market={market} query={query} basePath={basePath} category={detail!.slug} tree={tree} lead={lead} heading={heading} headingLevel="h1" subcategories={subcategoryChips} />
     </div>
   );
+}
+
+/** Header blocks that render the page's own h1 (category_header, brand_header, campaign_hero). */
+const H1_BLOCKS = new Set(["category_header", "brand_header", "campaign_hero"]);
+function hasOwnH1(zones: Record<string, Block[] | undefined>): boolean {
+  return Object.values(zones).some((blocks) => (blocks ?? []).some((b) => H1_BLOCKS.has(b.type)));
 }

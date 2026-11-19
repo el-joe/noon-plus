@@ -183,13 +183,18 @@ test("ADM-52 gift cards and vouchers", async ({ page }) => {
     await open(page, `/gift-cards?q=qa-gc-${RUN}`);
     await expect(main(page)).toContainText(`qa-gc-${RUN}`);
   });
-  await f.step("Open the card and void it", "Status Voided", async () => {
+  await f.step("Open the card and void it", "'Gift card voided.'; status Cancelled, balance AED 0.00, history row active → Cancelled with the reason; no Void form left", async () => {
     await main(page).locator('a[href*="/gift-cards/"]').filter({ hasNotText: /voucher/i }).first().click();
+    // Wait for the card page before reading its form (the list page has no void form, so the reason was skipped).
+    await expect(page).toHaveURL(/\/gift-cards\/\d+$/);
     const fm = form(page, "/void");
-    const r = fm.locator("textarea, input:not([type=hidden])");
-    if (await r.count()) await r.first().fill(`QA ${RUN}`);
+    await fm.locator("textarea, input:not([type=hidden])").first().fill(`QA ${RUN}`);
     await submit(fm);
-    await expect(main(page)).toContainText(/Void/);
+    await expect(main(page)).toContainText("Gift card voided.");
+    await expect(main(page)).toContainText(/Status\s*Cancelled/);
+    await expect(main(page)).toContainText(/Balance\s*AED 0\.00/);
+    await expect(main(page)).toContainText(`QA ${RUN}`);
+    await expect(form(page, "/void")).toHaveCount(0);
   }, { fullPage: true });
   const code = `QAV${RUN}`.toUpperCase().slice(0, 14);
   await f.step("Vouchers: create empty, then a 20 AED voucher (10 redemptions, credit expiry 30 days)", "Validation, then voucher created", async () => {

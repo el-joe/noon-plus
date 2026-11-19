@@ -47,12 +47,17 @@ $out = app(CountryContext::class)->runAs($uae, function () use ($uae, $run, $sel
     $store = Vendor::query()->where('slug', 'e2e-store')->sole();
     $product = Product::query()->where('status', 'active')->orderBy('id')->firstOrFail();
 
-    // The order listing: its own e2e variant, active, kept stocked.
+    // The order listing: its own e2e variant, active, kept stocked. It shares the product with the
+    // customer specs, so it is priced above their offers (FBN AED 95, seller-fulfilled AED 120): the
+    // lowest price wins the buy box, and an AED 80 offer took the product page and cart away from them.
     $variant = ProductVariant::query()->firstOrCreate(['sku' => 'E2E-VEN-ORD'], ['product_id' => $product->id, 'weight_grams' => 300]);
     $listing = Listing::query()->firstOrCreate(
         ['vendor_id' => $store->id, 'product_variant_id' => $variant->id, 'condition' => 'new'],
-        ['price' => '80.0000', 'fulfilment' => 'fbm', 'handling_days' => 1],
+        ['price' => '135.0000', 'fulfilment' => 'fbm', 'handling_days' => 1],
     );
+    if ((float) $listing->price < 135 || $listing->sale_price !== null) {
+        $listing->forceFill(['price' => '135.0000', 'sale_price' => null])->save();
+    }
     if ($listing->status !== ListingStatus::Active) {
         $from = $listing->status;
         $listing->forceFill(['status' => ListingStatus::Active])->save();

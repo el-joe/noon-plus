@@ -1,0 +1,72 @@
+{
+  "market": "kwt-ar",
+  "currency": "KWD",
+  "api": {
+    "listing": 775,
+    "facets": 774,
+    "filtered": 1306,
+    "search": 553,
+    "home_page": 880
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/kwt-ar",
+      "load_ms": 2586,
+      "checks": {
+        "products": 75,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/kwt-ar/electronics",
+      "load_ms": 3195,
+      "checks": {
+        "total": 1160,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 87,
+        "after_scroll": 146,
+        "filter_ms": 2134,
+        "filtered_total": 172
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/kwt-ar/products/soundmax-s9-handheld-console-626",
+      "load_ms": 1731,
+      "checks": {
+        "sellers": 3,
+        "sellers_shown": 3
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/kwt-ar/search?q=smart",
+      "load_ms": 1332,
+      "checks": {
+        "total": 303,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-ar-search.png",
+      "ok": true
+    }
+  ]
+}

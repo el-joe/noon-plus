@@ -1,0 +1,1157 @@
+{
+  "generated_at": "2026-11-19T15:16:01.323Z",
+  "markets": [
+    {
+      "market": "bhr-ar",
+      "currency": "BHD",
+      "api": {
+        "listing": 3061,
+        "facets": 2627,
+        "filtered": 592,
+        "search": 1286,
+        "home_page": 366
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/bhr-ar",
+          "load_ms": 1411,
+          "checks": {
+            "products": 79,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/bhr-ar/electronics",
+          "load_ms": 5262,
+          "checks": {
+            "total": 1158,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 147,
+            "filter_ms": 1406,
+            "filtered_total": 163
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/bhr-ar/products/pulse-ultra-qhd-monitor-521",
+          "load_ms": 1906,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/bhr-ar/search?q=smart",
+          "load_ms": 1245,
+          "checks": {
+            "total": 300,
+            "products": 67
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "bhr-en",
+      "currency": "BHD",
+      "api": {
+        "listing": 1859,
+        "facets": 462,
+        "filtered": 531,
+        "search": 731,
+        "home_page": 396
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/bhr-en",
+          "load_ms": 1598,
+          "checks": {
+            "products": 79,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/bhr-en/electronics",
+          "load_ms": 1572,
+          "checks": {
+            "total": 1158,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 147,
+            "filter_ms": 2964,
+            "filtered_total": 163
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/bhr-en/products/orbit-pro-5-streaming-stick-889",
+          "load_ms": 5220,
+          "checks": {
+            "sellers": 6,
+            "sellers_shown": 6
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/bhr-en/search?q=smart",
+          "load_ms": 1715,
+          "checks": {
+            "total": 300,
+            "products": 67
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/bhr-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "egy-ar",
+      "currency": "EGP",
+      "api": {
+        "listing": 704,
+        "facets": 709,
+        "filtered": 883,
+        "search": 387,
+        "home_page": 543
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/egy-ar",
+          "load_ms": 1134,
+          "checks": {
+            "products": 83,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/egy-ar/electronics",
+          "load_ms": 2619,
+          "checks": {
+            "total": 1162,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 87,
+            "after_scroll": 146,
+            "filter_ms": 4896,
+            "filtered_total": 170
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/egy-ar/products/zentra-neo-smart-hub-1069",
+          "load_ms": 1464,
+          "checks": {
+            "sellers": 5,
+            "sellers_shown": 5
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/egy-ar/search?q=smart",
+          "load_ms": 2485,
+          "checks": {
+            "total": 303,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "egy-en",
+      "currency": "EGP",
+      "api": {
+        "listing": 801,
+        "facets": 652,
+        "filtered": 455,
+        "search": 636,
+        "home_page": 1393
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/egy-en",
+          "load_ms": 4071,
+          "checks": {
+            "products": 83,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/egy-en/electronics",
+          "load_ms": 1657,
+          "checks": {
+            "total": 1162,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 87,
+            "after_scroll": 146,
+            "filter_ms": 2767,
+            "filtered_total": 170
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/egy-en/products/zentra-go-5g-smartphone-59",
+          "load_ms": 7201,
+          "checks": {
+            "sellers": 5,
+            "sellers_shown": 5
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/egy-en/search?q=smart",
+          "load_ms": 1812,
+          "checks": {
+            "total": 303,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/egy-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "jor-ar",
+      "currency": "JOD",
+      "api": {
+        "listing": 960,
+        "facets": 849,
+        "filtered": 600,
+        "search": 958,
+        "home_page": 512
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/jor-ar",
+          "load_ms": 1337,
+          "checks": {
+            "products": 82,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/jor-ar/electronics",
+          "load_ms": 1373,
+          "checks": {
+            "total": 1161,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 148,
+            "filter_ms": 3843,
+            "filtered_total": 168
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/jor-ar/products/orbit-one-3-smart-bulb-1162",
+          "load_ms": 1261,
+          "checks": {
+            "sellers": 3,
+            "sellers_shown": 3
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/jor-ar/search?q=smart",
+          "load_ms": 1434,
+          "checks": {
+            "total": 296,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "jor-en",
+      "currency": "JOD",
+      "api": {
+        "listing": 1672,
+        "facets": 1447,
+        "filtered": 969,
+        "search": 493,
+        "home_page": 388
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/jor-en",
+          "load_ms": 1154,
+          "checks": {
+            "products": 82,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/jor-en/electronics",
+          "load_ms": 2514,
+          "checks": {
+            "total": 1161,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 148,
+            "filter_ms": 3481,
+            "filtered_total": 168
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/jor-en/products/kairo-prime-65-smart-tv-770",
+          "load_ms": 4496,
+          "checks": {
+            "sellers": 6,
+            "sellers_shown": 6
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/jor-en/search?q=smart",
+          "load_ms": 956,
+          "checks": {
+            "total": 296,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/jor-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "ksa-ar",
+      "currency": "SAR",
+      "api": {
+        "listing": 2037,
+        "facets": 1422,
+        "filtered": 1688,
+        "search": 2038,
+        "home_page": 2308
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/ksa-ar",
+          "load_ms": 6633,
+          "checks": {
+            "products": 78,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/ksa-ar/electronics",
+          "load_ms": 2170,
+          "checks": {
+            "total": 1165,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 90,
+            "after_scroll": 149,
+            "filter_ms": 4978,
+            "filtered_total": 166
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/ksa-ar/products/pulse-go-laptop-479",
+          "load_ms": 4278,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/ksa-ar/search?q=smart",
+          "load_ms": 2489,
+          "checks": {
+            "total": 301,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "ksa-en",
+      "currency": "SAR",
+      "api": {
+        "listing": 480,
+        "facets": 624,
+        "filtered": 1138,
+        "search": 645,
+        "home_page": 546
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/ksa-en",
+          "load_ms": 761,
+          "checks": {
+            "products": 78,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/ksa-en/electronics",
+          "load_ms": 1955,
+          "checks": {
+            "total": 1165,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 90,
+            "after_scroll": 149,
+            "filter_ms": 1245,
+            "filtered_total": 166
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/ksa-en/products/orbit-one-27-monitor-515",
+          "load_ms": 1816,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/ksa-en/search?q=smart",
+          "load_ms": 2001,
+          "checks": {
+            "total": 301,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/ksa-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "kwt-ar",
+      "currency": "KWD",
+      "api": {
+        "listing": 775,
+        "facets": 774,
+        "filtered": 1306,
+        "search": 553,
+        "home_page": 880
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/kwt-ar",
+          "load_ms": 2586,
+          "checks": {
+            "products": 75,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/kwt-ar/electronics",
+          "load_ms": 3195,
+          "checks": {
+            "total": 1160,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 87,
+            "after_scroll": 146,
+            "filter_ms": 2134,
+            "filtered_total": 172
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/kwt-ar/products/soundmax-s9-handheld-console-626",
+          "load_ms": 1731,
+          "checks": {
+            "sellers": 3,
+            "sellers_shown": 3
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/kwt-ar/search?q=smart",
+          "load_ms": 1332,
+          "checks": {
+            "total": 303,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "kwt-en",
+      "currency": "KWD",
+      "api": {
+        "listing": 720,
+        "facets": 1099,
+        "filtered": 1770,
+        "search": 1728,
+        "home_page": 1349
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/kwt-en",
+          "load_ms": 4339,
+          "checks": {
+            "products": 75,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/kwt-en/electronics",
+          "load_ms": 4162,
+          "checks": {
+            "total": 1160,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 87,
+            "after_scroll": 146,
+            "filter_ms": 4712,
+            "filtered_total": 172
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/kwt-en/products/voltix-elite-65w-fast-charger-130",
+          "load_ms": 4325,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/kwt-en/search?q=smart",
+          "load_ms": 2604,
+          "checks": {
+            "total": 303,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/kwt-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "omn-ar",
+      "currency": "OMR",
+      "api": {
+        "listing": 1667,
+        "facets": 1233,
+        "filtered": 719,
+        "search": 626,
+        "home_page": 750
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/omn-ar",
+          "load_ms": 1537,
+          "checks": {
+            "products": 78,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/omn-ar/electronics",
+          "load_ms": 2097,
+          "checks": {
+            "total": 1162,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 88,
+            "after_scroll": 147,
+            "filter_ms": 1707,
+            "filtered_total": 156
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/omn-ar/products/nova-max-soundbar-51-855",
+          "load_ms": 6754,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/omn-ar/search?q=smart",
+          "load_ms": 1167,
+          "checks": {
+            "total": 298,
+            "products": 67
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "omn-en",
+      "currency": "OMR",
+      "api": {
+        "listing": 1331,
+        "facets": 635,
+        "filtered": 973,
+        "search": 848,
+        "home_page": 636
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/omn-en",
+          "load_ms": 1384,
+          "checks": {
+            "products": 78,
+            "prices": 95,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/omn-en/electronics",
+          "load_ms": 3713,
+          "checks": {
+            "total": 1162,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 88,
+            "after_scroll": 147,
+            "filter_ms": 1384,
+            "filtered_total": 156
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/omn-en/products/nova-x12-65w-fast-charger-133",
+          "load_ms": 4238,
+          "checks": {
+            "sellers": 3,
+            "sellers_shown": 3
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/omn-en/search?q=smart",
+          "load_ms": 2828,
+          "checks": {
+            "total": 298,
+            "products": 67
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/omn-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "qat-ar",
+      "currency": "QAR",
+      "api": {
+        "listing": 1973,
+        "facets": 617,
+        "filtered": 1156,
+        "search": 562,
+        "home_page": 1707
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/qat-ar",
+          "load_ms": 2749,
+          "checks": {
+            "products": 77,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/qat-ar/electronics",
+          "load_ms": 1812,
+          "checks": {
+            "total": 1161,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 148,
+            "filter_ms": 1407,
+            "filtered_total": 164
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/qat-ar/products/lumen-s9-mirrorless-camera-1002",
+          "load_ms": 1860,
+          "checks": {
+            "sellers": 6,
+            "sellers_shown": 6
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/qat-ar/search?q=smart",
+          "load_ms": 974,
+          "checks": {
+            "total": 301,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "qat-en",
+      "currency": "QAR",
+      "api": {
+        "listing": 2040,
+        "facets": 1120,
+        "filtered": 2583,
+        "search": 1839,
+        "home_page": 1233
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/qat-en",
+          "load_ms": 3374,
+          "checks": {
+            "products": 77,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/qat-en/electronics",
+          "load_ms": 1816,
+          "checks": {
+            "total": 1161,
+            "brands": 8,
+            "sellers": 20,
+            "first_page": 89,
+            "after_scroll": 148,
+            "filter_ms": 1559,
+            "filtered_total": 164
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/qat-en/products/orbit-flex-soundbar-51-870",
+          "load_ms": 1216,
+          "checks": {
+            "sellers": 6,
+            "sellers_shown": 6
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/qat-en/search?q=smart",
+          "load_ms": 1596,
+          "checks": {
+            "total": 301,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/qat-en-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "uae-ar",
+      "currency": "AED",
+      "api": {
+        "listing": 1412,
+        "facets": 2302,
+        "filtered": 1975,
+        "search": 1134,
+        "home_page": 2087
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/uae-ar",
+          "load_ms": 3191,
+          "checks": {
+            "products": 77,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-ar-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/uae-ar/electronics",
+          "load_ms": 5453,
+          "checks": {
+            "total": 1166,
+            "brands": 8,
+            "sellers": 26,
+            "first_page": 92,
+            "after_scroll": 151,
+            "filter_ms": 2397,
+            "filtered_total": 159
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-ar-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/uae-ar/products/orbit-lite-27-monitor-693",
+          "load_ms": 6888,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-ar-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/uae-ar/search?q=smart",
+          "load_ms": 1817,
+          "checks": {
+            "total": 297,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-ar-search.png",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "market": "uae-en",
+      "currency": "AED",
+      "api": {
+        "listing": 2652,
+        "facets": 424,
+        "filtered": 695,
+        "search": 572,
+        "home_page": 444
+      },
+      "steps": [
+        {
+          "page": "home",
+          "url": "/uae-en",
+          "load_ms": 1443,
+          "checks": {
+            "products": 77,
+            "prices": 91,
+            "sections": 20,
+            "countdown": true
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-en-home.png",
+          "ok": true
+        },
+        {
+          "page": "category",
+          "url": "/uae-en/electronics",
+          "load_ms": 1642,
+          "checks": {
+            "total": 1166,
+            "brands": 8,
+            "sellers": 26,
+            "first_page": 92,
+            "after_scroll": 151,
+            "filter_ms": 1408,
+            "filtered_total": 159
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-en-category.png",
+          "ok": true
+        },
+        {
+          "page": "product",
+          "url": "/uae-en/products/soundmax-go-5g-smartphone-4",
+          "load_ms": 1361,
+          "checks": {
+            "sellers": 4,
+            "sellers_shown": 4
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-en-product.png",
+          "ok": true
+        },
+        {
+          "page": "search",
+          "url": "/uae-en/search?q=smart",
+          "load_ms": 1456,
+          "checks": {
+            "total": 297,
+            "products": 68
+          },
+          "broken_images": 0,
+          "console_errors": 0,
+          "screenshot": "docx/shots/big-catalog/uae-en-search.png",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

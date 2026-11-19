@@ -1,0 +1,72 @@
+{
+  "market": "kwt-en",
+  "currency": "KWD",
+  "api": {
+    "listing": 720,
+    "facets": 1099,
+    "filtered": 1770,
+    "search": 1728,
+    "home_page": 1349
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/kwt-en",
+      "load_ms": 4339,
+      "checks": {
+        "products": 75,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/kwt-en/electronics",
+      "load_ms": 4162,
+      "checks": {
+        "total": 1160,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 87,
+        "after_scroll": 146,
+        "filter_ms": 4712,
+        "filtered_total": 172
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/kwt-en/products/voltix-elite-65w-fast-charger-130",
+      "load_ms": 4325,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/kwt-en/search?q=smart",
+      "load_ms": 2604,
+      "checks": {
+        "total": 303,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/kwt-en-search.png",
+      "ok": true
+    }
+  ]
+}

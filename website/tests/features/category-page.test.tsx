@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { categoryTreeWithCounts, listingFilters, priceBands, resultCount } from "@/features/listing/product-listing";
+import { categoryTreeWithCounts, listingFilters, priceBands, ResultsHeading, resultCount } from "@/features/listing/product-listing";
 import { SponsoredBrandRow, offerCaption, shortMoney } from "@/features/page-builder/blocks/category-promos";
 import { SubcategoryTiles } from "@/features/page-builder/blocks/category";
 import { PageZone } from "@/features/page-builder/render";
@@ -22,6 +22,15 @@ const ctx = (slug = "uae-en"): BlockContext => ({ market: market(slug), categori
 const zone = (blocks: Block[], slug = "uae-en") => renderWithProviders(<PageZone blocks={blocks} ctx={ctx(slug)} />, { market: slug });
 
 describe("category page helpers", () => {
+  it("renders the results header as the page h1 on category and search pages, h2 under a page with its own h1", () => {
+    const { unmount } = renderWithProviders(<ResultsHeading as="h1" market={market("uae-en")} subject="Electronics in United Arab Emirates" total={12_345} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("12K+ Results for “Electronics in United Arab Emirates”");
+    unmount();
+    renderWithProviders(<ResultsHeading market={market("uae-en")} subject={null} total={3} />);
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain("3");
+  });
+
   it("rounds big result counts like the design (100K+) and keeps small ones exact", () => {
     expect(resultCount(1234, "en")).toBe("1,234");
     expect(resultCount(12_345, "en")).toBe("12K+");

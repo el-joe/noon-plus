@@ -1,0 +1,72 @@
+{
+  "market": "uae-en",
+  "currency": "AED",
+  "api": {
+    "listing": 2652,
+    "facets": 424,
+    "filtered": 695,
+    "search": 572,
+    "home_page": 444
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/uae-en",
+      "load_ms": 1443,
+      "checks": {
+        "products": 77,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/uae-en/electronics",
+      "load_ms": 1642,
+      "checks": {
+        "total": 1166,
+        "brands": 8,
+        "sellers": 26,
+        "first_page": 92,
+        "after_scroll": 151,
+        "filter_ms": 1408,
+        "filtered_total": 159
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/uae-en/products/soundmax-go-5g-smartphone-4",
+      "load_ms": 1361,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/uae-en/search?q=smart",
+      "load_ms": 1456,
+      "checks": {
+        "total": 297,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-en-search.png",
+      "ok": true
+    }
+  ]
+}

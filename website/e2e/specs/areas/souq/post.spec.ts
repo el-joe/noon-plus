@@ -263,7 +263,8 @@ test("SOQ-19 video on an ad (WebM recorded in the browser)", async ({ page, prob
     return Array.from(buf);
   });
   await page.locator('main input[type="file"][accept^="video"]').setInputFiles({ name: "walkaround.webm", mimeType: "video/webm", buffer: Buffer.from(video) });
-  await expect(page.locator("main").getByText("Video", { exact: true })).toBeVisible({ timeout: 30_000 });
+  // Uploaded: the wizard shows the video with the duration it read ("Video 0:02") and a Remove button.
+  await expect(page.locator("main").getByText(/^Video\s*0:0[1-3]$/)).toBeVisible({ timeout: 30_000 });
   await shot(page, "SOQ-19", 1);
   expectClean(problems);
 });

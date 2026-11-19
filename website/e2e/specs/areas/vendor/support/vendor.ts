@@ -243,6 +243,14 @@ export async function fetchIn(page: Page, url: string) {
  * while the panel CSP allows `img-src 'self' https:`; on the https production
  * hosts they load. Those console lines are dropped (noted in the report).
  */
+/**
+ * The 429s of the shared per-IP sign-in limits (`login`, `two-factor`: throttle 6/min, every e2e browser
+ * is 127.0.0.1) that `panelSignIn` waited out and retried. Only those two panel URLs, only status 429.
+ */
+export function dropRetriedSignIn429(problems: { console: string[] }) {
+  problems.console = problems.console.filter((m) => !/^http:\/\/[a-z]+\.nawy\.test:8000\/(login|two-factor) :: Failed to load resource: the server responded with a status of 429 /.test(m));
+}
+
 export function dropDevImageCsp(problems: { console: string[] }) {
   problems.console = problems.console.filter((m) => !/Loading the image 'http:\/\/localhost:8000\/storage\/.*Content Security Policy/.test(m));
 }

@@ -1,0 +1,72 @@
+{
+  "market": "egy-ar",
+  "currency": "EGP",
+  "api": {
+    "listing": 704,
+    "facets": 709,
+    "filtered": 883,
+    "search": 387,
+    "home_page": 543
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/egy-ar",
+      "load_ms": 1134,
+      "checks": {
+        "products": 83,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/egy-ar/electronics",
+      "load_ms": 2619,
+      "checks": {
+        "total": 1162,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 87,
+        "after_scroll": 146,
+        "filter_ms": 4896,
+        "filtered_total": 170
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/egy-ar/products/zentra-neo-smart-hub-1069",
+      "load_ms": 1464,
+      "checks": {
+        "sellers": 5,
+        "sellers_shown": 5
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/egy-ar/search?q=smart",
+      "load_ms": 2485,
+      "checks": {
+        "total": 303,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-ar-search.png",
+      "ok": true
+    }
+  ]
+}

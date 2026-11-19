@@ -1,7 +1,7 @@
 import { test, expect, expectClean } from "./support/test";
 import { PANELS } from "../../../support/accounts";
 import { mailMark, waitForMail } from "../../../support/mail";
-import { PDF, expectFlash, expectNoServerError, fetchIn, go, panelSignIn, sc, shooter, signedInAs, vendorFixtures } from "./support/vendor";
+import { PDF, dropRetriedSignIn429, expectFlash, expectNoServerError, fetchIn, go, panelSignIn, sc, shooter, signedInAs, vendorFixtures } from "./support/vendor";
 
 /**
  * Seller Center account: team & permissions (limited role, password reset of
@@ -200,6 +200,7 @@ test.describe("signed out", () => {
     await shot(page, "VEN-36", 2);
     await panelSignIn(page, "partner", fx.fresh.email);
     await expect(page.locator("#panel-sidebar")).toBeAttached();
+    dropRetriedSignIn429(problems);
     await page.goto(sc("account/security"));
     await expect(page.locator("main")).toContainText(/127\.0\.0\.1|Chrome|sign-in/i);
     await shot(page, "VEN-36", 3);

@@ -1,0 +1,92 @@
+{
+ "countries": [
+  {
+   "products": 5000,
+   "variants": 9136,
+   "offers": 30210,
+   "vendors": 60,
+   "media": 19136,
+   "pages": 32,
+   "fbn_offers": 8432,
+   "all_products": 5026,
+   "code": "uae"
+  },
+  {
+   "products": 5000,
+   "variants": 9116,
+   "offers": 29955,
+   "vendors": 60,
+   "media": 19116,
+   "pages": 32,
+   "fbn_offers": 8474,
+   "all_products": 5000,
+   "code": "omn"
+  },
+  {
+   "products": 5000,
+   "variants": 9112,
+   "offers": 30137,
+   "vendors": 60,
+   "media": 19112,
+   "pages": 32,
+   "fbn_offers": 8430,
+   "all_products": 5020,
+   "code": "ksa"
+  },
+  {
+   "products": 5000,
+   "variants": 9161,
+   "offers": 30391,
+   "vendors": 60,
+   "media": 19161,
+   "pages": 32,
+   "fbn_offers": 8400,
+   "all_products": 5020,
+   "code": "egy"
+  },
+  {
+   "products": 5000,
+   "variants": 9031,
+   "offers": 29933,
+   "vendors": 60,
+   "media": 19031,
+   "pages": 32,
+   "fbn_offers": 8413,
+   "all_products": 5020,
+   "code": "kwt"
+  },
+  {
+   "products": 5000,
+   "variants": 9191,
+   "offers": 30394,
+   "vendors": 60,
+   "media": 19191,
+   "pages": 32,
+   "fbn_offers": 8357,
+   "all_products": 5000,
+   "code": "qat"
+  },
+  {
+   "products": 5000,
+   "variants": 9182,
+   "offers": 30094,
+   "vendors": 60,
+   "media": 19182,
+   "pages": 32,
+   "fbn_offers": 8518,
+   "all_products": 5000,
+   "code": "bhr"
+  },
+  {
+   "products": 5000,
+   "variants": 9212,
+   "offers": 30257,
+   "vendors": 60,
+   "media": 19212,
+   "pages": 32,
+   "fbn_offers": 8494,
+   "all_products": 5000,
+   "code": "jor"
+  }
+ ]
+}

@@ -96,8 +96,8 @@ it('filters and counts arrives by, grade, price drop, new arrivals, supermall an
     $this->getJson('/api/v1/uae-en/products?arrives=someday')->assertUnprocessable();
     $this->getJson('/api/v1/uae-en/products?price_drop=maybe')->assertUnprocessable();
 
-    // Out of stock offers stay out of every count and filter.
-    $fast->update(['status' => 'paused']);
+    // Offers that are not sellable stay out of every count and filter.
+    Listing::query()->whereKey($fast->id)->update(['status' => 'paused']);
     $this->getJson('/api/v1/uae-en/products/facets?category=electronics')->assertJsonPath('meta.total', 3)->assertJsonPath('data.arrives.0', ['value' => 'tomorrow', 'count' => 1]);
 });
 

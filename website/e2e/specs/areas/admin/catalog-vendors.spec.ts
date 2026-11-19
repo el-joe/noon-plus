@@ -8,19 +8,21 @@ const R = "admin-panel-catalog-and-vendors" as const;
 recordOutcomes(R);
 
 test("ADM-01 dashboard and full sidebar", async ({ page }) => {
-  const f = flow(page, R, "ADM-01", "Dashboard and admin sidebar", "The dashboard loads with KPIs, the Oman-time label and every admin sidebar group; each of the 65 sidebar links opens without a server error.");
+  // Opens all 66 sidebar pages one after the other (about 1.3 s each while the other workers run).
+  test.setTimeout(240_000);
+  const f = flow(page, R, "ADM-01", "Dashboard and admin sidebar", "The dashboard loads with KPIs, the Oman-time label and every admin sidebar group; each of the 66 sidebar links opens without a server error.");
   await f.step("Open the admin dashboard", "Dashboard renders with KPI cards and the sidebar", async () => {
     await open(page, "/");
     await expect(page.locator("#panel-sidebar")).toBeVisible();
     await expect(main(page)).toContainText(/Oman time/);
   }, { fullPage: true });
   let links: string[] = [];
-  await f.step("Read every sidebar link", "65 links across 8 groups (Overview, Commerce, Growth, Verticals, Operations, Content, Platform, Data migration); none is a 'Soon' placeholder", async () => {
+  await f.step("Read every sidebar link", "66 links across 8 groups (Overview, Commerce, Growth, Verticals, Operations, Content, Platform, Data migration); none is a 'Soon' placeholder", async () => {
     links = [...new Set(await sidebarLinks(page))];
     for (const g of ["Overview", "Commerce", "Growth", "Verticals", "Operations", "Content", "Platform", "Data migration"]) {
       await expect(page.locator("#panel-sidebar")).toContainText(g);
     }
-    expect(links.length).toBe(65);
+    expect(links.length).toBe(66);
     await expect(page.locator("#panel-sidebar")).not.toContainText(/\bSoon\b/);
     return `${links.length} sidebar links`;
   });
@@ -341,9 +343,14 @@ test("ADM-08 reviews & Q&A moderation", async ({ page }) => {
 
 test("ADM-09 vendors: filter, detail, account manager, acquirer, status", async ({ page, browser }) => {
   const f = flow(page, R, "ADM-09", "Vendors and account managers", "Admin filters vendors, opens one, assigns an account manager and an acquirer (acquired-by field), and changes a test vendor's status with a reason.", "Uses TechZone Electronics (V-16) and Suspended Test Store (V-17); the e2e vendors are not touched.");
-  await f.step("Open Users & vendors", "Redirects to the Vendors list", async () => {
+  await f.step("Open Users & vendors, search 'E2E Store'", "Redirects to the Vendors list (25 per page, by name: with the big catalogue's 60 stores the e2e store is not on page 1); the store-name search finds E2E Store", async () => {
     await open(page, "/users");
     await expect(page).toHaveURL(/\/vendors/);
+    await expect(main(page).locator("tbody tr").first()).toBeVisible();
+    const fm = page.locator("main form").filter({ has: page.locator('input[name="q"]') }).first();
+    await fm.locator('input[name="q"]').fill("E2E Store");
+    await fm.getByRole("button", { name: "Filter" }).click();
+    await expect(page).toHaveURL(/q=E2E/);
     await expect(main(page)).toContainText("E2E Store");
   });
   await f.step("Filter status Suspended", "Only Suspended Test Store", async () => {

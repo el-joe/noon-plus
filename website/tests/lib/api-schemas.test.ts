@@ -36,6 +36,8 @@ describe("productCard", () => {
       title: "TV",
       brand: undefined,
       price: { amount: "999.00", currency: "AED" },
+      wasPrice: null,
+      delivery: null,
       sponsored: false,
       label: undefined,
       adToken: undefined,

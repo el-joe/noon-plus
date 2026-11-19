@@ -1,0 +1,72 @@
+{
+  "market": "ksa-en",
+  "currency": "SAR",
+  "api": {
+    "listing": 480,
+    "facets": 624,
+    "filtered": 1138,
+    "search": 645,
+    "home_page": 546
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/ksa-en",
+      "load_ms": 761,
+      "checks": {
+        "products": 78,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/ksa-en/electronics",
+      "load_ms": 1955,
+      "checks": {
+        "total": 1165,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 90,
+        "after_scroll": 149,
+        "filter_ms": 1245,
+        "filtered_total": 166
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/ksa-en/products/orbit-one-27-monitor-515",
+      "load_ms": 1816,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/ksa-en/search?q=smart",
+      "load_ms": 2001,
+      "checks": {
+        "total": 301,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-en-search.png",
+      "ok": true
+    }
+  ]
+}

@@ -28,7 +28,7 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
               </div>
             );
           }
-          return <ProductListing market={market} query={query} basePath={`/${market.slug}/search`} />;
+          return <ProductListing market={market} query={query} basePath={`/${market.slug}/search`} headingLevel="h1" />;
         })}
       </Suspense>
     </Container>

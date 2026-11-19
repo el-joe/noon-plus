@@ -1,0 +1,72 @@
+{
+  "market": "uae-ar",
+  "currency": "AED",
+  "api": {
+    "listing": 1412,
+    "facets": 2302,
+    "filtered": 1975,
+    "search": 1134,
+    "home_page": 2087
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/uae-ar",
+      "load_ms": 3191,
+      "checks": {
+        "products": 77,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/uae-ar/electronics",
+      "load_ms": 5453,
+      "checks": {
+        "total": 1166,
+        "brands": 8,
+        "sellers": 26,
+        "first_page": 92,
+        "after_scroll": 151,
+        "filter_ms": 2397,
+        "filtered_total": 159
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/uae-ar/products/orbit-lite-27-monitor-693",
+      "load_ms": 6888,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/uae-ar/search?q=smart",
+      "load_ms": 1817,
+      "checks": {
+        "total": 297,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/uae-ar-search.png",
+      "ok": true
+    }
+  ]
+}

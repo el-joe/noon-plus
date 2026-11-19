@@ -41,6 +41,20 @@ describe("isMissing: decisions without an API call", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("renders every static page of app/[market] (e.g. auth/add-email) without a lookup", async () => {
+    const { readdirSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const root = resolve(__dirname, "../../app/[market]");
+    const pages = (readdirSync(root, { recursive: true }) as string[])
+      .map((file) => file.split("\\").join("/"))
+      .filter((file) => file.endsWith("page.tsx") && !file.includes("["))
+      .map((file) => file.replace(/\/?page\.tsx$/, ""))
+      .filter((path) => path !== "" && path !== "missing");
+    expect(pages).toContain("auth/add-email");
+    for (const path of pages) expect(await check(path), path).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("answers unknown static-root paths and malformed ids as missing", async () => {
     for (const path of ["missing", "help/nope", "products/a/b", "advertise/x", "seller", "legal/terms", "marketers/ninja", "join/astronaut", "r/abc", "flash-sale/bad_slug!"]) {
       expect(await check(path), path).toBe(true);

@@ -1,0 +1,72 @@
+{
+  "market": "omn-ar",
+  "currency": "OMR",
+  "api": {
+    "listing": 1667,
+    "facets": 1233,
+    "filtered": 719,
+    "search": 626,
+    "home_page": 750
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/omn-ar",
+      "load_ms": 1537,
+      "checks": {
+        "products": 78,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/omn-ar/electronics",
+      "load_ms": 2097,
+      "checks": {
+        "total": 1162,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 88,
+        "after_scroll": 147,
+        "filter_ms": 1707,
+        "filtered_total": 156
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/omn-ar/products/nova-max-soundbar-51-855",
+      "load_ms": 6754,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/omn-ar/search?q=smart",
+      "load_ms": 1167,
+      "checks": {
+        "total": 298,
+        "products": 67
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-ar-search.png",
+      "ok": true
+    }
+  ]
+}

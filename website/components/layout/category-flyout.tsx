@@ -66,9 +66,9 @@ export function CategoryFlyout({
           onEscape();
         }
       }}
-      className="absolute inset-x-0 top-full z-40 hidden px-0 md:block md:px-8"
+      className="pointer-events-none absolute inset-x-0 top-full z-40 hidden px-0 md:block md:px-8"
     >
-      <div className="mx-auto flex max-h-[75vh] max-w-(--container-page) overflow-hidden rounded-b-lg border-t border-line bg-surface shadow-lg" data-testid="mega-menu-row">
+      <div className="pointer-events-auto mx-auto flex max-h-[75vh] max-w-(--container-page) overflow-hidden rounded-b-lg border-t border-line bg-surface shadow-lg" data-testid="mega-menu-row">
         <div className="min-w-0 flex-1 overflow-y-auto p-6">
           <div className="mb-4 flex items-baseline justify-between gap-4">
             <h2 id={headingId} className="text-h4 font-semibold">

@@ -1,0 +1,146 @@
+{
+ "uae-en": {
+  "listing": 158,
+  "facets": 218,
+  "filtered": 211,
+  "filtered_facets": 314,
+  "search": 142,
+  "menu": 12,
+  "home_page": 63
+ },
+ "uae-ar": {
+  "listing": 162,
+  "facets": 220,
+  "filtered": 177,
+  "filtered_facets": 311,
+  "search": 143,
+  "menu": 13,
+  "home_page": 63
+ },
+ "omn-en": {
+  "listing": 156,
+  "facets": 217,
+  "filtered": 170,
+  "filtered_facets": 293,
+  "search": 129,
+  "menu": 13,
+  "home_page": 64
+ },
+ "omn-ar": {
+  "listing": 196,
+  "facets": 209,
+  "filtered": 190,
+  "filtered_facets": 295,
+  "search": 129,
+  "menu": 12,
+  "home_page": 64
+ },
+ "ksa-en": {
+  "listing": 156,
+  "facets": 225,
+  "filtered": 200,
+  "filtered_facets": 316,
+  "search": 141,
+  "menu": 14,
+  "home_page": 62
+ },
+ "ksa-ar": {
+  "listing": 165,
+  "facets": 229,
+  "filtered": 181,
+  "filtered_facets": 305,
+  "search": 128,
+  "menu": 13,
+  "home_page": 63
+ },
+ "egy-en": {
+  "listing": 175,
+  "facets": 223,
+  "filtered": 172,
+  "filtered_facets": 344,
+  "search": 146,
+  "menu": 13,
+  "home_page": 68
+ },
+ "egy-ar": {
+  "listing": 155,
+  "facets": 215,
+  "filtered": 198,
+  "filtered_facets": 322,
+  "search": 144,
+  "menu": 12,
+  "home_page": 64
+ },
+ "kwt-en": {
+  "listing": 157,
+  "facets": 216,
+  "filtered": 169,
+  "filtered_facets": 296,
+  "search": 146,
+  "menu": 13,
+  "home_page": 74
+ },
+ "kwt-ar": {
+  "listing": 184,
+  "facets": 211,
+  "filtered": 205,
+  "filtered_facets": 293,
+  "search": 133,
+  "menu": 13,
+  "home_page": 63
+ },
+ "qat-en": {
+  "listing": 166,
+  "facets": 216,
+  "filtered": 201,
+  "filtered_facets": 304,
+  "search": 131,
+  "menu": 13,
+  "home_page": 64
+ },
+ "qat-ar": {
+  "listing": 159,
+  "facets": 234,
+  "filtered": 182,
+  "filtered_facets": 298,
+  "search": 140,
+  "menu": 13,
+  "home_page": 64
+ },
+ "bhr-en": {
+  "listing": 174,
+  "facets": 219,
+  "filtered": 173,
+  "filtered_facets": 314,
+  "search": 126,
+  "menu": 13,
+  "home_page": 66
+ },
+ "bhr-ar": {
+  "listing": 165,
+  "facets": 222,
+  "filtered": 194,
+  "filtered_facets": 315,
+  "search": 128,
+  "menu": 13,
+  "home_page": 66
+ },
+ "jor-en": {
+  "listing": 170,
+  "facets": 226,
+  "filtered": 197,
+  "filtered_facets": 312,
+  "search": 139,
+  "menu": 13,
+  "home_page": 65
+ },
+ "jor-ar": {
+  "listing": 180,
+  "facets": 229,
+  "filtered": 219,
+  "filtered_facets": 311,
+  "search": 142,
+  "menu": 13,
+  "home_page": 68
+ }
+}

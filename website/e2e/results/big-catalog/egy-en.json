@@ -1,0 +1,72 @@
+{
+  "market": "egy-en",
+  "currency": "EGP",
+  "api": {
+    "listing": 801,
+    "facets": 652,
+    "filtered": 455,
+    "search": 636,
+    "home_page": 1393
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/egy-en",
+      "load_ms": 4071,
+      "checks": {
+        "products": 83,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/egy-en/electronics",
+      "load_ms": 1657,
+      "checks": {
+        "total": 1162,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 87,
+        "after_scroll": 146,
+        "filter_ms": 2767,
+        "filtered_total": 170
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/egy-en/products/zentra-go-5g-smartphone-59",
+      "load_ms": 7201,
+      "checks": {
+        "sellers": 5,
+        "sellers_shown": 5
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/egy-en/search?q=smart",
+      "load_ms": 1812,
+      "checks": {
+        "total": 303,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/egy-en-search.png",
+      "ok": true
+    }
+  ]
+}

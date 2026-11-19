@@ -2,6 +2,7 @@ import {
   RUN, expect, expectValidation, fetchFile, flash, flow, form, inviteStaff, main, open, panelPage, recordOutcomes, signIn, submit, submitNoValidate, test,
 } from "./helpers";
 import { panelUrl } from "../../../support/accounts";
+import { tinker } from "../../../support/storefront";
 
 const R = "admin-panel-orders-delivery-and-fulfilment" as const;
 recordOutcomes(R);
@@ -306,16 +307,18 @@ test("ADM-25 delivery zones, rates, carriers, agents, claims, scorecard", async 
 });
 
 test("ADM-26 dispatch board: pack, assign, assignment detail, label", async ({ page }) => {
-  const f = flow(page, R, "ADM-26", "Dispatch (live board)", "Admin brings an old placed sub-order to Packed, sees it on the dispatch board, assigns an agent, opens assignments and the shipping label; agent withdrawals list.", "Uses the first old SoundMax cash-on-delivery order that is not packed yet (NW-AE-10000xx, 15–18 Nov; unpaid card orders cannot be confirmed). Today's E2E Store parcels are not touched.");
+  const f = flow(page, R, "ADM-26", "Dispatch (live board)", "Admin brings an old placed sub-order to Packed, sees it on the dispatch board, assigns an agent, opens assignments and the shipping label; agent withdrawals list.", "Uses a placed cash-on-delivery SoundMax order created for this run (NW-AE-E2ED…, e2e customer, one stocked SoundMax listing): the old placed SoundMax orders were used up by earlier runs. Today's E2E Store parcels are not touched.");
   let parcel = "";
-  await f.step("Pick an old placed SoundMax order and move its sub-order to Packed (state by state, with reasons)", "Sub-order Packed", async () => {
-    for (const id of [4, 1, 2, 21, 22, 23, 24, 19]) {
+  await f.step("Create a placed COD SoundMax order for this run, then move its sub-order to Packed (state by state, with reasons)", "Sub-order Packed", async () => {
+    const created = JSON.parse(/ADM26=(\{.*\})/.exec(tinker(ADM26_ORDER_PHP(RUN)))![1]) as { id: number; number: string };
+    for (const id of [created.id]) {
       await open(page, `/orders/${id}`);
       const fm = main(page).locator('form[action*="/sub-orders/"][action$="/status"]').first();
       if (!(await fm.count())) continue;
       const opts = await fm.locator('select[name="to"] option').evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value));
       if (!opts.some((v) => ["confirmed", "processing", "packed"].includes(v))) continue;
-      parcel = (await main(page).innerText()).match(/NW-AE-\d+-1/)![0];
+      parcel = `${created.number}-1`;
+      await expect(main(page)).toContainText(parcel);
       for (let i = 0; i < 4; i++) {
         await open(page, `/orders/${id}`);
         const sf = main(page).locator('form[action*="/sub-orders/"][action$="/status"]').first();
@@ -330,7 +333,7 @@ test("ADM-26 dispatch board: pack, assign, assignment detail, label", async ({ p
       if (await page.locator('main [role="alert"]').count()) { parcel = ""; continue; }
       return `${parcel} moved to Packed`;
     }
-    throw new Error("no placed SoundMax order left");
+    throw new Error(`the run's SoundMax order ${created.number} could not be packed`);
   }, { fullPage: true });
   await f.step("Open Dispatch; filter Ready", "Board lists ready parcels with agent pickers and Oman time", async () => {
     await open(page, "/delivery/assignments");
@@ -519,3 +522,29 @@ test("ADM-28 FBN fees (zero defaults) and packaging", async ({ page }) => {
     await open(page, "/packaging/orders");
   });
 });
+
+/**
+ * A placed cash-on-delivery order of SoundMax Official (one item of a stocked active listing) for the
+ * e2e customer — a test record (number NW-AE-E2ED…), never production. Prints `ADM26={"id":…,"number":…}`.
+ */
+function ADM26_ORDER_PHP(run: string): string {
+  const tag = run.replace(/[^a-z0-9]/gi, "").toUpperCase().slice(-8);
+  return `if (app()->environment('production')) { throw new RuntimeException('refuses production'); }
+app(App\\Domains\\Countries\\Support\\CountryContext::class)->runAs(App\\Domains\\Countries\\Models\\Country::where('code','uae')->sole(), function () {
+  $uae = App\\Domains\\Countries\\Models\\Country::where('code','uae')->sole();
+  $vendor = App\\Domains\\Vendors\\Models\\Vendor::where('store_name','SoundMax Official')->sole();
+  $customer = App\\Models\\User::where('email','e2e-customer@nawy.test')->sole();
+  $listing = App\\Domains\\Listings\\Models\\Listing::where('vendor_id',$vendor->id)->where('status','active')->withAvailableQuantity()->with('variant.product')->get()->first(fn ($l) => $l->available_quantity > 0);
+  app(App\\Domains\\Listings\\Support\\InventoryLedger::class)->move($listing, -1, 'order_placed');
+  $price = $listing->sale_price ?? $listing->price;
+  $order = App\\Domains\\Orders\\Models\\Order::create([
+    'number' => 'NW-AE-E2ED${tag}', 'customer_user_id' => $customer->id, 'status' => 'placed', 'payment_method' => 'cod', 'currency' => $uae->currency,
+    'subtotal' => $price, 'grand_total' => $price, 'placed_at' => now(),
+    'shipping_address' => ['name' => 'E2E Customer', 'city' => 'Dubai', 'area' => 'Marina', 'street' => 'E2E Tower', 'phone' => '+971500000097'],
+  ]);
+  $sub = $order->subOrders()->create(['vendor_id' => $vendor->id, 'number' => $order->number.'-1', 'subtotal' => $price, 'total' => $price]);
+  $sub->items()->create(['listing_id' => $listing->id, 'sku' => $listing->variant->sku, 'title' => $listing->variant->product->title_en, 'quantity' => 1, 'unit_price' => $price, 'line_total' => $price]);
+  $sub->statusHistory()->create(['to_status' => App\\Domains\\Orders\\Enums\\SubOrderStatus::Placed, 'actor_type' => App\\Domains\\Orders\\Enums\\ActorType::Customer, 'actor_user_id' => $customer->id]);
+  echo 'ADM26='.json_encode(['id' => $order->id, 'number' => $order->number]).PHP_EOL;
+});`;
+}

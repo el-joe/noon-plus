@@ -225,6 +225,8 @@ test("ORD-01 seller-fulfilled order: seller → admin dispatch → carrier → d
       await page.locator('select[name="refund_destination"]').selectOption("wallet");
       await page.getByRole("button", { name: "Submit return" }).click();
       await expect(page).toHaveURL(/\/account\/returns$/);
+      // The returns list loads after the redirect: wait for the new return before reading its number.
+      await expect(main(page)).toContainText(/RT-[A-Z0-9-]+/);
       rt = /RT-[A-Z0-9-]+/.exec(await main(page).innerText())![0];
       return rt;
     });

@@ -1,0 +1,72 @@
+{
+  "market": "bhr-ar",
+  "currency": "BHD",
+  "api": {
+    "listing": 3061,
+    "facets": 2627,
+    "filtered": 592,
+    "search": 1286,
+    "home_page": 366
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/bhr-ar",
+      "load_ms": 1411,
+      "checks": {
+        "products": 79,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/bhr-ar/electronics",
+      "load_ms": 5262,
+      "checks": {
+        "total": 1158,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 89,
+        "after_scroll": 147,
+        "filter_ms": 1406,
+        "filtered_total": 163
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/bhr-ar/products/pulse-ultra-qhd-monitor-521",
+      "load_ms": 1906,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/bhr-ar/search?q=smart",
+      "load_ms": 1245,
+      "checks": {
+        "total": 300,
+        "products": 67
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-ar-search.png",
+      "ok": true
+    }
+  ]
+}

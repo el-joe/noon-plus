@@ -1,0 +1,72 @@
+{
+  "market": "ksa-ar",
+  "currency": "SAR",
+  "api": {
+    "listing": 2037,
+    "facets": 1422,
+    "filtered": 1688,
+    "search": 2038,
+    "home_page": 2308
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/ksa-ar",
+      "load_ms": 6633,
+      "checks": {
+        "products": 78,
+        "prices": 91,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-ar-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/ksa-ar/electronics",
+      "load_ms": 2170,
+      "checks": {
+        "total": 1165,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 90,
+        "after_scroll": 149,
+        "filter_ms": 4978,
+        "filtered_total": 166
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-ar-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/ksa-ar/products/pulse-go-laptop-479",
+      "load_ms": 4278,
+      "checks": {
+        "sellers": 4,
+        "sellers_shown": 4
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-ar-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/ksa-ar/search?q=smart",
+      "load_ms": 2489,
+      "checks": {
+        "total": 301,
+        "products": 68
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/ksa-ar-search.png",
+      "ok": true
+    }
+  ]
+}

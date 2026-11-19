@@ -196,7 +196,8 @@ class BlockResolver
                     ->with(ListingCards::relations('listing.'))])
                 ->first();
 
-            return $event === null ? null : ['sale' => (new FlashSaleEventResource($event))->resolve(request())];
+            // Plain arrays only: the cache refuses to unserialize objects (cache.serializable_classes = false).
+            return $event === null ? null : ['sale' => json_decode((string) json_encode((new FlashSaleEventResource($event))->resolve(request())), true)];
         });
     }
 
@@ -208,7 +209,7 @@ class BlockResolver
      */
     private function offerCodes(array $settings): ?array
     {
-        $codes = collect((array) ($settings['items'] ?? []))->filter('is_array')->pluck('code')->filter(fn ($code): bool => is_string($code) && $code !== '')
+        $codes = collect((array) ($settings['items'] ?? []))->filter(fn ($item): bool => is_array($item))->pluck('code')->filter(fn ($code): bool => is_string($code) && $code !== '')
             ->map(fn (string $code): string => strtoupper($code))->unique()->values();
 
         if ($codes->isEmpty()) {

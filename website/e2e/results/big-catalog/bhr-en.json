@@ -1,0 +1,72 @@
+{
+  "market": "bhr-en",
+  "currency": "BHD",
+  "api": {
+    "listing": 1859,
+    "facets": 462,
+    "filtered": 531,
+    "search": 731,
+    "home_page": 396
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/bhr-en",
+      "load_ms": 1598,
+      "checks": {
+        "products": 79,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/bhr-en/electronics",
+      "load_ms": 1572,
+      "checks": {
+        "total": 1158,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 89,
+        "after_scroll": 147,
+        "filter_ms": 2964,
+        "filtered_total": 163
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/bhr-en/products/orbit-pro-5-streaming-stick-889",
+      "load_ms": 5220,
+      "checks": {
+        "sellers": 6,
+        "sellers_shown": 6
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/bhr-en/search?q=smart",
+      "load_ms": 1715,
+      "checks": {
+        "total": 300,
+        "products": 67
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/bhr-en-search.png",
+      "ok": true
+    }
+  ]
+}

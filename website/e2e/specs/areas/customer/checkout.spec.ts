@@ -88,11 +88,14 @@ test("CHK-03 coupons: invalid refused, valid applied and removed", async ({ page
     await main(page).getByRole("button", { name: /Remove.*RT10|RT10.*Remove|Remove coupon/ }).first().click();
     await expect(main(page)).not.toContainText("RT10 applied");
   });
-  await f.step("PDP coupon chip: 'Apply to cart'", "The coupon is applied to the cart from the product page", async () => {
+  await f.step("PDP coupon chip FIRST15: 'Apply to cart'", "The PDP shows the 4 best public coupons (FIRST15 among them, RT10 is the 5th); its chip applies FIRST15 to the cart (15% of AED 120 = AED 18.00)", async () => {
     await visit(page, "/products/nova-x12-smartphone");
-    await main(page).getByRole("button", { name: "Apply to cart" }).first().click();
+    // One chip per coupon: the dashed card holding the code and its two buttons.
+    const chip = main(page).locator("div.border-dashed").filter({ has: page.getByRole("button", { name: "Copy code FIRST15" }) }).first();
+    await chip.getByRole("button", { name: "Apply to cart" }).click();
     await visit(page, "/cart");
-    await expect(main(page)).toContainText("RT10 applied");
+    await expect(main(page)).toContainText("FIRST15 applied");
+    await expect(main(page)).toContainText("18.00");
   }, { soft: true });
   f.end();
 });

@@ -131,11 +131,7 @@ class HomeLayout
             return number_format(round($value * 20) / 20, 3);
         }
 
-        $step = match (true) {
-            $value >= 1000 => 50,
-            $value >= 100 => 5,
-            default => 1,
-        };
+        $step = $value >= 1000 ? 50 : 1;
 
         return number_format(max(1, round($value / $step) * $step), 0);
     }
@@ -381,7 +377,7 @@ class HomeLayout
     {
         $path = $this->path($slug);
 
-        return $path === null ? null : ['id' => 'home-showcase-'.$slug, 'type' => 'category_showcase', 'settings' => ['title' => $this->t($en, $ar), 'category' => $slug, 'max_items' => 7, 'view_all' => $path]];
+        return $path === null ? null : ['id' => 'home-showcase-'.$slug, 'type' => 'category_showcase', 'settings' => ['title' => $this->t($en, $ar), 'source' => 'category', 'category' => $slug, 'max_items' => 7, 'view_all' => $path]];
     }
 
     private function couponTitle(Coupon $coupon): ?string

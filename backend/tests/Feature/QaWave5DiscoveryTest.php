@@ -399,7 +399,8 @@ describe('PDP data and PLP facets (QC-057, QC-027)', function () {
             ->and($pdp->json('data.badges.0.label'))->toBe('Best seller');
 
         $cards = collect($this->getJson('/api/v1/uae-en/products')->assertOk()->json('data'))->keyBy('title');
-        expect(collect($cards['Nova X12']['badges'])->pluck('key')->all())->toBe(['bestseller', 'new', 'top_rated'])
+        // Home design round: cards also show `deal` (the buy box is on sale).
+        expect(collect($cards['Nova X12']['badges'])->pluck('key')->all())->toBe(['bestseller', 'new', 'top_rated', 'deal'])
             ->and($cards['Old phone']['badges'])->toBe([]);
 
         $product = $listing->variant->product;

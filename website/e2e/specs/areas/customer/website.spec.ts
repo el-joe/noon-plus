@@ -10,10 +10,11 @@ const API_GET = async (page: import("@playwright/test").Page, p: string) => (awa
 
 test("WEB-01 home page, header and footer", async ({ page }) => {
   const f = flow(page, R, "WEB-01", "Home page, header and footer", "The UAE English home renders its page-builder blocks, header (search, deliver-to, country & language, account, wishlist, cart) and footer.");
-  await f.step("Open /uae-en", "Hero, 'Shop by category', offers and product carousels; title 'Nawy United Arab Emirates — …'", async () => {
+  await f.step("Open /uae-en", "Big-catalogue home (HomeLayout): 'More reasons to shop' tiles, 'Mega deals', product carousels; title 'Shop Online in United Arab Emirates | Nawy'", async () => {
     await visit(page, "/");
-    await expect(page).toHaveTitle(/Nawy United Arab Emirates/);
-    await expect(main(page)).toContainText("Shop by category");
+    await expect(page).toHaveTitle("Shop Online in United Arab Emirates | Nawy");
+    await expect(main(page)).toContainText("More reasons to shop");
+    await expect(main(page)).toContainText("Mega deals");
     expect(await main(page).locator('a[href*="/products/"]').count()).toBeGreaterThan(0);
   });
   await f.step("Header: search box, Deliver to, Country & language, Log in, wishlist, cart, vertical links", "All header controls visible", async () => {
@@ -72,23 +73,26 @@ test("WEB-02 category tree, category and sub-category pages", async ({ page }) =
 
 test("WEB-03 PLP filters, facets, sort and active-filter chips", async ({ page }) => {
   const f = flow(page, R, "WEB-03", "Category filters, facets and sort", "Apply fulfilment, seller, colour and price facets, sort by price, then remove filters with the chips.");
-  const form = () => page.locator("form").filter({ has: page.getByRole("button", { name: "Apply" }) }).first();
+  // The filter rail: a ticked box applies at once (FilterForm); the price range applies with "Go".
+  const form = () => page.locator("form").filter({ has: page.locator('input[name="fulfilment"]') }).first();
   await f.step("Open /uae-en/electronics", "Facets with counts: Fulfilled by, price, deals, rating, condition, colour, seller; Sort by", async () => {
     await visit(page, "/electronics");
     await expect(form().locator('input[name="fulfilment"]').first()).toBeAttached();
     await expect(page.getByLabel("Sort by").first()).toBeVisible();
   });
-  await f.step("Tick 'Fulfilled by Nawy' and Apply", "URL has fulfilment=fbn; only FBN products listed", async () => {
+  await f.step("Tick 'express · Fulfilled by Nawy'", "Applies at once: URL has fulfilment=fbn; every product card carries the 'express' (FBN) badge", async () => {
     await form().getByLabel(/Fulfilled by Nawy/).first().check();
-    await form().getByRole("button", { name: "Apply" }).click();
     await expect(page).toHaveURL(/fulfilment=fbn/);
     await settle(page);
-    await expect(main(page)).toContainText("Nova X12");
+    const cards = await page.locator('#results a[href*="/products/"]').evaluateAll((as) => as.map((a) => (a as HTMLElement).innerText));
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.filter((t) => !/express/.test(t))).toEqual([]);
+    return `${cards.length} cards, all express`;
   });
-  await f.step("Price Min 50, Max 500 → Apply", "URL has min_price and max_price; products within range", async () => {
+  await f.step("Price Min 50, Max 500 → Go", "URL has min_price and max_price; products within range", async () => {
     await form().locator('input[name="min_price"]').fill("50");
     await form().locator('input[name="max_price"]').fill("500");
-    await form().getByRole("button", { name: "Apply" }).click();
+    await form().getByRole("button", { name: "Go" }).click();
     await expect(page).toHaveURL(/min_price=50/);
     await expect(page).toHaveURL(/max_price=500/);
     await settle(page);
@@ -107,7 +111,6 @@ test("WEB-03 PLP filters, facets, sort and active-filter chips", async ({ page }
     const seller = form().locator("details").filter({ has: page.locator('input[name="seller"]') });
     if (!(await seller.getAttribute("open").then((v) => v !== null))) await seller.locator("summary").click();
     await seller.locator('input[value="e2e-store"]').check();
-    await form().getByRole("button", { name: "Apply" }).click();
     await expect(page).toHaveURL(/seller=/);
     await settle(page);
     await expect(main(page)).toContainText("Nova X12");
@@ -130,7 +133,11 @@ test("WEB-03 PLP filters, facets, sort and active-filter chips", async ({ page }
   f.end();
 
   async function prices() {
-    const cards = await main(page).locator('a[href*="/products/"]').evaluateAll((as) => as.map((a) => (a as HTMLElement).innerText));
+    // Organic results only: sponsored-product cards (labelled "Ad") and the sponsored brand rows (their own
+    // <section> inside #results) are placed between them whatever the sort.
+    const cards = (
+      await page.locator('#results a[href*="/products/"]').evaluateAll((as) => as.filter((a) => a.closest("section")?.id === "results").map((a) => (a as HTMLElement).innerText))
+    ).filter((t) => !/(^|\s)Ad(\s|$)/.test(t));
     return cards.map((t) => /AED\s*([\d,]+\.\d{2})/.exec(t)?.[1]).filter(Boolean).map((v) => Number(v!.replace(/,/g, "")));
   }
 });
@@ -166,8 +173,9 @@ test("WEB-04 search: popular, suggest, results, no results", async ({ page }) =>
   });
   await f.step("Pick the suggestion directly", "Goes to the product page", async () => {
     await box().fill("nova x");
-    await page.getByRole("option", { name: /Nova X12/ }).first().click();
-    await expect(page).toHaveURL(/\/products\/nova-x12-smartphone/);
+    // The big catalogue has other "Nova X12 …" products (e.g. a Nova X12 TV): pick the e2e smartphone.
+    await page.getByRole("option", { name: /Nova X12 Smartphone/ }).first().click();
+    await expect(page).toHaveURL(/\/products\/nova-x12-smartphone$/);
   });
   await f.step(`Search for a word with no match (zzqx${RUN})`, "Empty state with a hint", async () => {
     await visit(page, `/search?q=zzqx${RUN}`);
@@ -438,9 +446,10 @@ test("WEB-12 static and legal pages", async ({ page }) => {
   }, { soft: true });
   await f.step("Footer → Terms and Returns policy", "Each page renders", async () => {
     await visit(page, "/");
-    for (const name of [/Terms/, /Returns/]) {
+    // Policy pages only ("Returns & refunds" in the footer is the account page).
+    for (const name of [/^Terms of use$/, /^Returns policy$/]) {
       const link = page.locator("footer").getByRole("link", { name }).first();
-      if (!(await link.count())) continue;
+      await expect(link, String(name)).toBeVisible();
       await link.click();
       await settle(page);
       await expect(main(page).locator("h1:visible")).toBeVisible();

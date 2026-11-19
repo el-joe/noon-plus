@@ -1,0 +1,957 @@
+{
+  "title": "Big catalogue — live storefront test",
+  "area": "Storefront catalogue (8 countries × EN/AR)",
+  "date": "2026-11-19",
+  "summary": "Live test of the storefront with the big development catalogue (about 5,000 products, 30,000 offers and 60 sellers per country). 16 markets ran: home, Electronics category, a product with several sellers and search. Average page load (domcontentloaded → main): home 1121 ms, category 2329 ms, product 1194 ms, search 1331 ms. API one request at a time (warm): category listing avg 167 ms, facets avg 221 ms, facets with colour + FBN + arrives-by filters avg 309 ms (max 344 ms), search avg 137 ms. Mega menu: 256 of 256 flyouts opened, average open 251 ms.",
+  "environment": [
+    "Storefront http://localhost:3000 (npm run build && next start)",
+    "API and panels http://localhost:8000 (php artisan serve, 8 workers)",
+    "Dev databases: central noon-plus + nawy_{uae,omn,ksa,egy,kwt,qat,bhr,jor}",
+    "Seed: php artisan nawy:dev:big-catalog --country=all --products=5000 --vendors=60",
+    "Chromium desktop 1440×900, Playwright project areas (E2E_NO_GLOBAL_SETUP=1, --no-deps)"
+  ],
+  "accounts": [
+    {
+      "role": "Guest shopper",
+      "login": "not signed in"
+    }
+  ],
+  "specs": [
+    "e2e/specs/areas/catalog/big-catalog.spec.ts",
+    "e2e/specs/areas/catalog/mega-menu.spec.ts"
+  ],
+  "totals": {
+    "passed": 32,
+    "failed": 0,
+    "skipped": 0
+  },
+  "flows": [
+    {
+      "id": "BC-BHR-AR",
+      "name": "bhr-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in bhr-ar (BHD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /bhr-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 688 ms; products=79, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /bhr-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 1815 ms; total=1158, brands=8, sellers=20, first_page=89, after_scroll=147, filter_ms=1945, filtered_total=163; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /bhr-ar/products/pulse-ultra-qhd-monitor-521",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1316 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /bhr-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 922 ms; total=300, products=67; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-BHR-EN",
+      "name": "bhr-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in bhr-en (BHD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /bhr-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 980 ms; products=79, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /bhr-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2853 ms; total=1158, brands=8, sellers=20, first_page=89, after_scroll=147, filter_ms=1928, filtered_total=163; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /bhr-en/products/orbit-pro-5-streaming-stick-889",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 828 ms; sellers=6, sellers_shown=6; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /bhr-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1068 ms; total=300, products=67; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/bhr-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-EGY-AR",
+      "name": "egy-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in egy-ar (EGP)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /egy-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 839 ms; products=83, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /egy-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2670 ms; total=1162, brands=8, sellers=20, first_page=87, after_scroll=146, filter_ms=2349, filtered_total=170; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /egy-ar/products/zentra-neo-smart-hub-1069",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 670 ms; sellers=5, sellers_shown=5; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /egy-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1146 ms; total=303, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-EGY-EN",
+      "name": "egy-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in egy-en (EGP)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /egy-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1094 ms; products=83, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /egy-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 1518 ms; total=1162, brands=8, sellers=20, first_page=87, after_scroll=146, filter_ms=813, filtered_total=170; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /egy-en/products/zentra-go-5g-smartphone-59",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 932 ms; sellers=5, sellers_shown=5; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /egy-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 896 ms; total=303, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/egy-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-JOR-AR",
+      "name": "jor-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in jor-ar (JOD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /jor-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 959 ms; products=82, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /jor-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2090 ms; total=1161, brands=8, sellers=20, first_page=89, after_scroll=148, filter_ms=1704, filtered_total=168; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /jor-ar/products/orbit-one-3-smart-bulb-1162",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 2135 ms; sellers=3, sellers_shown=3; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /jor-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 698 ms; total=296, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-JOR-EN",
+      "name": "jor-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in jor-en (JOD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /jor-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1342 ms; products=82, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /jor-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2043 ms; total=1161, brands=8, sellers=20, first_page=89, after_scroll=148, filter_ms=1526, filtered_total=168; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /jor-en/products/kairo-prime-65-smart-tv-770",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1419 ms; sellers=6, sellers_shown=6; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /jor-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 925 ms; total=296, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/jor-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-KSA-AR",
+      "name": "ksa-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in ksa-ar (SAR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /ksa-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 967 ms; products=78, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /ksa-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 969 ms; total=1165, brands=8, sellers=20, first_page=90, after_scroll=149, filter_ms=2384, filtered_total=166; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /ksa-ar/products/pulse-go-laptop-479",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 2627 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /ksa-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1110 ms; total=301, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-KSA-EN",
+      "name": "ksa-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in ksa-en (SAR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /ksa-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1930 ms; products=78, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /ksa-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2061 ms; total=1165, brands=8, sellers=20, first_page=90, after_scroll=149, filter_ms=1184, filtered_total=166; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /ksa-en/products/orbit-one-27-monitor-515",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 733 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /ksa-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 912 ms; total=301, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/ksa-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-KWT-AR",
+      "name": "kwt-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in kwt-ar (KWD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /kwt-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1106 ms; products=75, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /kwt-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2581 ms; total=1160, brands=8, sellers=20, first_page=87, after_scroll=146, filter_ms=2094, filtered_total=172; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /kwt-ar/products/soundmax-s9-handheld-console-626",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1105 ms; sellers=3, sellers_shown=3; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /kwt-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1371 ms; total=303, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-KWT-EN",
+      "name": "kwt-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in kwt-en (KWD)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /kwt-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1443 ms; products=75, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /kwt-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 3212 ms; total=1160, brands=8, sellers=20, first_page=87, after_scroll=146, filter_ms=1993, filtered_total=172; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /kwt-en/products/voltix-elite-65w-fast-charger-130",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 660 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /kwt-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 2039 ms; total=303, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/kwt-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-OMN-AR",
+      "name": "omn-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in omn-ar (OMR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /omn-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1040 ms; products=78, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /omn-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 3263 ms; total=1162, brands=8, sellers=20, first_page=88, after_scroll=147, filter_ms=2352, filtered_total=156; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /omn-ar/products/nova-max-soundbar-51-855",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1012 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /omn-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 2039 ms; total=298, products=67; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-OMN-EN",
+      "name": "omn-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in omn-en (OMR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /omn-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 450 ms; products=78, prices=95, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /omn-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2116 ms; total=1162, brands=8, sellers=20, first_page=88, after_scroll=147, filter_ms=1372, filtered_total=156; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /omn-en/products/nova-x12-65w-fast-charger-133",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 882 ms; sellers=3, sellers_shown=3; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /omn-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1469 ms; total=298, products=67; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/omn-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-QAT-AR",
+      "name": "qat-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in qat-ar (QAR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /qat-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 1145 ms; products=77, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /qat-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2942 ms; total=1161, brands=8, sellers=20, first_page=89, after_scroll=148, filter_ms=2521, filtered_total=164; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /qat-ar/products/lumen-s9-mirrorless-camera-1002",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1046 ms; sellers=6, sellers_shown=6; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /qat-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1613 ms; total=301, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-QAT-EN",
+      "name": "qat-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in qat-en (QAR)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /qat-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 473 ms; products=77, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /qat-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 1687 ms; total=1161, brands=8, sellers=20, first_page=89, after_scroll=148, filter_ms=1055, filtered_total=164; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /qat-en/products/orbit-flex-soundbar-51-870",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1029 ms; sellers=6, sellers_shown=6; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /qat-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1533 ms; total=301, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/qat-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-UAE-AR",
+      "name": "uae-ar — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in uae-ar (AED)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /uae-ar",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 930 ms; products=77, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-ar-home.png"
+        },
+        {
+          "action": "Electronics category: open /uae-ar/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2976 ms; total=1166, brands=8, sellers=26, first_page=92, after_scroll=151, filter_ms=1739, filtered_total=159; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-ar-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /uae-ar/products/orbit-lite-27-monitor-693",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 1863 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-ar-product.png"
+        },
+        {
+          "action": "Search “smart”: open /uae-ar/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1950 ms; total=297, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-ar-search.png"
+        }
+      ]
+    },
+    {
+      "id": "BC-UAE-EN",
+      "name": "uae-en — home, category, product, search",
+      "goal": "Live storefront with the big catalogue in uae-en (AED)",
+      "preconditions": "nawy:dev:big-catalog seeded; servers on :8000 / :3000",
+      "spec": "e2e/specs/areas/catalog/big-catalog.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Home page: open /uae-en",
+          "expected": "All page-builder sections render with real products, prices in the local currency, coupon codes and countdown",
+          "result": "pass",
+          "note": "load 2553 ms; products=77, prices=91, sections=20, countdown=true; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-en-home.png"
+        },
+        {
+          "action": "Electronics category: open /uae-en/electronics",
+          "expected": "Real result count, filter rail changes results, infinite scroll loads more, prices in local currency",
+          "result": "pass",
+          "note": "load 2466 ms; total=1166, brands=8, sellers=26, first_page=92, after_scroll=151, filter_ms=1555, filtered_total=159; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-en-category.png"
+        },
+        {
+          "action": "Product with several sellers: open /uae-en/products/soundmax-go-5g-smartphone-4",
+          "expected": "Product page lists the buy box and the other sellers' offers",
+          "result": "pass",
+          "note": "load 843 ms; sellers=4, sellers_shown=4; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-en-product.png"
+        },
+        {
+          "action": "Search “smart”: open /uae-en/search?q=smart",
+          "expected": "Search returns many products with local prices",
+          "result": "pass",
+          "note": "load 1598 ms; total=297, products=68; broken images 0; console errors 0",
+          "screenshot": "../shots/big-catalog/uae-en-search.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-BHR-AR",
+      "name": "bhr-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 373 ms; page 1945 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/bhr-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-BHR-EN",
+      "name": "bhr-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 15 ms; page 2111 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/bhr-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-EGY-AR",
+      "name": "egy-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 276 ms; page 969 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/egy-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-EGY-EN",
+      "name": "egy-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 27 ms; page 2504 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/egy-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-JOR-AR",
+      "name": "jor-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 148 ms; page 1790 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/jor-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-JOR-EN",
+      "name": "jor-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 16 ms; page 1617 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/jor-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-KSA-AR",
+      "name": "ksa-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 27 ms; page 2478 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/ksa-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-KSA-EN",
+      "name": "ksa-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 15 ms; page 1942 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/ksa-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-KWT-AR",
+      "name": "kwt-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 17 ms; page 1647 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/kwt-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-KWT-EN",
+      "name": "kwt-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 164 ms; page 2812 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/kwt-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-OMN-AR",
+      "name": "omn-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 99 ms; page 2415 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/omn-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-OMN-EN",
+      "name": "omn-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 128 ms; page 2289 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/omn-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-QAT-AR",
+      "name": "qat-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 170 ms; page 1470 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/qat-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-QAT-EN",
+      "name": "qat-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 19 ms; page 1521 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/qat-en.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-UAE-AR",
+      "name": "uae-ar — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 177 ms; page 2443 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/uae-ar.png"
+        }
+      ]
+    },
+    {
+      "id": "MM-UAE-EN",
+      "name": "uae-en — header mega menu",
+      "goal": "Every top-level category opens a flyout with level-2 columns, level-3 links, category image and top brands",
+      "preconditions": "Big catalogue seeded",
+      "spec": "e2e/specs/areas/catalog/mega-menu.spec.ts",
+      "result": "pass",
+      "steps": [
+        {
+          "action": "Hover 16 top-level categories",
+          "expected": "Columns, level-3 links, image loads, top brands; follow a level-3 link and a brand tile",
+          "result": "pass",
+          "note": "opened 16/16; api 239 ms; page 1505 ms; level-3 follow ok; brand follow ok",
+          "screenshot": "../shots/mega-menu/uae-en.png"
+        }
+      ]
+    }
+  ],
+  "issues": [],
+  "notes": [
+    "Seed counts per country:",
+    "uae: 5000 products · 9136 variants · 30210 offers · 60 vendors · 19136 media rows · 32 published pages",
+    "omn: 5000 products · 9116 variants · 29955 offers · 60 vendors · 19116 media rows · 32 published pages",
+    "ksa: 5000 products · 9112 variants · 30137 offers · 60 vendors · 19112 media rows · 32 published pages",
+    "egy: 5000 products · 9161 variants · 30391 offers · 60 vendors · 19161 media rows · 32 published pages",
+    "kwt: 5000 products · 9031 variants · 29933 offers · 60 vendors · 19031 media rows · 32 published pages",
+    "qat: 5000 products · 9191 variants · 30394 offers · 60 vendors · 19191 media rows · 32 published pages",
+    "bhr: 5000 products · 9182 variants · 30094 offers · 60 vendors · 19182 media rows · 32 published pages",
+    "jor: 5000 products · 9212 variants · 30257 offers · 60 vendors · 19212 media rows · 32 published pages",
+    "Timings per market:",
+    "bhr-ar: home 688 ms · category 1815 ms (1158 results, filter 1945 ms, scroll 89→147) · product 1316 ms (4 sellers) · search 922 ms (300) · API listing 1809 ms, facets 881 ms, filtered 789 ms, search 606 ms, home page 304 ms",
+    "bhr-en: home 980 ms · category 2853 ms (1158 results, filter 1928 ms, scroll 89→147) · product 828 ms (6 sellers) · search 1068 ms (300) · API listing 1181 ms, facets 746 ms, filtered 945 ms, search 508 ms, home page 253 ms",
+    "egy-ar: home 839 ms · category 2670 ms (1162 results, filter 2349 ms, scroll 87→146) · product 670 ms (5 sellers) · search 1146 ms (303) · API listing 3067 ms, facets 1249 ms, filtered 985 ms, search 743 ms, home page 443 ms",
+    "egy-en: home 1094 ms · category 1518 ms (1162 results, filter 813 ms, scroll 87→146) · product 932 ms (5 sellers) · search 896 ms (303) · API listing 1697 ms, facets 1847 ms, filtered 2254 ms, search 867 ms, home page 672 ms",
+    "jor-ar: home 959 ms · category 2090 ms (1161 results, filter 1704 ms, scroll 89→148) · product 2135 ms (3 sellers) · search 698 ms (296) · API listing 2245 ms, facets 978 ms, filtered 884 ms, search 820 ms, home page 435 ms",
+    "jor-en: home 1342 ms · category 2043 ms (1161 results, filter 1526 ms, scroll 89→148) · product 1419 ms (6 sellers) · search 925 ms (296) · API listing 891 ms, facets 1945 ms, filtered 826 ms, search 670 ms, home page 604 ms",
+    "ksa-ar: home 967 ms · category 969 ms (1165 results, filter 2384 ms, scroll 90→149) · product 2627 ms (4 sellers) · search 1110 ms (301) · API listing 1100 ms, facets 1868 ms, filtered 868 ms, search 872 ms, home page 602 ms",
+    "ksa-en: home 1930 ms · category 2061 ms (1165 results, filter 1184 ms, scroll 90→149) · product 733 ms (4 sellers) · search 912 ms (301) · API listing 1110 ms, facets 748 ms, filtered 899 ms, search 510 ms, home page 271 ms",
+    "kwt-ar: home 1106 ms · category 2581 ms (1160 results, filter 2094 ms, scroll 87→146) · product 1105 ms (3 sellers) · search 1371 ms (303) · API listing 1228 ms, facets 877 ms, filtered 856 ms, search 493 ms, home page 260 ms",
+    "kwt-en: home 1443 ms · category 3212 ms (1160 results, filter 1993 ms, scroll 87→146) · product 660 ms (4 sellers) · search 2039 ms (303) · API listing 1133 ms, facets 742 ms, filtered 938 ms, search 508 ms, home page 257 ms",
+    "omn-ar: home 1040 ms · category 3263 ms (1162 results, filter 2352 ms, scroll 88→147) · product 1012 ms (4 sellers) · search 2039 ms (298) · API listing 1115 ms, facets 896 ms, filtered 791 ms, search 440 ms, home page 338 ms",
+    "omn-en: home 450 ms · category 2116 ms (1162 results, filter 1372 ms, scroll 88→147) · product 882 ms (3 sellers) · search 1469 ms (298) · API listing 996 ms, facets 754 ms, filtered 514 ms, search 919 ms, home page 211 ms",
+    "qat-ar: home 1145 ms · category 2942 ms (1161 results, filter 2521 ms, scroll 89→148) · product 1046 ms (6 sellers) · search 1613 ms (301) · API listing 948 ms, facets 886 ms, filtered 805 ms, search 445 ms, home page 352 ms",
+    "qat-en: home 473 ms · category 1687 ms (1161 results, filter 1055 ms, scroll 89→148) · product 1029 ms (6 sellers) · search 1533 ms (301) · API listing 1946 ms, facets 823 ms, filtered 617 ms, search 623 ms, home page 767 ms",
+    "uae-ar: home 930 ms · category 2976 ms (1166 results, filter 1739 ms, scroll 92→151) · product 1863 ms (4 sellers) · search 1950 ms (297) · API listing 1189 ms, facets 820 ms, filtered 663 ms, search 525 ms, home page 288 ms",
+    "uae-en: home 2553 ms · category 2466 ms (1166 results, filter 1555 ms, scroll 92→151) · product 843 ms (4 sellers) · search 1598 ms (297) · API listing 1114 ms, facets 761 ms, filtered 889 ms, search 510 ms, home page 308 ms",
+    "API timings measured one request at a time after the run (warm, ms; the in-test API timings above were taken while 4 browsers loaded pages in parallel):",
+    "uae-en: listing 158 · facets 218 · filtered 211 · filtered_facets 314 · search 142 · menu 12 · home_page 63",
+    "uae-ar: listing 162 · facets 220 · filtered 177 · filtered_facets 311 · search 143 · menu 13 · home_page 63",
+    "omn-en: listing 156 · facets 217 · filtered 170 · filtered_facets 293 · search 129 · menu 13 · home_page 64",
+    "omn-ar: listing 196 · facets 209 · filtered 190 · filtered_facets 295 · search 129 · menu 12 · home_page 64",
+    "ksa-en: listing 156 · facets 225 · filtered 200 · filtered_facets 316 · search 141 · menu 14 · home_page 62",
+    "ksa-ar: listing 165 · facets 229 · filtered 181 · filtered_facets 305 · search 128 · menu 13 · home_page 63",
+    "egy-en: listing 175 · facets 223 · filtered 172 · filtered_facets 344 · search 146 · menu 13 · home_page 68",
+    "egy-ar: listing 155 · facets 215 · filtered 198 · filtered_facets 322 · search 144 · menu 12 · home_page 64",
+    "kwt-en: listing 157 · facets 216 · filtered 169 · filtered_facets 296 · search 146 · menu 13 · home_page 74",
+    "kwt-ar: listing 184 · facets 211 · filtered 205 · filtered_facets 293 · search 133 · menu 13 · home_page 63",
+    "qat-en: listing 166 · facets 216 · filtered 201 · filtered_facets 304 · search 131 · menu 13 · home_page 64",
+    "qat-ar: listing 159 · facets 234 · filtered 182 · filtered_facets 298 · search 140 · menu 13 · home_page 64",
+    "bhr-en: listing 174 · facets 219 · filtered 173 · filtered_facets 314 · search 126 · menu 13 · home_page 66",
+    "bhr-ar: listing 165 · facets 222 · filtered 194 · filtered_facets 315 · search 128 · menu 13 · home_page 66",
+    "jor-en: listing 170 · facets 226 · filtered 197 · filtered_facets 312 · search 139 · menu 13 · home_page 65",
+    "jor-ar: listing 180 · facets 229 · filtered 219 · filtered_facets 311 · search 142 · menu 13 · home_page 68",
+    "Images: products reuse the 10 demo images stored once under storage/products/demo (product_media rows per product and per variant)."
+  ]
+}

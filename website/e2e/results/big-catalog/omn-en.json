@@ -1,0 +1,72 @@
+{
+  "market": "omn-en",
+  "currency": "OMR",
+  "api": {
+    "listing": 1331,
+    "facets": 635,
+    "filtered": 973,
+    "search": 848,
+    "home_page": 636
+  },
+  "steps": [
+    {
+      "page": "home",
+      "url": "/omn-en",
+      "load_ms": 1384,
+      "checks": {
+        "products": 78,
+        "prices": 95,
+        "sections": 20,
+        "countdown": true
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-en-home.png",
+      "ok": true
+    },
+    {
+      "page": "category",
+      "url": "/omn-en/electronics",
+      "load_ms": 3713,
+      "checks": {
+        "total": 1162,
+        "brands": 8,
+        "sellers": 20,
+        "first_page": 88,
+        "after_scroll": 147,
+        "filter_ms": 1384,
+        "filtered_total": 156
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-en-category.png",
+      "ok": true
+    },
+    {
+      "page": "product",
+      "url": "/omn-en/products/nova-x12-65w-fast-charger-133",
+      "load_ms": 4238,
+      "checks": {
+        "sellers": 3,
+        "sellers_shown": 3
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-en-product.png",
+      "ok": true
+    },
+    {
+      "page": "search",
+      "url": "/omn-en/search?q=smart",
+      "load_ms": 2828,
+      "checks": {
+        "total": 298,
+        "products": 67
+      },
+      "broken_images": 0,
+      "console_errors": 0,
+      "screenshot": "docx/shots/big-catalog/omn-en-search.png",
+      "ok": true
+    }
+  ]
+}

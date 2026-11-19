@@ -16,6 +16,7 @@ use App\Shared\Http\LikeSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -280,21 +281,124 @@ class ProductSearch
      */
     public function facets(array $filters): array
     {
+        // Offer facets whose own filter is not set all count the offers of the same products: read those offers once.
+        $offers = null;
+        $shared = function () use (&$offers, $filters) {
+            return $offers ??= $this->offerRows($filters);
+        };
+        $set = fn (string $filter): bool => ! empty($filters[$filter]);
+
         return [
             'brands' => $this->brandFacet($filters),
-            'sellers' => $this->sellerFacet($filters),
+            'sellers' => $set('seller') ? $this->sellerFacet($filters) : $this->sellerRows($shared()),
             'price' => $this->priceFacet($filters),
             'ratings' => $this->ratingFacet($filters),
             'attributes' => $this->attributeFacet($filters),
-            'fulfilment' => $this->fulfilmentFacet($filters),
-            'arrives' => $this->arrivesFacet($filters),
-            'conditions' => $this->offerFacet($filters, 'condition'),
-            'grades' => array_values(array_filter($this->offerFacet($filters, 'grade'), fn (array $row): bool => in_array($row['value'], self::GRADES, true))),
+            'fulfilment' => $set('fulfilment') ? $this->fulfilmentFacet($filters) : $this->fulfilmentRows($shared()),
+            'arrives' => $set('arrives') ? $this->arrivesFacet($filters) : $this->arrivesRows($shared()),
+            'conditions' => $set('condition') ? $this->offerFacet($filters, 'condition') : self::countRows($shared(), 'condition'),
+            'grades' => array_values(array_filter($set('grade') ? $this->offerFacet($filters, 'grade') : self::countRows($shared(), 'grade'), fn (array $row): bool => in_array($row['value'], self::GRADES, true))),
             'deals' => $this->query($filters, 'deals')->whereExists($this->offerWhere(fn ($listings) => $this->onDeal($listings)))->count(),
             'price_drop' => $this->query($filters, 'price_drop')->whereExists($this->offerWhere(fn ($listings) => $this->priceDropped($listings)))->count(),
             'new_arrivals' => $this->query($filters, 'new_arrivals')->where('products.created_at', '>=', now()->subDays(self::RECENT_DAYS))->count(),
             'categories' => $this->categoryFacet($filters),
         ];
+    }
+
+    /**
+     * The sellable offers (of the store, when scoped) of the products matching every filter.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, \stdClass>
+     */
+    private function offerRows(array $filters): Collection
+    {
+        return $this->storeOffers($filters)
+            ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
+            ->join('products as offer_products', 'offer_products.id', '=', 'product_variants.product_id')
+            ->whereIntegerInRaw('product_variants.product_id', $this->query($filters)->pluck('products.id')->all())
+            ->toBase()
+            ->get(['listings.vendor_id', 'listings.fulfilment', 'listings.condition', 'listings.grade', 'listings.handling_days', 'product_variants.product_id', 'offer_products.brand_id']);
+    }
+
+    /**
+     * Distinct products per value of an offer column, most first.
+     *
+     * @param  Collection<int, \stdClass>  $rows
+     * @return array<int, array{value: string, count: int}>
+     */
+    private static function countRows(Collection $rows, string $column): array
+    {
+        $products = [];
+
+        foreach ($rows as $row) {
+            if ($row->{$column} !== null) {
+                $products[(string) $row->{$column}][$row->product_id] = true;
+            }
+        }
+
+        $out = array_map(fn (string|int $value, array $ids): array => ['value' => (string) $value, 'count' => count($ids)], array_keys($products), $products);
+
+        usort($out, fn (array $a, array $b): int => [$b['count'], $a['value']] <=> [$a['count'], $b['value']]);
+
+        return $out;
+    }
+
+    /**
+     * @param  Collection<int, \stdClass>  $rows
+     * @return array<int, array{slug: string, name: string, rating: string|null, count: int}>
+     */
+    private function sellerRows(Collection $rows): array
+    {
+        $counts = collect(self::countRows($rows, 'vendor_id'))->pluck('count', 'value');
+
+        return Vendor::query()->whereIn('id', $counts->keys())->orderBy('store_name')->get()
+            ->map(fn (Vendor $vendor): array => ['slug' => $vendor->slug, 'name' => $vendor->store_name, 'rating' => $vendor->rating, 'count' => (int) $counts[(string) $vendor->id]])
+            ->sortByDesc('count')->values()->all();
+    }
+
+    /**
+     * @param  Collection<int, \stdClass>  $rows
+     * @return array<int, array{value: string, count: int}>
+     */
+    private function fulfilmentRows(Collection $rows): array
+    {
+        $vendors = Vendor::query()->whereIn('id', $rows->pluck('vendor_id')->unique()->values())->pluck('slug', 'id');
+        $brands = Brand::query()->whereIn('id', $rows->pluck('brand_id')->filter()->unique()->values())->pluck('slug', 'id');
+        $direct = [];
+
+        foreach ($rows as $row) {
+            $brand = $row->brand_id === null ? null : ($brands[$row->brand_id] ?? null);
+
+            if ($brand !== null && in_array($vendors[$row->vendor_id] ?? null, [$brand, $brand.'-official', $brand.'-store'], true)) {
+                $direct[$row->product_id] = true;
+            }
+        }
+
+        $counts = self::countRows($rows, 'fulfilment');
+
+        return $direct === [] ? $counts : [['value' => 'supermall', 'count' => count($direct)], ...$counts];
+    }
+
+    /**
+     * @param  Collection<int, \stdClass>  $rows
+     * @return array<int, array{value: string, count: int}>
+     */
+    private function arrivesRows(Collection $rows): array
+    {
+        $buckets = ['hour' => [], 'tomorrow' => [], 'two_days' => []];
+
+        foreach ($rows as $row) {
+            $days = $row->fulfilment === 'fbn' ? 0 : (int) $row->handling_days;
+
+            foreach (['hour' => 0, 'tomorrow' => 1, 'two_days' => 2] as $bucket => $limit) {
+                if ($days <= $limit) {
+                    $buckets[$bucket][$row->product_id] = true;
+                }
+            }
+        }
+
+        return array_values(array_filter(array_map(fn (string $bucket): array => ['value' => $bucket, 'count' => count($buckets[$bucket])], self::ARRIVES), fn (array $bucket): bool => $bucket['count'] > 0));
     }
 
     /**
@@ -344,7 +448,7 @@ class ProductSearch
     {
         $counts = $this->storeOffers($filters)
             ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
-            ->whereIn('product_variants.product_id', $this->query($filters, 'seller')->select('products.id'))
+            ->whereIntegerInRaw('product_variants.product_id', $this->query($filters, 'seller')->pluck('products.id')->all())
             ->toBase()
             ->select('listings.vendor_id', DB::raw('count(distinct product_variants.product_id) as total'))
             ->groupBy('listings.vendor_id')
@@ -395,7 +499,7 @@ class ProductSearch
     private function attributeFacet(array $filters): array
     {
         $variants = ProductVariant::query()
-            ->whereIn('product_id', $this->query($filters, 'attr')->select('products.id'))
+            ->whereIntegerInRaw('product_id', $this->query($filters, 'attr')->pluck('products.id')->all())
             ->when($filters['store'] ?? null, fn (Builder $query, int $vendorId) => $query->whereIn('id', $this->storeOffers($filters)->select('listings.product_variant_id')))
             ->whereNotNull('option_values')
             ->toBase()
@@ -435,7 +539,7 @@ class ProductSearch
         $direct = $this->storeOffers($filters)
             ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
             ->join('products', 'products.id', '=', 'product_variants.product_id')
-            ->whereIn('product_variants.product_id', $this->query($filters, 'fulfilment')->select('products.id'))
+            ->whereIntegerInRaw('product_variants.product_id', $this->query($filters, 'fulfilment')->pluck('products.id')->all())
             ->whereExists(self::directFromBrand())
             ->toBase()
             ->distinct()
@@ -454,7 +558,7 @@ class ProductSearch
     {
         $row = $this->storeOffers($filters)
             ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
-            ->whereIn('product_variants.product_id', $this->query($filters, 'arrives')->select('products.id'))
+            ->whereIntegerInRaw('product_variants.product_id', $this->query($filters, 'arrives')->pluck('products.id')->all())
             ->toBase()
             ->selectRaw("count(distinct case when listings.fulfilment = 'fbn' or listings.handling_days <= 0 then product_variants.product_id end) as hour")
             ->selectRaw("count(distinct case when listings.fulfilment = 'fbn' or listings.handling_days <= 1 then product_variants.product_id end) as tomorrow")
@@ -507,7 +611,7 @@ class ProductSearch
     {
         return $this->storeOffers($filters)
             ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
-            ->whereIn('product_variants.product_id', $this->query($filters, $column)->select('products.id'))
+            ->whereIntegerInRaw('product_variants.product_id', $this->query($filters, $column)->pluck('products.id')->all())
             ->whereNotNull("listings.{$column}")
             ->toBase()
             ->select("listings.{$column} as value", DB::raw('count(distinct product_variants.product_id) as total'))

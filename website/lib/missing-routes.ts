@@ -41,7 +41,7 @@ const ROUTES: string[][] = [
   "account/my-ads", "account/notifications", "account/orders", "account/orders/:", "account/profile", "account/returns", "account/returns/new",
   "account/returns/:", "account/reviews", "account/saved-searches", "account/security", "account/special-requests", "account/support",
   "account/support/new", "account/support/:", "account/vouchers", "account/warranty", "account/warranty/new", "account/warranty/:",
-  "account/wishlist", "adsupport", "adsupport/articles/:", "adsupport/collections/:", "adsupport/search", "advertise", "auth/social/complete",
+  "account/wishlist", "adsupport", "adsupport/articles/:", "adsupport/collections/:", "adsupport/search", "advertise", "auth/add-email", "auth/social/complete",
   "blog", "blog/category/:", "blog/:", "brands/:", "brokers/:", "cart", "checkout", "checkout/payment", "checkout/success", "classified",
   "classified/compare", "classified/find/:", "classified/post", "classified/search", "classified/shop/:", "compare", "creators", "creators/:",
   "deals", "flash-sale/:", "gift-cards", "help", "help/articles/:", "help/collections/:", "help/search", "join", "join/resume", "join/status",

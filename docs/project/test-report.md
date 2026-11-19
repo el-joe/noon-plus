@@ -143,3 +143,48 @@ Test tooling added:
   - the seller-agreement and classified contract gates (there are no contract versions; see RT-007);
   - true concurrency.
 - **Dev DB growth:** each e2e run adds test records (orders `NW-AE-E2E…`, a return, a review, a ticket, travel bookings, one partner application, new `e2e-new-…@nawy.test` / `e2e-traveller-…` / `e2e-partner-…` emails). They are all marked e2e and can be removed with a cleanup query when needed.
+
+## Big catalogue live test (2026-11-19)
+
+Development data at scale for the home / category / mega-menu designs
+(`docs/design/reference/home-page-target.webp`, `category-page-target.webp`).
+
+**Seed** (dev only, refuses production, deterministic and idempotent — a rerun updates, never duplicates;
+legacy-migrated and e2e rows are never touched):
+
+```bash
+cd backend
+php artisan nawy:countries:migrate                 # listings grade / price drop, stock-sum index
+php artisan nawy:dev:big-catalog --country=all --products=5000 --vendors=60
+# options: --country=uae,omn  --seed=20261119  --no-pages (skip publishing)  --no-post (skip search index + reporting ETL)
+```
+
+Per country it creates or updates: 60 approved stores (8 official brand stores = "Direct from brand") with owner
+accounts `bigcat-{country}-{nnn}@nawy.test`, vendor memberships and the seller agreement signed; the category
+tree (16 roots, every root with level-2 and level-3 children, every category with an image); fictional brands;
+5,000 products (`model_number` `BC-nnnnn`) with ~9,100 variants (colour / size / storage / gender options) and
+EN + AR texts; ~30,000 offers from 1–6 stores per variant (FBN with warehouse stock, marketplace, handling 0–3
+days, sale prices, price drops, renewed/used offers with grades A–C, prices in the local currency with 3 decimals
+for OMR/KWD/BHD/JOD); ~19,000 `product_media` rows pointing at the 10 demo images copied once to
+`storage/app/public/products/demo/`; ratings, units sold and bestseller ranks; the live flash sale
+`big-mega-deals` (ends 7 days after the run — rerun to refresh); coupons FIRST15, NAWY10, SCENT10, GLOW, SALE200,
+WELL, BUY2, FREEBUDS; sponsored brand banners and sponsored-product campaigns per root; and publishes the home
+page (EN + AR, `HomeLayout`) and a category page per root (EN + AR, `CategoryLayout`; the `home` root keeps the
+default layout because its address is the home page). Afterwards: `nawy:search:rebuild-index`, `nawy:reporting:etl`
+for today, and the category tree / brands / mega menu / block caches are flushed. Runtime ≈ 40–60 s per country
+plus the search-index rebuild.
+
+**Run** (servers on :8000 / :3000 — `npm run build && npx next start -p 3000`, `PHP_CLI_SERVER_WORKERS=8 php artisan serve --port=8000`):
+
+```bash
+cd website
+E2E_NO_GLOBAL_SETUP=1 npx playwright test --project=areas --no-deps e2e/specs/areas/catalog/
+node e2e/docx/big-catalog-report.mjs          # → docx/big-catalog-live-test.docx
+```
+
+`big-catalog.spec.ts` (16 tests, 8 countries × EN/AR): home sections with real products and local-currency prices,
+Electronics category (result count, a brand filter changes the results, infinite scroll loads more), a product with
+several sellers (other offers listed), search; no broken images, no console errors; timings per page and per API
+call. `mega-menu.spec.ts` (16 tests): every top-level category flyout. Results: `e2e/results/big-catalog/*.json`,
+`e2e/results/mega-menu.json`; screenshots: `e2e/docx/shots/big-catalog/`, `e2e/docx/shots/mega-menu/`.
+Backend: `tests/Feature/BigCatalogCommandTest.php` (idempotency on a small size, production refusal).

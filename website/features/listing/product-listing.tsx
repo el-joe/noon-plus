@@ -112,6 +112,7 @@ export async function ProductListing({
   lead,
   after,
   heading,
+  headingLevel = "h2",
   subcategories = [],
 }: {
   market: Market;
@@ -126,6 +127,11 @@ export async function ProductListing({
   after?: ReactNode;
   /** Results header subject: “Electronics in UAE” (else the search term). */
   heading?: string | null;
+  /**
+   * `h1` when the results header is the page's main heading (category and
+   * search pages have no other one); `h2` under a page that has its own h1.
+   */
+  headingLevel?: "h1" | "h2";
   /** Sub-category chips of the quick filter row. */
   subcategories?: { label: string; href: string }[];
 }) {
@@ -289,7 +295,7 @@ export async function ProductListing({
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <aside className="hidden lg:sticky lg:top-4 lg:block lg:w-60 lg:shrink-0">
+      <aside className="hidden lg:block lg:w-60 lg:shrink-0">
         <div key={listKey} className="rounded-lg bg-surface p-4">
           {rail}
         </div>
@@ -298,16 +304,7 @@ export async function ProductListing({
         {lead}
         <section id="results" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-body">
-              {subject ? (
-                <span>
-                  <span className="text-secondary">{t("categoryPage.resultsFor", { count: totalLabel })} </span>
-                  <span className="font-semibold">{market.locale === "ar" ? `«${subject}»` : `“${subject}”`}</span>
-                </span>
-              ) : (
-                <span className="font-semibold">{t("listing.results", { count: total })}</span>
-              )}
-            </h2>
+            <ResultsHeading as={headingLevel} market={market} subject={subject} total={total} />
             <div className="flex items-center gap-2">
               <div className="lg:hidden">
                 <FilterDrawer count={chips.length}>
@@ -394,6 +391,23 @@ export async function ProductListing({
 }
 
 /** Up to 4 round price bands between the facet's min and max: under A, A–B, B–C, over C. */
+/** Results header: “1,234 results for “Electronics in UAE”” (or the plain count), as the page heading or a section heading. */
+export function ResultsHeading({ as: Tag = "h2", market, subject, total }: { as?: "h1" | "h2"; market: Market; subject: string | null; total: number }) {
+  const t = getT(market.locale);
+  return (
+    <Tag className="text-body font-normal">
+      {subject ? (
+        <span>
+          <span className="text-secondary">{t("categoryPage.resultsFor", { count: resultCount(total, market.locale) })} </span>
+          <span className="font-semibold">{market.locale === "ar" ? `«${subject}»` : `“${subject}”`}</span>
+        </span>
+      ) : (
+        <span className="font-semibold">{t("listing.results", { count: total })}</span>
+      )}
+    </Tag>
+  );
+}
+
 export function priceBands(min?: string | null, max?: string | null): { min: string | null; max: string | null }[] {
   const lo = Number(min);
   const hi = Number(max);
