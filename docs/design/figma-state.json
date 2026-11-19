@@ -78,7 +78,8 @@
     "Apps · Customer & delivery": "80:2",
     "Web · States & extras": "95:4089",
     "Panel layouts": "96:1691",
-    "App · Customer v2": "94:11699"
+    "App · Customer v2": "94:11699",
+    "Panel navigation": "231:2"
   },
   "nodes": {
     "foundationsSpecimen": "2:144",
@@ -1002,5 +1003,129 @@
     "227:35": "Email / Order receipt — lines, totals with VAT, OMR 3 decimals, address, payment",
     "227:70": "Admin / Notification templates editor — catalogue info, edit, preview with sample data, test send, reset, version history",
     "227:88": "Admin / Platform / Email log — status counts, filters, table with resend, suppression list"
+  },
+  "panelNav": {
+    "page": "231:2",
+    "spec": "docs/design/panel-nav-design.md",
+    "iaSource": "docs/project/panel-navigation.md",
+    "boards": {
+      "Nav icons": "231:3",
+      "Nav components": "232:2"
+    },
+    "components": {
+      "Nav/Link": "232:152",
+      "Nav/Group header": "232:256",
+      "Nav/Search": "232:302",
+      "Nav/Icon button": "232:315",
+      "Nav/Rail item": "232:344",
+      "Nav/Tooltip": "232:349",
+      "Nav/Header": "233:169",
+      "Nav/Footer": "233:196",
+      "Nav/Flyout": "233:240",
+      "Nav/Sidebar": "239:3605"
+    },
+    "icons": {
+      "layout-dashboard": "231:11",
+      "inbox": "231:17",
+      "shopping-cart": "231:24",
+      "package": "231:32",
+      "users": "231:40",
+      "wallet": "231:46",
+      "megaphone": "231:52",
+      "sparkles": "231:59",
+      "building-2": "231:70",
+      "truck": "231:79",
+      "file-text": "231:88",
+      "bar-chart": "231:96",
+      "settings": "231:102",
+      "database": "231:109",
+      "store": "231:118",
+      "headphones": "231:123",
+      "tag": "231:129",
+      "message-square": "231:134",
+      "link": "231:140",
+      "user": "231:146",
+      "plane": "231:151",
+      "calendar": "231:159",
+      "search": "231:165",
+      "chevron-down": "231:170",
+      "chevron-right": "231:175",
+      "chevron-left": "231:180",
+      "chevrons-down-up": "231:186",
+      "chevrons-up-down": "231:192",
+      "panel-left-close": "231:199",
+      "panel-left-open": "231:206",
+      "log-out": "231:213",
+      "menu": "231:220",
+      "x": "231:226",
+      "globe": "231:233",
+      "sun": "231:246",
+      "clipboard-list": "231:256",
+      "banknote": "231:264",
+      "car": "231:272",
+      "lock": "231:278",
+      "shield-check": "231:284",
+      "shopping-bag": "236:3249",
+      "clipboard-check": "236:3256",
+      "warehouse": "236:3264",
+      "layout-grid": "236:3272",
+      "layers": "236:3279",
+      "shield": "236:3284",
+      "server": "236:3292",
+      "briefcase": "236:3298",
+      "building": "236:3313",
+      "life-buoy": "236:3323",
+      "route": "236:3330",
+      "ticket": "236:3338",
+      "user-circle": "236:3345",
+      "panel-left": "236:3351"
+    },
+    "screens": {
+      "Admin EN expanded": {
+        "frame": "238:3516",
+        "sidebar": "238:3245"
+      },
+      "Admin AR RTL": {
+        "frame": "238:4073",
+        "sidebar": "238:3802"
+      },
+      "Admin search filtering": {
+        "frame": "238:4481",
+        "sidebar": "238:4367"
+      },
+      "Admin rail + flyout": {
+        "frame": "238:4928",
+        "sidebar": "238:4767"
+      },
+      "Admin mobile drawer": {
+        "frame": "238:5234",
+        "sidebar": "238:5247"
+      },
+      "Seller Center store": {
+        "frame": "239:1750",
+        "sidebar": "239:1594"
+      },
+      "Seller Center classified shop": {
+        "frame": "239:1980",
+        "sidebar": "239:1859"
+      },
+      "Creator Studio": {
+        "frame": "239:2332",
+        "sidebar": "239:2176"
+      },
+      "Travel Partner": {
+        "frame": "239:2546",
+        "sidebar": "239:2416"
+      },
+      "Shipping": {
+        "frame": "239:2809",
+        "sidebar": "239:2640"
+      },
+      "Delivery": {
+        "frame": "239:3110",
+        "sidebar": "239:2989"
+      }
+    },
+    "notes": "Sidebar 264 expanded / 72 rail / 304 drawer; accordion (only active group open); screens use the IA with the designer recommendations R1-R8 applied."
   }
 }

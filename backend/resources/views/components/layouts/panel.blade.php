@@ -14,27 +14,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} · Nawy {{ $panel->name }}</title>
+    {{-- Icon-rail sidebar remembered per browser (applied before first paint). --}}
+    <script>try { if (window.localStorage.getItem('nawy.nav.rail') === '1') { document.documentElement.setAttribute('data-nav-rail', ''); } } catch (error) {}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-page font-sans text-fg antialiased">
 <div class="flex min-h-screen">
-    {{-- QC-025: below 1024px the sidebar opens as a drawer from the topbar menu button. --}}
-    <aside id="panel-sidebar" data-panel-sidebar class="fixed inset-y-0 start-0 z-40 hidden w-64 shrink-0 flex-col gap-1 overflow-y-auto bg-sidebar px-4 py-5 lg:static lg:flex" aria-label="{{ __('Main navigation') }}">
-        <div class="mb-4 flex items-center gap-2 px-2">
-            <span class="grid size-9 place-items-center rounded-lg bg-brand font-bold text-fg-on-brand">N</span>
-            <span class="flex flex-col leading-tight">
+    {{-- QC-025: below 1024px the sidebar opens as a drawer from the topbar menu button; on desktop it can shrink to an icon rail. --}}
+    <aside id="panel-sidebar" data-panel-sidebar class="panel-sidebar fixed inset-y-0 start-0 z-40 hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain bg-sidebar px-3 py-5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64" aria-label="{{ __('Main navigation') }}">
+        <div class="flex items-center gap-2 px-2">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-brand font-bold text-fg-on-brand">N</span>
+            <span class="nav-brand-text flex grow flex-col leading-tight">
                 <span class="font-bold text-white">Nawy</span>
                 <span class="text-xs text-fg-sidebar">{{ $panel->name }}</span>
             </span>
+            <button type="button" data-nav-rail-toggle aria-pressed="false"
+                    data-label-collapse="{{ __('Collapse sidebar') }}" data-label-expand="{{ __('Expand sidebar') }}"
+                    aria-label="{{ __('Collapse sidebar') }}" title="{{ __('Collapse sidebar') }}"
+                    class="hidden size-8 shrink-0 place-items-center rounded-lg text-fg-sidebar outline-none hover:bg-sidebar-active/60 hover:text-white focus-visible:ring-2 focus-visible:ring-brand lg:grid">
+                <x-icon name="panel-left" :size="18" class="rtl:-scale-x-100" />
+            </button>
         </div>
-        <nav class="flex flex-col gap-1">
-            @foreach ($navigation as $group)
-                <p class="mt-3 px-3 text-[11px] font-semibold tracking-wider text-fg-sidebar/70 uppercase">{{ $group['label'] }}</p>
-                @foreach ($group['items'] as $item)
-                    <x-ui.sidebar-item :href="$item['href']" :active="$item['active'] ?? false" :count="$item['count'] ?? null" :soon="$item['soon'] ?? false">{{ $item['label'] }}</x-ui.sidebar-item>
-                @endforeach
-            @endforeach
-        </nav>
+        <x-ui.sidebar-nav :panel="$panel" :navigation="$navigation" />
     </aside>
 
     <div class="flex min-w-0 grow flex-col">

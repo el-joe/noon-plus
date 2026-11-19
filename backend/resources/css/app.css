@@ -80,3 +80,170 @@
         font-family: var(--font-arabic);
     }
 }
+
+/*
+ * Panel sidebar (docs/project/panel-navigation.md): collapsible groups, search filter and the desktop icon rail.
+ * Accordion: the open group has `data-open` on [data-nav-group]; the rail in `data-nav-rail` on <html>.
+ * Unlayered on purpose: these state rules must win over the Tailwind utilities on the same elements.
+ */
+.nav-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition:
+        grid-template-rows 200ms ease,
+        visibility 0s linear 200ms;
+}
+
+[data-nav-group][data-open] > .nav-collapse {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition:
+        grid-template-rows 200ms ease,
+        visibility 0s;
+}
+
+.nav-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.nav-flyout-title {
+    display: none;
+}
+
+.nav-chevron {
+    transition: transform 200ms ease;
+}
+
+[data-nav-group][data-open] .nav-chevron {
+    transform: rotate(180deg);
+}
+
+[data-nav-group][data-open] [data-nav-group-count] {
+    display: none;
+}
+
+[data-nav-group][data-nav-active] > .nav-toggle::before {
+    content: '';
+    position: absolute;
+    inset-block: 0.5rem;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 9999px;
+    background: var(--color-brand);
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+/* The accent bar moves to the group while the active link is out of sight. */
+[data-nav-group][data-nav-active]:not([data-open]) > .nav-toggle::before {
+    opacity: 1;
+}
+
+[data-nav][data-searching] [data-nav-search-kbd] {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-collapse,
+    [data-nav-group][data-open] > .nav-collapse,
+    .nav-chevron,
+    .panel-sidebar {
+        transition: none !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .panel-sidebar {
+        transition: width 200ms ease;
+    }
+
+    [data-nav-rail] .panel-sidebar {
+        width: 4.5rem;
+        padding-inline: 0.75rem;
+        overflow-x: hidden;
+        scrollbar-width: none;
+    }
+
+    [data-nav-rail] .panel-sidebar > div:first-child {
+        flex-direction: column;
+        padding-inline: 0;
+    }
+
+    [data-nav-rail] .nav-brand-text,
+    [data-nav-rail] .nav-tools,
+    [data-nav-rail] [data-nav-chevron],
+    [data-nav-rail] [data-nav-empty] {
+        display: none;
+    }
+
+    [data-nav-rail] .nav-toggle,
+    [data-nav-rail] [data-nav-type='link'] > .nav-link {
+        justify-content: center;
+        padding-inline: 0;
+        height: 2.75rem;
+    }
+
+    [data-nav-rail] .nav-toggle > [data-nav-label],
+    [data-nav-rail] [data-nav-type='link'] > .nav-link > [data-nav-label] {
+        display: none;
+    }
+
+    /* Counts become a small badge on the icon. */
+    [data-nav-rail] [data-nav-group-count],
+    [data-nav-rail] [data-nav-type='link'] [data-nav-count] {
+        display: block;
+        position: absolute;
+        top: 0.125rem;
+        inset-inline-end: 0.125rem;
+        padding-inline: 0.3rem;
+        font-size: 0.625rem;
+        line-height: 1rem;
+    }
+
+    [data-nav-rail] [data-nav-group] > .nav-collapse {
+        display: none;
+    }
+
+    /* Flyout of a group, tooltip of a top-level link (positioned by panel-sidebar.js). */
+    [data-nav-rail] [data-nav-group].is-flyout > .nav-collapse {
+        display: block;
+        visibility: visible;
+        position: fixed;
+        z-index: 50;
+        top: var(--nav-flyout-top, 0);
+        inset-inline-start: 4.5rem;
+        min-width: 15rem;
+        max-height: calc(100vh - 1rem);
+        overflow-y: auto;
+        border-radius: 0.75rem;
+        background: var(--color-sidebar);
+        padding: 0.5rem;
+        box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+        outline: 1px solid rgb(255 255 255 / 0.08);
+    }
+
+    [data-nav-rail] [data-nav-group].is-flyout .nav-flyout-title {
+        display: block;
+    }
+
+    [data-nav-rail] [data-nav-group].is-flyout .nav-link {
+        padding-inline-start: 0.75rem;
+    }
+
+    [data-nav-rail] [data-nav-type='link'].is-flyout > .nav-link > [data-nav-label] {
+        display: block;
+        position: fixed;
+        z-index: 50;
+        top: var(--nav-flyout-top, 0);
+        inset-inline-start: 4.5rem;
+        border-radius: 0.5rem;
+        background: var(--color-sidebar);
+        padding: 0.5rem 0.75rem;
+        color: #fff;
+        white-space: nowrap;
+        box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+        outline: 1px solid rgb(255 255 255 / 0.08);
+    }
+}
