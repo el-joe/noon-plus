@@ -6,6 +6,7 @@ use App\Domains\Catalog\Http\Controllers\CatalogController;
 use App\Domains\Countries\Support\CountryContext;
 use App\Shared\Audit\LogsCountryActivity;
 use App\Shared\Database\UsesCountryDatabase;
+use App\Shared\Http\PublicCache;
 use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -23,7 +24,7 @@ class Category extends Model
     use HasFactory, LogsCountryActivity, UsesCountryDatabase;
 
     /**
-     * WP11: the public category tree is cached per country and locale; any change forgets it.
+     * WP11: the public category tree (and the header mega menu) is cached per country and locale; any change forgets it.
      */
     protected static function booted(): void
     {
@@ -35,6 +36,8 @@ class Category extends Model
                     Cache::forget(CatalogController::treeCacheKey($country, $locale));
                 }
             }
+
+            PublicCache::flushCountry(PublicCache::CATALOG_MENU);
         };
 
         static::saved($forget);

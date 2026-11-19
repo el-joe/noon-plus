@@ -4,7 +4,8 @@ import { Rail } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/misc";
 import { getT } from "@/lib/i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { items, resolveLink, str, strings, type BlockContext, type Settings } from "../settings";
+import { ReadMore } from "../read-more";
+import { items, list, resolveLink, str, strings, type BlockContext, type Settings } from "../settings";
 import { BlockSection, ImageLink } from "./shared";
 import { VERTICALS } from "./vertical-teaser";
 
@@ -15,20 +16,27 @@ import { VERTICALS } from "./vertical-teaser";
  */
 
 
-/** 33 verticals */
+const VERTICAL_TINTS = { classifieds: "bg-info-subtle", travel: "bg-success-subtle", realEstate: "bg-brand-subtle", creators: "bg-warning-subtle" } as const;
+
+/** 33 verticals — Classifieds · Travel & trips · Real estate · Creators tinted cards with captions (`items` may override `{key, title, caption}`). */
 export function Verticals({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const t = getT(ctx.market.locale);
+  const overrides = new Map(list(s, "items").map((entry) => [str(entry, "key") ?? "", entry]));
   return (
-    <BlockSection s={s} ctx={ctx}>
+    <BlockSection s={{ surface: false, ...s }} ctx={ctx}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {VERTICALS.map(({ key, path, icon: Icon }) => (
-          <Link key={key} href={`/${ctx.market.slug}${path}`} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-4 hover:shadow-sm">
-            <span className="flex size-10 items-center justify-center rounded-md bg-brand-subtle text-brand-text">
-              <Icon className="size-5" />
-            </span>
-            <span className="text-body font-semibold">{t(`blocks.${key}`)}</span>
-          </Link>
-        ))}
+        {VERTICALS.map(({ key, path, icon: Icon }) => {
+          const custom = overrides.get(key);
+          return (
+            <Link key={key} href={`/${ctx.market.slug}${path}`} className={`flex items-center gap-3 rounded-lg p-4 hover:shadow-sm ${VERTICAL_TINTS[key]}`}>
+              <Icon className="size-6 shrink-0 text-ink" strokeWidth={1.75} />
+              <span className="flex min-w-0 flex-col">
+                <span className="text-body font-semibold">{(custom && str(custom, "title", ctx.market.locale)) ?? t(`blocks.${key}`)}</span>
+                <span className="truncate text-caption text-secondary">{(custom && str(custom, "caption", ctx.market.locale)) ?? t(`blocks.verticalCaptions.${key}`)}</span>
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </BlockSection>
   );
@@ -98,20 +106,17 @@ export function HtmlBlock({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   );
 }
 
-/** 41 seo_text — collapsible SEO copy. */
+/** 41 seo_text — SEO copy: title, clamped text and Read more. */
 export function SeoText({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const text = str(s, "text", ctx.market.locale);
   if (!text) return null;
   const t = getT(ctx.market.locale);
   const title = str(s, "title", ctx.market.locale);
   return (
-    <details className="group rounded-lg bg-surface p-4">
-      <summary className="cursor-pointer list-none text-body font-semibold">
-        {title ?? t("common.showMore")}
-        <span className="ms-2 text-link group-open:hidden">{t("common.showMore")}</span>
-      </summary>
-      <div className="prose-cms mt-2 text-body-sm text-secondary" dangerouslySetInnerHTML={{ __html: sanitizeHtml(text) }} />
-    </details>
+    <section className="rounded-lg bg-surface p-4">
+      {title ? <h2 className="mb-2 text-body-lg font-semibold">{title}</h2> : null}
+      <ReadMore html={sanitizeHtml(text)} more={t("blocks.readMore")} less={t("common.showLess")} />
+    </section>
   );
 }
 
@@ -124,7 +129,7 @@ export function PopularSearches({ s, ctx }: { s: Settings; ctx: BlockContext }) 
     <BlockSection s={s} ctx={ctx} title={str(s, "title", ctx.market.locale) ?? t("blocks.popularSearches")}>
       <div className="flex flex-wrap gap-2">
         {keywords.map((keyword) => (
-          <Link key={keyword} href={`/${ctx.market.slug}/search?q=${encodeURIComponent(keyword)}`} className="rounded-sm border border-line bg-surface px-2.5 py-1 text-body-sm hover:bg-subtle">
+          <Link key={keyword} href={`/${ctx.market.slug}/search?q=${encodeURIComponent(keyword)}`} className="rounded-sm bg-subtle px-2.5 py-1 text-body-sm hover:bg-line">
             {keyword}
           </Link>
         ))}

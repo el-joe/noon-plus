@@ -23,6 +23,7 @@ export const queryKeys = {
   me: ["me"] as const,
   cart: (market: string) => ["cart", market] as const,
   categories: (market: string) => ["categories", market] as const,
+  categoryMenu: (market: string) => ["category-menu", market] as const,
   wishlist: (market: string) => ["wishlist", market] as const,
   addresses: (market: string) => ["addresses", market] as const,
 };

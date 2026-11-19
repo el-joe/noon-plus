@@ -45,10 +45,10 @@ function homePage(array $zones = [], string $slug = 'home'): Page
     return $page->refresh();
 }
 
-it('registers exactly the 51 block types of the page-builder registry document', function () {
+it('registers exactly the 57 block types of the page-builder registry document', function () {
     preg_match_all('/^\| \d+ \| `([a-z_]+)`/m', file_get_contents(base_path('../docs/design/page-builder-blocks.md')), $documented);
 
-    expect(BlockRegistry::all())->toHaveCount(51)
+    expect(BlockRegistry::all())->toHaveCount(57)
         ->and(array_keys(BlockRegistry::all()))->toEqualCanonicalizing($documented[1])
         ->and(BlockRegistry::allowedIn('category_header', 'header'))->toBeTrue()
         ->and(BlockRegistry::allowedIn('category_header', 'main'))->toBeFalse()

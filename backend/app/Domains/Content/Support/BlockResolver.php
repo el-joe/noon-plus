@@ -3,24 +3,35 @@
 namespace App\Domains\Content\Support;
 
 use App\Domains\Catalog\Support\ListingCards;
-use App\Domains\Listings\Enums\ListingStatus;
-use App\Domains\Listings\Models\Listing;
+use App\Domains\Coupons\Models\Coupon;
+use App\Domains\FlashSales\Enums\FlashSaleEventStatus;
+use App\Domains\FlashSales\Enums\FlashSaleSubmissionStatus;
+use App\Domains\FlashSales\Http\Resources\FlashSaleEventResource;
+use App\Domains\FlashSales\Models\FlashSaleEvent;
 use App\Domains\LiveMedia\Enums\StreamStatus;
 use App\Domains\LiveMedia\Models\LiveStream;
 use App\Domains\Travel\Support\TravelCatalog;
+use App\Shared\Http\PublicCache;
 use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
  * Server-side data for published blocks (page-builder-blocks.md rule 2):
  * drops blocks outside their visibility window, resolves product sources
- * (manual listing ids, new arrivals), live streams and travel packages
- * (promoted first, D14); every other block is
- * passed through with its settings for the client to render. Unknown types
- * are skipped (rule 4).
+ * ({@see BlockProducts}: manual listing ids, new arrivals, category, brand,
+ * bestsellers, top rated, deals, trending, recommended, coupon), category
+ * tiles ({@see BlockTiles}), the flash sale of deal blocks (`flash_sale_id`
+ * or `flash_sale_slug` → `data.sale`), which coupon codes of offer cards are
+ * live (`data.codes`), live streams (and the live pill of a tile scroller)
+ * and travel packages (promoted first, D14). Children of containers
+ * (`panel_row` columns, `section_band` children) get their `data` too.
+ * Every other block is passed through with its settings for the client to
+ * render. Unknown types are skipped (rule 4).
  */
 class BlockResolver
 {
+    public function __construct(private BlockProducts $products, private BlockTiles $tiles) {}
+
     /**
      * @param  array<string, array<int, array<string, mixed>>>  $zones
      * @return array<string, array<int, array<string, mixed>>>
@@ -39,17 +50,60 @@ class BlockResolver
                 }
 
                 $definition = BlockRegistry::get($block['type']);
+                $settings = (array) ($block['settings'] ?? []);
                 $resolved[$zone][] = [
                     'id' => $block['id'] ?? null,
                     'type' => $block['type'],
                     'kind' => $definition['kind'],
-                    'settings' => $block['settings'] ?? [],
-                    'data' => $this->data($block['type'], (array) ($block['settings'] ?? [])),
+                    'settings' => $definition['kind'] === 'container' ? $this->children($settings, $at) : ($block['settings'] ?? []),
+                    'data' => $this->data($block['type'], $settings),
                 ];
             }
         }
 
         return $resolved;
+    }
+
+    /**
+     * Resolve the blocks inside a container: `columns[].block` (or the
+     * column itself) and `children[]` get a `data` key; hidden ones go.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function children(array $settings, CarbonImmutable $at): array
+    {
+        foreach (['columns', 'children'] as $key) {
+            if (! is_array($settings[$key] ?? null)) {
+                continue;
+            }
+
+            $entries = [];
+
+            foreach ($settings[$key] as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $nested = is_array($entry['block'] ?? null);
+                $child = $nested ? $entry['block'] : $entry;
+                $type = (string) ($child['type'] ?? '');
+
+                if ($type !== '' && BlockRegistry::has($type) && BlockRegistry::get($type)['kind'] !== 'container') {
+                    if (! $this->visible((array) ($child['settings'] ?? []), $at)) {
+                        continue;
+                    }
+
+                    $child['data'] = $this->data($type, (array) ($child['settings'] ?? []));
+                }
+
+                $entries[] = $nested ? [...$entry, 'block' => $child] : $child;
+            }
+
+            $settings[$key] = $entries;
+        }
+
+        return $settings;
     }
 
     /**
@@ -81,7 +135,11 @@ class BlockResolver
     private function data(string $type, array $settings): ?array
     {
         return match ($type) {
-            'product_carousel', 'product_grid' => ['products' => $this->products($settings)],
+            'product_carousel', 'product_grid' => ['products' => $this->products->cards($settings)],
+            'tile_scroller', 'category_tiles', 'category_showcase', 'tile_grid' => $this->tileData($type, $settings),
+            'mega_deals', 'deal_grid', 'frenzy_deals', 'hero_offer_list' => $this->saleData($settings),
+            'offer_cards' => $this->offerCodes($settings),
+            'category_promo_tiles', 'category_brand_tiles', 'category_gift_band', 'category_deal_columns' => app(CategoryBlocks::class)->data($type, $settings),
             // D14: promoted trips first, labelled (the same list as `travel/packages`).
             'travel_packages_carousel' => ['packages' => array_slice(app(TravelCatalog::class)->page(array_filter([
                 'trip_type' => is_string($settings['trip_type'] ?? null) ? $settings['trip_type'] : null,
@@ -96,20 +154,70 @@ class BlockResolver
 
     /**
      * @param  array<string, mixed>  $settings
-     * @return array<int, array<string, mixed>>
+     * @return array<string, mixed>|null
      */
-    private function products(array $settings): array
+    private function tileData(string $type, array $settings): ?array
     {
-        $limit = min(48, max(1, (int) ($settings['max_items'] ?? 12)));
-        $query = Listing::query()->where('status', ListingStatus::Active)->with(ListingCards::relations());
+        $tiles = $this->tiles->tiles($type, $settings);
+        $data = $tiles === null ? [] : ['tiles' => $tiles];
 
-        $listings = match ($settings['source'] ?? null) {
-            'manual' => $query->whereKey(array_map('intval', (array) ($settings['listing_ids'] ?? [])))->limit($limit)->get()
-                ->sortBy(fn (Listing $listing): int|false => array_search($listing->id, array_map('intval', (array) ($settings['listing_ids'] ?? [])), true))->values(),
-            'new_arrivals' => $query->latest('id')->limit($limit)->get(),
-            default => collect(),
-        };
+        if ($type === 'tile_scroller' && filter_var($settings['live_pill'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $stream = LiveStream::query()->where('status', StreamStatus::Live)->orderByDesc('started_at')->orderByDesc('id')->first();
+            $data['live'] = $stream === null ? null : ['slug' => $stream->slug, 'title' => $stream->title()];
+        }
 
-        return $listings->map(fn (Listing $listing): array => ListingCards::card($listing))->all();
+        return $data === [] ? null : $data;
+    }
+
+    /**
+     * The running (or upcoming, published) flash sale of a deal block.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array{sale: array<string, mixed>}|null
+     */
+    private function saleData(array $settings): ?array
+    {
+        $id = (int) ($settings['flash_sale_id'] ?? 0);
+        $slug = is_string($settings['flash_sale_slug'] ?? null) ? $settings['flash_sale_slug'] : null;
+
+        if ($id <= 0 && ($slug === null || $slug === '')) {
+            return null;
+        }
+
+        return PublicCache::remember(PublicCache::countryGroup(BlockProducts::CACHE_GROUP), app()->getLocale().':sale:'.$id.':'.$slug, 60, function () use ($id, $slug): ?array {
+            $event = FlashSaleEvent::query()
+                ->whereIn('status', FlashSaleEventStatus::pricing())
+                ->where('ends_at', '>', now())
+                ->when($id > 0, fn ($query) => $query->whereKey($id), fn ($query) => $query->where('slug', $slug))
+                ->with(['submissions' => fn ($query) => $query
+                    ->whereIn('status', [...FlashSaleSubmissionStatus::pricing(), FlashSaleSubmissionStatus::SoldOut])
+                    ->orderBy('flash_price')
+                    ->orderBy('id')
+                    ->with(ListingCards::relations('listing.'))])
+                ->first();
+
+            return $event === null ? null : ['sale' => (new FlashSaleEventResource($event))->resolve(request())];
+        });
+    }
+
+    /**
+     * Which of the offer cards' coupon codes are live right now.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array{codes: array<int, string>}|null
+     */
+    private function offerCodes(array $settings): ?array
+    {
+        $codes = collect((array) ($settings['items'] ?? []))->filter('is_array')->pluck('code')->filter(fn ($code): bool => is_string($code) && $code !== '')
+            ->map(fn (string $code): string => strtoupper($code))->unique()->values();
+
+        if ($codes->isEmpty()) {
+            return null;
+        }
+
+        return ['codes' => Coupon::query()->whereIn('code', $codes->all())->where('is_active', true)->whereNull('admin_disabled_at')
+            ->where(fn ($live) => $live->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
+            ->where(fn ($live) => $live->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->pluck('code')->map(fn ($code): string => strtoupper((string) $code))->values()->all()];
     }
 }

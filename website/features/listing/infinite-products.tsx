@@ -3,8 +3,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
-import { ProductGrid } from "@/components/product/product-grid";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
+import { ProductCard as ProductTile } from "@/components/product/product-card";
 import { Alert, Spinner } from "@/components/ui/misc";
 import { getProducts, type ProductFilters } from "@/lib/api/endpoints";
 import { cardFromApi } from "@/lib/api/mappers";
@@ -31,6 +31,9 @@ export function InfiniteProducts({
   total,
   nextHref,
   firstHref,
+  inserts = [],
+  every = 20,
+  totalLabel,
 }: {
   initial: ProductCard[];
   filters: ProductFilters;
@@ -40,8 +43,14 @@ export function InfiniteProducts({
   total: number;
   nextHref: string | null;
   firstHref: string | null;
+  /** "100K+" — the results header's rounded total. */
+  totalLabel?: string;
+  /** Category page: sponsored brand rows placed after every `every` products (4 rows of 5), in turn. */
+  inserts?: ReactNode[];
+  every?: number;
 }) {
   const t = useTranslations("storefront.listing");
+  const tc = useTranslations("categoryPage");
   const market = useMarket();
   const message = useErrorMessage();
   const sentinel = useRef<HTMLDivElement>(null);
@@ -92,11 +101,21 @@ export function InfiniteProducts({
           {t("backToFirst")}
         </Link>
       ) : null}
-      <ProductGrid products={products.map(cardFromApi)} />
+      {chunks(products, every).map((chunk, index, all) => (
+        <Fragment key={index}>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {chunk.map((product, i) => (
+              <ProductTile key={`${product.slug}-${index}-${i}`} product={cardFromApi(product)} />
+            ))}
+          </div>
+          {inserts.length > 0 && chunk.length === every && (index < all.length - 1 || hasMore) ? inserts[index % inserts.length] : null}
+        </Fragment>
+      ))}
       <div ref={sentinel} className="flex flex-col items-center gap-3 py-2">
         {isError ? <Alert tone="danger">{message(query.error)}</Alert> : null}
         <p className="text-body-sm text-secondary" aria-live="polite">
-          {t("showing", { shown, total })}
+          {t("showing", { shown: shown.toLocaleString(market.locale), total: totalLabel ?? total.toLocaleString(market.locale) })}
+          {hasMore ? <span className="text-muted"> · {tc("infinite")}</span> : null}
         </p>
         {isFetching ? <Spinner className="size-5" /> : null}
         {hasMore && !isFetching && nextHref ? (
@@ -114,4 +133,10 @@ export function InfiniteProducts({
       </div>
     </div>
   );
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }

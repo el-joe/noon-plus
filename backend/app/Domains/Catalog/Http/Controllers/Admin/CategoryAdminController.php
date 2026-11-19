@@ -191,6 +191,7 @@ class CategoryAdminController extends Controller
             'description_en' => ['nullable', 'string', 'max:2000'],
             'description_ar' => ['nullable', 'string', 'max:2000'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_image' => ['boolean'],
             'commission_rate' => ['nullable', 'decimal:0,2', 'min:0', 'max:100'],
             'return_window_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'size_guide_template_id' => ['nullable', 'integer', Rule::exists(SizeGuideTemplate::class, 'id')],
@@ -203,15 +204,27 @@ class CategoryAdminController extends Controller
         if ($request->hasFile('image')) {
             $data['image_path'] = $request->file('image')->store('categories/'.$this->countryContext->current()->code, 'public');
 
-            if ($category?->image_path !== null) {
-                Storage::disk('public')->delete($category->image_path);
-            }
+            $this->deleteUploadedImage($category);
+        } elseif (($data['remove_image'] ?? false) && $category?->image_path !== null) {
+            $this->deleteUploadedImage($category);
+            $data['image_path'] = null;
         }
 
-        unset($data['image']);
+        unset($data['image'], $data['remove_image']);
         $data['sort_order'] ??= 0;
 
         return $data;
+    }
+
+    /**
+     * Seeded demo images are shared between categories (and products): only
+     * a file uploaded here (under `categories/`) is deleted from the disk.
+     */
+    private function deleteUploadedImage(?Category $category): void
+    {
+        if ($category?->image_path !== null && str_starts_with($category->image_path, 'categories/')) {
+            Storage::disk('public')->delete($category->image_path);
+        }
     }
 
     /**

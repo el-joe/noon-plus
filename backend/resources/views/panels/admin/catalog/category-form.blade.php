@@ -26,7 +26,13 @@
                 </div>
             </div>
         </x-ui.card>
-        <x-ui.card :title="__('Image')">
+        <x-ui.card :title="__('Image')" :subtitle="__('Shown on the category page and, for top-level categories, as the large picture in the header menu.')">
+            @if ($category->image_path)
+                <div class="mb-4 flex items-center gap-4" data-category-image>
+                    <img src="{{ \App\Shared\Http\PublicUrl::of($category->image_path) }}" alt="{{ $category->name_en }}" class="size-24 rounded-lg object-cover">
+                    <x-ui.checkbox :label="__('Remove the current image')" name="remove_image" />
+                </div>
+            @endif
             <div class="flex flex-col gap-1.5">
                 <label for="image" class="text-sm font-medium">{{ __('Category image (JPG, PNG or WebP, up to 2 MB)') }}</label>
                 <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm">

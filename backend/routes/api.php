@@ -84,6 +84,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('categories', [CatalogController::class, 'categories'])->name('catalog.categories');
         Route::get('categories/tree', [CatalogController::class, 'categoryTree'])->name('catalog.categories.tree');
         Route::get('categories/{slug}', [CatalogController::class, 'category'])->name('catalog.categories.show');
+        Route::get('catalog/menu', [CatalogController::class, 'menu'])->name('catalog.menu');
         Route::get('brands', [CatalogController::class, 'brands'])->name('catalog.brands');
         Route::get('brands/{slug}', [CatalogController::class, 'brand'])->name('catalog.brands.show');
         Route::get('products', [CatalogController::class, 'products'])->name('catalog.products');

@@ -597,8 +597,8 @@ describe('mixed seller groups (owner decision 2026-11-19: split into two parcels
             ->and($seller->items->pluck('listing_id')->all())->toBe([$own->id])
             ->and($warehouse->fulfilled_by)->toBe('nawy')->and($warehouse->split_from_sub_order_id)->toBe($seller->id)
             ->and($warehouse->items->pluck('listing_id')->all())->toBe([$fbn->id])
-            ->and($warehouse->subtotal)->toBe('200.00')->and($warehouse->shipping_total)->toBe('0.00')->and($warehouse->total)->toBe('200.00')
-            ->and($seller->subtotal)->toBe('50.00')
+            ->and((float) $warehouse->subtotal)->toBe(200.0)->and((float) $warehouse->shipping_total)->toBe(0.0)->and((float) $warehouse->total)->toBe(200.0)
+            ->and((float) $seller->subtotal)->toBe(50.0)
             ->and($seller->number)->not->toBe($warehouse->number);
 
         // Reserved warehouse units belong to the warehouse parcel only.
@@ -652,7 +652,7 @@ describe('mixed seller groups (owner decision 2026-11-19: split into two parcels
     });
 
     it('cancels, settles and charges fees per parcel (fixed fee once, FBN fee 0 by default)', function () {
-        config(['nawy.fbn.fees' => null]);
+        config(['nawy.fbn.fees' => (require config_path('nawy.php'))['fbn']['fees']]);
         [$fbn, $own, $seller, $warehouse] = placeMixedFbnOrder($this);
         $calculator = app(SettlementCalculator::class);
 

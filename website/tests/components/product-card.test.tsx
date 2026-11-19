@@ -30,10 +30,10 @@ beforeEach(() => {
 });
 
 describe("ProductCard", () => {
-  it("renders title, brand, currency and grouped price, and links into the market", () => {
+  it("renders title, currency and grouped price (no brand line, as the design), and links into the market", () => {
     const { container } = renderWithProviders(<ProductCard product={product()} />);
     expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Galaxy S30");
-    expect(screen.getByText("Samsung")).toBeTruthy();
+    expect(screen.queryByText("Samsung")).toBeNull();
     expect(screen.getByText("AED")).toBeTruthy();
     expect(screen.getByText("3,499.00")).toBeTruthy();
     expect(container.querySelector("a")!.getAttribute("href")).toBe("/uae-en/products/galaxy-s30");
@@ -89,20 +89,34 @@ describe("ProductCard", () => {
     expect(api.recordAdClick).not.toHaveBeenCalled();
   });
 
-  it("shows at most two merchandising badges, and a deal badge replaces them", () => {
+  it("shows the first merchandising badge, and a deal badge replaces it", () => {
     const badges = [
       { key: "bestseller", label: "Best seller" },
       { key: "new", label: "New" },
-      { key: "top_rated", label: "Top rated" },
     ];
     const { unmount } = renderWithProviders(<ProductCard product={product({ badges })} />);
     expect(screen.getByText("Best seller")).toBeTruthy();
-    expect(screen.getByText("New")).toBeTruthy();
-    expect(screen.queryByText("Top rated")).toBeNull();
+    expect(screen.queryByText("New")).toBeNull();
     unmount();
     renderWithProviders(<ProductCard product={product({ badges, badge: "Deal" })} />);
     expect(screen.getByText("Deal")).toBeTruthy();
     expect(screen.queryByText("Best seller")).toBeNull();
+  });
+
+  it("shows the express chip and when it arrives", () => {
+    const { unmount } = renderWithProviders(<ProductCard product={product({ delivery: { express: true, key: "tomorrow" } })} />);
+    expect(screen.getByText("express")).toBeTruthy();
+    expect(screen.getByText("Tomorrow")).toBeTruthy();
+    unmount();
+    renderWithProviders(<ProductCard product={product({ delivery: { express: false, key: "two_days" } })} />, { market: "uae-ar" });
+    expect(screen.queryByText("إكسبرس")).toBeNull();
+    expect(screen.getByText("خلال يومين")).toBeTruthy();
+  });
+
+  it("groups the review count", () => {
+    renderWithProviders(<ProductCard product={product({ rating: { average: "4.6", count: 2341 } })} />);
+    expect(screen.getByText("(2,341)")).toBeTruthy();
+    expect(screen.getByText("4.6")).toBeTruthy();
   });
 
   it("shows the rating badge only with reviews", () => {

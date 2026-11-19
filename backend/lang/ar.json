@@ -3055,6 +3055,7 @@
     "Top level": "المستوى الأعلى",
     "Top packages": "أفضل الباقات",
     "Top rated": "الأعلى تقييماً",
+    "Trending": "رائج",
     "Total": "الإجمالي",
     "Total budget (optional)": "الميزانية الإجمالية (اختياري)",
     "Total units: :count": "إجمالي الوحدات: :count",
@@ -4633,5 +4634,7 @@
     "Shown as typed, e.g. Catalog editor.": "يظهر كما كتبته، مثل: محرر الكتالوج.",
     "A role with this name already exists.": "يوجد دور بهذا الاسم بالفعل.",
     "Nawy reviews the campaign first; you can pause or end it once it is live.": "تراجع Nawy الحملة أولاً؛ يمكنك إيقافها مؤقتاً أو إنهاؤها بعد أن تبدأ.",
-    "No parcel with this number in :country.": "لا توجد شحنة بهذا الرقم في :country."
+    "No parcel with this number in :country.": "لا توجد شحنة بهذا الرقم في :country.",
+    "Shown on the category page and, for top-level categories, as the large picture in the header menu.": "تظهر في صفحة الفئة، وللفئات الرئيسية كصورة كبيرة في قائمة الرأس.",
+    "Remove the current image": "إزالة الصورة الحالية"
 }

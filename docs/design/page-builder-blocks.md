@@ -115,6 +115,16 @@ Global (Settings, not blocks): header, category nav + membership pill, footer, c
 | 50 | `brand_header` | Brand/seller/marketer store header: cover, logo, Official badge, rating, followers, Follow, store tabs (Home · All products · Deals · New arrivals · Reviews) |
 | 51 | `campaign_hero` | Campaign hero: title art, subline, live countdown (server `ends_at`, country time), section jump chips |
 
+### K. Category page (design `reference/category-page-target.webp`; data from the catalogue, never typed prices)
+| # | Type | Purpose | Settings / data |
+|---|---|---|---|
+| 52 | `category_hero` | Promo slide carousel with dots: coloured cards (sticker, title, subline, coupon code, product image) | slides[] {title, subtitle, sticker, code, image, link, tone} |
+| 53 | `category_promo_tiles` | One big dark card + 4 coloured tiles (Makeup / Hair tools …) | hero {title, subtitle, sticker, image, link, category}, tiles[] {title, caption, image, link, tone, category}; `data.captions[category]` = lowest price, deepest discount |
+| 54 | `category_brand_tiles` | Brand tiles with a product image and an offer caption ("Up to 40% off", "From AED 36", "Under AED 99") | category, brands[] (optional), max_items; `data.tiles` |
+| 55 | `category_gift_band` | Yellow band: dark "Under AED 99 · Gifts they'll love" card + product mini-cards with category stickers | title, subtitle, sticker, category, max_price, max_items; `data.products`, `data.categories` |
+| 56 | `category_deal_columns` | Mega deals band with countdown and one deal column per sub-category | title, category, flash_sale_slug, max_columns; `data.columns`, `data.ends_at` |
+| 57 | `sponsored_brand_showcase` | "Explore more" sponsored brand row: brand card, CTA, its products, "Ad" label (bookings of `ad_slot_key`, category-scoped); also inserted every 4 rows of the listing | title, ad_slot_key, category |
+
 All schedule fields in every block use the country-time date-time input with the Oman-time label (`docs/project/timezones.md`).
 
 ## 3. Common settings (every block)

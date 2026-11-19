@@ -152,6 +152,7 @@ return [
         'new_badge_days' => 30,
         'top_rated_min_reviews' => 10,
         'top_rated_min_average' => '4.50',
+        'trending_min_units' => 25,           // units sold in 30 days for the "Trending" card badge
     ],
 
     'flash_sale' => [

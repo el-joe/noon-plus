@@ -29,6 +29,8 @@ import enCommerce from "@/messages/en/commerce.json";
 import arCommerce from "@/messages/ar/commerce.json";
 import enPortalPlus from "@/messages/en/portalPlus.json";
 import arPortalPlus from "@/messages/ar/portalPlus.json";
+import enCategoryPage from "@/messages/en/categoryPage.json";
+import arCategoryPage from "@/messages/ar/categoryPage.json";
 import type { Locale } from "./markets";
 
 /**
@@ -57,6 +59,7 @@ export const enMessages = {
   ...enDiscovery,
   ...enCommerce,
   ...enPortalPlus,
+  ...enCategoryPage,
 };
 
 const arMessages = {
@@ -75,6 +78,7 @@ const arMessages = {
   ...arDiscovery,
   ...arCommerce,
   ...arPortalPlus,
+  ...arCategoryPage,
 };
 
 const catalogues: Record<Locale, Messages> = { en: enMessages, ar: arMessages as Messages };

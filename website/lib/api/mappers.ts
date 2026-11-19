@@ -8,6 +8,8 @@ export function cardFromApi(product: ProductCard): ProductCardData {
     title: product.title,
     brand: product.brand,
     price: product.price,
+    wasPrice: product.was_price ?? null,
+    delivery: product.delivery ?? null,
     sponsored: product.sponsored,
     label: product.label,
     adToken: product.ad_token,

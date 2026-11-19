@@ -5,10 +5,16 @@ import { getT } from "@/lib/i18n";
 import { Countdown } from "../countdown";
 import { item, items, list, num, resolveLink, str, type BlockContext, type Settings } from "../settings";
 import { AdPlacements } from "./ads";
-import { BlockSection, ImageLink } from "./shared";
+import { BlockSection, ImageLink, StyledCard } from "./shared";
 
-/** 5 promo_banner — single, 2-up, 1 big + 2×2, stacked 2, side panel. */
+/**
+ * 5 promo_banner — single, 2-up, 1 big + 2×2, stacked 2, side panel;
+ * `variant: "cards"` renders the items as styled text cards
+ * ({title, subtitle, sticker, code, image, link, tone}), stacked with
+ * `layout: "stacked"` (home "In focus") or side by side.
+ */
 export function PromoBanner({ s, ctx }: { s: Settings; ctx: BlockContext }) {
+  if (str(s, "variant") === "cards") return <PromoCards s={s} ctx={ctx} />;
   const banners = items(s, "items", ctx.market.locale);
   if (banners.length === 0) return null;
   const layout = str(s, "layout") ?? str(s, "variant") ?? (banners.length >= 5 ? "big_2x2" : banners.length === 1 ? "single" : "n_up");
@@ -36,6 +42,21 @@ export function PromoBanner({ s, ctx }: { s: Settings; ctx: BlockContext }) {
           ))}
         </div>
       )}
+    </BlockSection>
+  );
+}
+
+function PromoCards({ s, ctx }: { s: Settings; ctx: BlockContext }) {
+  const cards = list(s, "items");
+  if (cards.length === 0) return null;
+  const stacked = str(s, "layout") === "stacked";
+  return (
+    <BlockSection s={s} ctx={ctx} className="h-full">
+      <div className={clsx("grid gap-3", !stacked && cards.length > 1 && "md:grid-cols-2", !stacked && cards.length > 2 && "lg:grid-cols-3")}>
+        {cards.map((card, i) => (
+          <StyledCard key={i} s={card} ctx={ctx} size="compact" className={stacked ? "min-h-36" : "min-h-44"} />
+        ))}
+      </div>
     </BlockSection>
   );
 }
@@ -102,7 +123,7 @@ export function BannerStrip({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   );
 }
 
-/** 8 banner_full — organic image, or a sponsored ad slot (always labelled). */
+/** 8 banner_full — organic image, a styled text banner (`title`, `subtitle`, `sticker`, `tone`, optional side `image`), or a sponsored ad slot (always labelled). */
 export function BannerFull({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const slot = str(s, "ad_slot_key");
   if (slot) {
@@ -112,6 +133,8 @@ export function BannerFull({ s, ctx }: { s: Settings; ctx: BlockContext }) {
       </Suspense>
     );
   }
+  // Styled text banner (home design: vehicles, real estate): title + subtitle + sticker on a tone.
+  if (str(s, "title", ctx.market.locale)) return <StyledCard s={s} ctx={ctx} size="banner" />;
   const banner = item(s, ctx.market.locale);
   if (!banner.image) return null;
   return <ImageLink item={banner} ctx={ctx} className="aspect-[5/1] w-full" />;

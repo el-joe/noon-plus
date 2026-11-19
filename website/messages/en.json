@@ -67,7 +67,14 @@
   },
   "megaMenu": {
     "viewAll": "View all",
-    "noCategories": "Categories will appear here soon."
+    "noCategories": "No categories to show yet.",
+    "topBrands": "Top brands",
+    "shopAll": "Shop all {name}",
+    "browse": "Categories",
+    "openDrawer": "Browse categories",
+    "closeDrawer": "Close categories",
+    "panelLabel": "{name} menu",
+    "brandProducts": "{count, plural, one {# product} other {# products}}"
   },
   "footer": {
     "helpTitle": "We're always here to help",
@@ -163,7 +170,13 @@
     "gallery": "Product images",
     "imageN": "Image {n}",
     "brandStore": "Visit the {brand} store",
-    "sellerRatingCount": "{count, plural, one {# rating} other {# ratings}}"
+    "sellerRatingCount": "{count, plural, one {# rating} other {# ratings}}",
+    "deliveryWhen": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "two_days": "In 2 days",
+      "later": "In 3+ days"
+    }
   },
   "listing": {
     "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
@@ -642,7 +655,20 @@
     "recentlyViewed": "Recently viewed",
     "items": "{count, plural, one {# item} other {# items}}",
     "official": "Official",
-    "useCode": "Use code {code}"
+    "useCode": "Use code {code}",
+    "code": "Code: {code}",
+    "limitedStock": "Limited stock",
+    "endsToday": "Ends today",
+    "flashDeal": "Flash deal",
+    "percentOff": "{percent}% off",
+    "now": "now",
+    "readMore": "Read more",
+    "verticalCaptions": {
+      "classifieds": "Buy & sell anything locally",
+      "travel": "Packages from verified operators",
+      "realEstate": "Homes from verified brokers",
+      "creators": "Shop your favourite creators"
+    }
   },
   "reviews": {
     "title": "Ratings & reviews",

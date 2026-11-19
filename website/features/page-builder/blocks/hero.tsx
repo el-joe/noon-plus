@@ -1,6 +1,6 @@
 import { Rail } from "@/components/ui/carousel";
 import { item, items, list, num, str, type BlockContext, type Settings } from "../settings";
-import { BlockSection, ImageLink } from "./shared";
+import { BlockSection, ImageLink, StyledCard } from "./shared";
 
 /** 1 hero_carousel — large slides, autoplay, dots. */
 export function HeroCarousel({ s, ctx }: { s: Settings; ctx: BlockContext }) {
@@ -16,8 +16,14 @@ export function HeroCarousel({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   );
 }
 
-/** 2 hero_bento — main carousel + stacked side slots. */
+/**
+ * 2 hero_bento — main carousel + stacked side slots; `variant: "cards"` is the
+ * home design's row of styled cards: each slot is a card
+ * ({title, subtitle, sticker, code, image, link, tone}) or `{items: [card, card]}`
+ * stacked in one column.
+ */
 export function HeroBento({ s, ctx }: { s: Settings; ctx: BlockContext }) {
+  if (str(s, "variant") === "cards") return <HeroCards s={s} ctx={ctx} />;
   const slots = list(s, "slots").map((slot) => {
     const slides = items(slot, "slides", ctx.market.locale);
     return slides.length > 0 ? slides : [item(slot, ctx.market.locale)];
@@ -39,6 +45,27 @@ export function HeroBento({ s, ctx }: { s: Settings; ctx: BlockContext }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function HeroCards({ s, ctx }: { s: Settings; ctx: BlockContext }) {
+  const slots = list(s, "slots");
+  if (slots.length === 0) return null;
+  return (
+    <Rail itemClass="basis-[82%] sm:basis-1/2 lg:basis-1/4">
+      {slots.map((slot, i) => {
+        const stack = list(slot, "items");
+        return stack.length > 0 ? (
+          <div key={i} className="flex h-full min-h-80 flex-col gap-3">
+            {stack.slice(0, 3).map((card, j) => (
+              <StyledCard key={j} s={card} ctx={ctx} size="compact" className="flex-1" />
+            ))}
+          </div>
+        ) : (
+          <StyledCard key={i} s={slot} ctx={ctx} size="hero" />
+        );
+      })}
+    </Rail>
   );
 }
 

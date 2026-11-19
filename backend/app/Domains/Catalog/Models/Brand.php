@@ -26,7 +26,7 @@ class Brand extends Model
      */
     public function publicCacheGroups(): array
     {
-        return [PublicCache::BRANDS];
+        return [PublicCache::BRANDS, PublicCache::CATALOG_MENU];
     }
 
     /**

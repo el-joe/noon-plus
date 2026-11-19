@@ -21,6 +21,11 @@ export type ProductFilters = {
   fulfilment?: string;
   condition?: string;
   deals?: string;
+  /** Category page rail: `hour` | `tomorrow` | `two_days`, `A,B`, `1`, `1`. */
+  arrives?: string;
+  grade?: string;
+  price_drop?: string;
+  new_arrivals?: string;
   sort?: "recommended" | "price_asc" | "price_desc" | "newest" | "rating" | "bestselling";
   page?: number;
   per_page?: number;
@@ -39,6 +44,7 @@ export const getFacets = (market: string, filters: ProductFilters) => get(market
 export const getBrands = (market: string, query: { category?: string; q?: string } = {}) => get(market, "brands", z.array(s.brand), query);
 export const getBrand = (market: string, slug: string) => get(market, `brands/${encodeURIComponent(slug)}`, s.brandDetail);
 export const getCategoryTree = (market: string) => get(market, "categories/tree", z.array(s.categoryNode));
+export const getCategoryMenu = (market: string) => get(market, "catalog/menu", z.array(s.menuCategory));
 export const getCategory = (market: string, slug: string) => get(market, `categories/${encodeURIComponent(slug)}`, s.categoryDetail);
 export const getSizeGuide = (market: string, slug: string, query: { unit?: string; height?: string; height_unit?: string } = {}) =>
   get(market, `products/${encodeURIComponent(slug)}/size-guide`, s.sizeGuide, query);
@@ -94,8 +100,9 @@ export const getProduct = (market: string, slug: string) => get(market, `product
 // Content
 export const getPage = (market: string, slug: string) => get(market, `pages/${encodeURIComponent(slug)}`, s.cmsPage);
 export const getFooter = (market: string) => get(market, "footer", s.footer);
-export const getFlashSale = (market: string, id: number) => get(market, `flash-sales/${id}`, s.flashSale);
-export const getAdPlacements = (market: string, placement: string) => get(market, `ads/placements/${encodeURIComponent(placement)}`, z.array(s.adPlacement));
+export const getFlashSale = (market: string, id: number | string) => get(market, `flash-sales/${encodeURIComponent(String(id))}`, s.flashSale);
+export const getAdPlacements = (market: string, placement: string, query: { category?: string; with?: "products" } = {}) =>
+  get(market, `ads/placements/${encodeURIComponent(placement)}`, z.array(s.adPlacement), query);
 export const recordAdClick = (market: string, token: string) => request(market, "ads/click", ok, { method: "POST", body: { token } });
 export const getContract = (market: string, version: number) => get(market, `contracts/${version}`, s.contractText);
 export const acceptContract = (market: string, version: number, fullName: string) =>

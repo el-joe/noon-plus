@@ -37,7 +37,7 @@ class BlockRegistry
             ['promo_banner', 'banners', 'editor', ['items']],
             ['banner_grid', 'banners', 'editor', ['tiles']],
             ['banner_strip', 'banners', 'editor', ['image_d']],
-            ['banner_full', 'banners', 'editor', ['image|ad_slot_key']],
+            ['banner_full', 'banners', 'editor', ['image|ad_slot_key|title']],
             ['countdown_strip', 'banners', 'editor', ['text', 'ends_at']],
             // C. Category / brand navigation
             ['tile_scroller', 'navigation', 'editor', ['items|source']],
@@ -50,10 +50,10 @@ class BlockRegistry
             ['product_carousel', 'products', 'editor', ['source']],
             ['product_grid', 'products', 'editor', ['source']],
             ['item_carousel', 'products', 'system', ['source']],
-            ['mega_deals', 'products', 'editor', ['flash_sale_id|collection']],
+            ['mega_deals', 'products', 'editor', ['flash_sale_id|flash_sale_slug|collection']],
             ['hero_offer_list', 'products', 'editor', ['hero_image', 'source']],
-            ['frenzy_deals', 'products', 'editor', ['flash_sale_id']],
-            ['deal_grid', 'products', 'editor', ['flash_sale_id']],
+            ['frenzy_deals', 'products', 'editor', ['flash_sale_id|flash_sale_slug']],
+            ['deal_grid', 'products', 'editor', ['flash_sale_id|flash_sale_slug']],
             ['offer_cards', 'products', 'editor', ['items|source']],
             ['tile_grid', 'products', 'editor', ['items']],
             // E. Layout containers
@@ -89,6 +89,13 @@ class BlockRegistry
             ['category_header', 'headers', 'header', []],
             ['brand_header', 'headers', 'header', []],
             ['campaign_hero', 'headers', 'header', ['title', 'ends_at']],
+            // K. Category page (design category-page-target): promo slides, promo / brand tiles, gifts, deal columns, sponsored brand row
+            ['category_hero', 'hero', 'editor', ['slides']],
+            ['category_promo_tiles', 'banners', 'editor', ['hero|tiles']],
+            ['category_brand_tiles', 'navigation', 'editor', []],
+            ['category_gift_band', 'products', 'editor', []],
+            ['category_deal_columns', 'products', 'editor', []],
+            ['sponsored_brand_showcase', 'ads', 'ad', []],
         ];
 
         self::$definitions = [];

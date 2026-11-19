@@ -1,6 +1,6 @@
 <tr class="border-t border-line" data-category="{{ $category->id }}">
     <td class="px-5 py-3 font-medium">
-        <span style="padding-inline-start: {{ $depth * 1.25 }}rem">@if ($depth > 0)<span class="text-fg-muted">└ </span>@endif<a class="text-fg-link" href="{{ route('admin.catalog.categories.show', $category->id) }}">{{ $category->name_en }}</a></span>
+        <span style="padding-inline-start: {{ $depth * 1.25 }}rem">@if ($depth > 0)<span class="text-fg-muted">└ </span>@endif @if ($category->image_path)<img src="{{ \App\Shared\Http\PublicUrl::of($category->image_path) }}" alt="" class="me-2 inline-block size-6 rounded object-cover align-middle" loading="lazy">@endif<a class="text-fg-link" href="{{ route('admin.catalog.categories.show', $category->id) }}">{{ $category->name_en }}</a></span>
         <span class="block text-xs text-fg-secondary" dir="rtl" style="padding-inline-start: {{ $depth * 1.25 }}rem">{{ $category->name_ar }}</span>
     </td>
     <td class="px-5 py-3 text-xs">{{ $category->slug }}</td>

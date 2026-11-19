@@ -4,6 +4,7 @@ import { BlockBoundary } from "./block-boundary";
 import * as ads from "./blocks/ads";
 import * as banners from "./blocks/banners";
 import * as category from "./blocks/category";
+import * as categoryPromos from "./blocks/category-promos";
 import * as containers from "./blocks/containers";
 import * as content from "./blocks/content";
 import * as hero from "./blocks/hero";
@@ -14,7 +15,7 @@ import type { BlockContext, Settings } from "./settings";
 type BlockProps = { s: Settings; ctx: BlockContext; data?: Record<string, unknown> | null; renderChild: containers.ChildRenderer };
 
 /**
- * Block registry v2 (docs/design/page-builder-blocks.md, 51 types).
+ * Block registry v2 (docs/design/page-builder-blocks.md, 57 types).
  * Unknown types render nothing (forward compatibility, rule 4) and every block
  * sits in its own error boundary so one bad block never breaks the page.
  * Extension point: add a component here when the backend registry grows.
@@ -81,6 +82,13 @@ export const BLOCKS: Record<string, ComponentType<BlockProps>> = {
   category_header: category.CategoryHeader,
   brand_header: category.BrandHeader,
   campaign_hero: category.CampaignHero,
+  // K. Category page (category-promos.tsx)
+  category_hero: categoryPromos.CategoryHero,
+  category_promo_tiles: categoryPromos.CategoryPromoTiles,
+  category_brand_tiles: categoryPromos.CategoryBrandTiles,
+  category_gift_band: categoryPromos.CategoryGiftBand,
+  category_deal_columns: categoryPromos.CategoryDealColumns,
+  sponsored_brand_showcase: categoryPromos.SponsoredBrandShowcase,
 };
 
 export function renderBlock(block: { type: string; settings: Settings; data?: Record<string, unknown> | null; id?: string | number | null }, ctx: BlockContext, key: number | string): ReactNode {

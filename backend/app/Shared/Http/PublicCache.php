@@ -24,6 +24,9 @@ class PublicCache
 
     public const BRANDS = 'brands';
 
+    /** Header mega menu (categories, brands; product counts within the TTL). */
+    public const CATALOG_MENU = 'catalog-menu';
+
     public const HELP = 'help';
 
     public const STATIC_PAGES = 'static-pages';

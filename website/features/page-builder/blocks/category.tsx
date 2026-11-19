@@ -4,10 +4,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/misc";
 import { ProductListing } from "@/features/listing/product-listing";
-import type { Category } from "@/lib/api/schemas";
+import type { Category, Money } from "@/lib/api/schemas";
+import type { Market } from "@/lib/markets";
 import { getT } from "@/lib/i18n";
 import { Countdown } from "../countdown";
 import { item, items, num, resolveLink, safeUrl, str, type BlockContext, type Settings } from "../settings";
+import { offerCaption } from "./category-promos";
 import { BlockSection } from "./shared";
 
 function children(ctx: BlockContext): { list: Category[]; base: string } {
@@ -15,12 +17,44 @@ function children(ctx: BlockContext): { list: Category[]; base: string } {
   return { list: ctx.categories, base: `/${ctx.market.slug}` };
 }
 
-/** 46 subcategory_tiles — image tiles of the category's children; "All" first. */
+/** A child category on the category page, with its offer stats (from `categories/{slug}`) when known. */
+export type CategoryChild = Category & { min_price?: Money | null; max_discount?: number };
+
+/**
+ * 46 subcategory_tiles — image tiles of the category's children; "All" first.
+ * `style: "circle"` (category page design): round images with the name and a
+ * caption from real offers ("Up to 40%", "From AED 499"), no "All" tile.
+ */
 export function SubcategoryTiles({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const { list, base } = children(ctx);
   if (list.length === 0) return null;
   const t = getT(ctx.market.locale);
   const max = num(s, "max_rows", 2) * 8;
+  if (str(s, "style") === "circle") {
+    return (
+      <BlockSection s={{ ...s, surface: s.surface ?? false }} ctx={ctx}>
+        <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-1 lg:grid lg:grid-cols-9 lg:overflow-visible">
+          {(list as CategoryChild[]).slice(0, num(s, "max_items", 9)).map((c) => {
+            const caption = offerCaption(t, ctx.market, c.min_price ?? null, c.max_discount ?? null, true);
+            return (
+              <Link key={c.slug} href={`${base}/${c.slug}`} className="flex w-20 shrink-0 flex-col items-center gap-1 text-center lg:w-auto">
+                <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-surface ring-1 ring-line">
+                  {safeUrl(c.image) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.image!} alt="" loading="lazy" className="size-4/5 object-contain" />
+                  ) : (
+                    <span className="text-h3 font-bold text-brand-text">{c.name.slice(0, 1)}</span>
+                  )}
+                </span>
+                <span className="line-clamp-1 text-body-sm font-medium">{c.name}</span>
+                {caption ? <span className="text-caption font-semibold text-success-text">{caption}</span> : null}
+              </Link>
+            );
+          })}
+        </div>
+      </BlockSection>
+    );
+  }
   return (
     <BlockSection s={s} ctx={ctx}>
       <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-8">
@@ -79,12 +113,26 @@ export function SubcategoryHub({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   );
 }
 
-/** 48 subcategory_chips — chip bar above the listing. */
+/**
+ * 48 subcategory_chips — chip bar above the listing. `style: "boxes"`
+ * (category page design): a row of white boxes, the current one outlined.
+ */
 export function SubcategoryChips({ s, ctx }: { s: Settings; ctx: BlockContext }) {
   const { list, base } = children(ctx);
   if (list.length === 0) return null;
   const t = getT(ctx.market.locale);
   const active = ctx.category?.path.at(-1);
+  if (str(s, "style") === "boxes") {
+    return (
+      <nav className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 py-1" aria-label={t("listing.subcategories")}>
+        {list.map((c) => (
+          <Link key={c.slug} href={`${base}/${c.slug}`} className={clsx("min-w-24 shrink-0 rounded-md border bg-surface px-4 py-3 text-center text-body-sm font-medium hover:border-ink", active === c.slug ? "border-ink" : "border-line")}>
+            {c.name}
+          </Link>
+        ))}
+      </nav>
+    );
+  }
   return (
     <nav className={clsx("scrollbar-none flex gap-2 overflow-x-auto py-1", s.sticky !== false && "sticky top-[116px] z-10 bg-page")}>
       <Link href={base} className={clsx("shrink-0 rounded-full border px-3 py-1.5 text-body-sm font-medium", "border-ink bg-ink text-white")}>
@@ -94,6 +142,32 @@ export function SubcategoryChips({ s, ctx }: { s: Settings; ctx: BlockContext })
         <Link key={c.slug} href={`${base}/${c.slug}`} className={clsx("shrink-0 rounded-full border px-3 py-1.5 text-body-sm", active === c.slug ? "border-ink bg-ink text-white" : "border-line bg-surface")}>
           {c.name}
         </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Category page breadcrumb (design): Home › Electronics › Mobiles. */
+export function CategoryBreadcrumb({ market, crumbs }: { market: Market; crumbs: { label: string; href: string }[] }) {
+  const t = getT(market.locale);
+  return (
+    <nav className="flex flex-wrap items-center gap-1.5 text-body-sm text-secondary" aria-label={t("common.breadcrumb")}>
+      <Link href={`/${market.slug}`} aria-label={t("common.home")} className="hover:text-ink">
+        <Home className="size-3.5" />
+      </Link>
+      {crumbs.map((crumb, i) => (
+        <span key={crumb.href} className="flex items-center gap-1.5">
+          <ChevronRight className="size-3.5 rtl:rotate-180" />
+          {i === crumbs.length - 1 ? (
+            <span aria-current="page" className="text-ink">
+              {crumb.label}
+            </span>
+          ) : (
+            <Link href={crumb.href} className="hover:text-ink">
+              {crumb.label}
+            </Link>
+          )}
+        </span>
       ))}
     </nav>
   );

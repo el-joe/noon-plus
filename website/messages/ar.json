@@ -67,7 +67,14 @@
   },
   "megaMenu": {
     "viewAll": "عرض الكل",
-    "noCategories": "ستظهر الفئات هنا قريبًا."
+    "noCategories": "لا توجد فئات لعرضها بعد.",
+    "topBrands": "أفضل العلامات التجارية",
+    "shopAll": "تسوّق كل {name}",
+    "browse": "الفئات",
+    "openDrawer": "تصفّح الفئات",
+    "closeDrawer": "إغلاق الفئات",
+    "panelLabel": "قائمة {name}",
+    "brandProducts": "{count, plural, one {منتج واحد} two {منتجان} few {# منتجات} many {# منتجًا} other {# منتج}}"
   },
   "footer": {
     "helpTitle": "نحن هنا دائمًا لمساعدتك",
@@ -163,7 +170,13 @@
     "gallery": "صور المنتج",
     "imageN": "الصورة {n}",
     "brandStore": "زر متجر {brand}",
-    "sellerRatingCount": "{count, plural, one {تقييم واحد} other {# تقييم}}"
+    "sellerRatingCount": "{count, plural, one {تقييم واحد} other {# تقييم}}",
+    "deliveryWhen": {
+      "today": "اليوم",
+      "tomorrow": "غداً",
+      "two_days": "خلال يومين",
+      "later": "خلال 3 أيام أو أكثر"
+    }
   },
   "listing": {
     "results": "{count, plural, =0 {لا توجد نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
@@ -642,7 +655,20 @@
     "recentlyViewed": "شاهدتها مؤخرًا",
     "items": "{count, plural, one {منتج واحد} two {منتجان} few {# منتجات} many {# منتجًا} other {# منتج}}",
     "official": "رسمي",
-    "useCode": "استخدم الرمز {code}"
+    "useCode": "استخدم الرمز {code}",
+    "code": "الكود: {code}",
+    "limitedStock": "كمية محدودة",
+    "endsToday": "ينتهي اليوم",
+    "flashDeal": "عرض خاطف",
+    "percentOff": "خصم {percent}%",
+    "now": "الآن",
+    "readMore": "اقرأ المزيد",
+    "verticalCaptions": {
+      "classifieds": "بِع واشترِ أي شيء بالقرب منك",
+      "travel": "باقات من شركات سياحة موثّقة",
+      "realEstate": "منازل من وسطاء موثّقين",
+      "creators": "تسوّق من صنّاع المحتوى المفضلين"
+    }
   },
   "reviews": {
     "title": "التقييمات والمراجعات",

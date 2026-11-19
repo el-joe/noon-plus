@@ -2,12 +2,15 @@
 
 namespace App\Domains\Catalog\Http\Requests;
 
+use App\Domains\Catalog\Support\ProductSearch;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Product listing / facet filters (G-W4). `brand` and `seller` take one
  * slug or several comma separated; `attr[colour]=Red,Blue` filters on
- * variant options; `rating` is the minimum average stars.
+ * variant options; `rating` is the minimum average stars; `arrives`
+ * (hour | tomorrow | two_days), `grade` (A,B,C), `price_drop` and
+ * `new_arrivals` feed the category page rail.
  */
 class ProductIndexRequest extends FormRequest
 {
@@ -31,9 +34,13 @@ class ProductIndexRequest extends FormRequest
             'rating' => ['nullable', 'integer', 'between:1,5'],
             'attr' => ['nullable', 'array', 'max:10'],
             'attr.*' => ['string', 'max:500'],
-            'fulfilment' => ['nullable', 'string', 'max:20'],
+            'fulfilment' => ['nullable', 'string', 'max:40'],
+            'arrives' => ['nullable', 'in:'.implode(',', ProductSearch::ARRIVES)],
             'condition' => ['nullable', 'string', 'max:100'],
+            'grade' => ['nullable', 'string', 'max:20'],
             'deals' => ['nullable', 'boolean'],
+            'price_drop' => ['nullable', 'boolean'],
+            'new_arrivals' => ['nullable', 'boolean'],
             'sort' => ['nullable', 'in:recommended,price_asc,price_desc,newest,rating,bestselling'],
             'per_page' => ['nullable', 'integer', 'between:1,60'],
         ];

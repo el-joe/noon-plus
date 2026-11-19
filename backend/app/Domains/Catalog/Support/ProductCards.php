@@ -27,13 +27,16 @@ class ProductCards
             return new Collection;
         }
 
-        return Product::query()
+        $products = Product::query()
             ->whereIn('products.id', $productIds)
             ->where('products.status', 'active')
             ->addSelect(['products.*', 'best_price' => $this->buyBox->bestPriceSubquery()])
             ->with(['brand', 'category', 'media'])
             ->get()
             ->keyBy('id');
+        CardOffers::attach($products);
+
+        return $products;
     }
 
     /**

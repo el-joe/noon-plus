@@ -13,6 +13,7 @@ use App\Domains\Catalog\Models\Brand;
 use App\Domains\Catalog\Models\Category;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductMedia;
+use App\Domains\Catalog\Support\CategoryMenu;
 use App\Domains\Catalog\Support\Measurements;
 use App\Domains\Catalog\Support\ProductBadges;
 use App\Domains\Catalog\Support\ProductSearch;
@@ -104,6 +105,15 @@ class CatalogController extends Controller
     }
 
     /**
+     * Header mega menu: top-level categories → level-2 columns → level-3
+     * links, the category image and its top brands ({@see CategoryMenu}).
+     */
+    public function menu(CategoryMenu $menu): JsonResponse
+    {
+        return ApiResponse::success($menu->cached(app()->getLocale()));
+    }
+
+    /**
      * One category by slug: breadcrumbs (root first), children and counts.
      */
     public function category(string $slug): JsonResponse
@@ -125,12 +135,32 @@ class CatalogController extends Controller
             return $total;
         };
 
+        // Category page tiles: "From AED 499" / "Up to 40%" per child, rolled up like the counts.
+        $offers = $this->offerStatsByCategory();
+        $stats = function (Category $node) use ($offers, $parents): array {
+            $min = null;
+            $discount = 0;
+
+            for ($frontier = [(int) $node->id], $depth = 0; $frontier !== [] && $depth <= 10; $depth++) {
+                foreach ($frontier as $id) {
+                    if (isset($offers[$id])) {
+                        $min = $min === null || (float) $offers[$id]['min_price'] < (float) $min ? $offers[$id]['min_price'] : $min;
+                        $discount = max($discount, $offers[$id]['max_discount']);
+                    }
+                }
+                $frontier = $parents->filter(fn ($parent): bool => in_array((int) $parent, $frontier, true))->keys()->map(fn ($id): int => (int) $id)->all();
+            }
+
+            return ['min_price' => MoneyResource::make($min), 'max_discount' => $discount];
+        };
+
         return ApiResponse::success([
             'id' => $category->id,
             'slug' => $category->slug,
             'name' => $category->name(),
             'image' => PublicUrl::of($category->image_path),
             'product_count' => $count($category),
+            ...$stats($category),
             'breadcrumbs' => array_map(fn (Category $node): array => ['slug' => $node->slug, 'name' => $node->name()], array_reverse($category->lineage())),
             'children' => $category->children->map(fn (Category $child): array => [
                 'id' => $child->id,
@@ -138,6 +168,7 @@ class CatalogController extends Controller
                 'name' => $child->name(),
                 'image' => PublicUrl::of($child->image_path),
                 'product_count' => $count($child),
+                ...$stats($child),
             ])->values(),
         ]);
     }
@@ -218,7 +249,7 @@ class CatalogController extends Controller
         $filters = $request->validated();
 
         $query = $search->query($filters)
-            ->addSelect(['products.*', 'best_price' => $this->buyBox->bestPriceSubquery()])
+            ->addSelect(['products.*', 'best_price' => $search->bestPriceSubquery()])
             ->with(['brand', 'category', 'media']);
 
         match ($filters['sort'] ?? 'recommended') {
@@ -303,6 +334,28 @@ class CatalogController extends Controller
                 'price' => MoneyResource::make((string) $plan->price),
             ])->values(),
         ]);
+    }
+
+    /**
+     * Lowest offer price and the deepest sale discount (whole %) of the
+     * sellable offers on active products, per category id.
+     *
+     * @return array<int, array{min_price: string, max_discount: int}>
+     */
+    private function offerStatsByCategory(): array
+    {
+        return app(ProductSearch::class)->sellableListings()
+            ->join('product_variants', 'product_variants.id', '=', 'listings.product_variant_id')
+            ->join('products', 'products.id', '=', 'product_variants.product_id')
+            ->where('products.status', 'active')
+            ->toBase()
+            ->select('products.category_id')
+            ->selectRaw('min(coalesce(listings.sale_price, listings.price)) as min_price')
+            ->selectRaw('max(case when listings.sale_price is not null and listings.sale_price < listings.price and listings.price > 0 then (listings.price - listings.sale_price) / listings.price else 0 end) as max_discount')
+            ->groupBy('products.category_id')
+            ->get()
+            ->mapWithKeys(fn ($row): array => [(int) $row->category_id => ['min_price' => (string) $row->min_price, 'max_discount' => (int) floor((float) $row->max_discount * 100)]])
+            ->all();
     }
 
     /**

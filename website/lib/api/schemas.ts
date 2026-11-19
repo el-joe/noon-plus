@@ -69,8 +69,17 @@ export const productCard = z.object({
   sponsored: z.boolean().optional().default(false),
   label: z.string().nullable().optional(),
   ad_token: z.string().nullable().optional(),
-  /** Merchandising badges (wave 5a, QC-057): bestseller · new · top_rated. */
+  /** Merchandising badges (wave 5a, QC-057): bestseller · new · top_rated · trending · deal. */
   badges: z.array(z.object({ key: z.string(), label: z.string() })).catch([]).optional(),
+  /** Design card (home round): struck-through price, % off, delivery chip of the fastest offer, offer count. */
+  was_price: nullableMoney.optional().catch(null),
+  discount_percent: z.number().nullable().optional().catch(null),
+  delivery: z
+    .object({ express: z.boolean(), key: z.enum(["today", "tomorrow", "two_days", "later"]) })
+    .nullable()
+    .optional()
+    .catch(null),
+  offers_count: z.number().optional().catch(undefined),
 });
 export type ProductCard = z.infer<typeof productCard>;
 
@@ -89,6 +98,12 @@ export const facets = z.object({
   fulfilment: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
   conditions: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
   deals: z.number().default(0),
+  /** Category page rail: Arrives by (hour / tomorrow / two_days), Grade (A/B/C), Price drop and New arrivals counts, category counts (rolled up). */
+  arrives: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
+  grades: z.array(z.object({ value: z.string(), count: z.number() })).default([]),
+  price_drop: z.number().default(0),
+  new_arrivals: z.number().default(0),
+  categories: z.array(z.object({ slug: z.string(), count: z.number() })).default([]),
 });
 export type Facets = z.infer<typeof facets>;
 
@@ -110,16 +125,30 @@ export const categoryNode: z.ZodType<CategoryNode> = z.lazy(() =>
   z.object({ id: z.number().optional(), slug: z.string(), name: z.string(), image: z.string().nullable(), product_count: z.number(), children: z.array(categoryNode) }),
 );
 
+// CategoryMenu (CatalogController@menu): header mega menu — top level → level-2 columns → level-3 links + top brands.
+export const menuLink = z.object({ id: z.number(), slug: z.string(), name: z.string(), path: z.string(), product_count: z.number() });
+export const menuColumn = menuLink.extend({ image: z.string().nullable(), children: z.array(menuLink) });
+export const menuBrand = z.object({ slug: z.string(), name: z.string(), logo: z.string().nullable(), path: z.string(), product_count: z.number() });
+export const menuCategory = menuLink.extend({ image: z.string().nullable(), children: z.array(menuColumn), brands: z.array(menuBrand) });
+export type MenuLink = z.infer<typeof menuLink>;
+export type MenuColumn = z.infer<typeof menuColumn>;
+export type MenuBrand = z.infer<typeof menuBrand>;
+export type MenuCategory = z.infer<typeof menuCategory>;
+
 const crumb = z.object({ slug: z.string(), name: z.string() });
 
 // CatalogController@category
+// `min_price` / `max_discount`: category page tile captions ("From AED 499", "Up to 40%").
+const categoryOffer = { min_price: nullableMoney.optional(), max_discount: z.number().optional() };
 export const categoryDetail = z.object({
+  id: z.number().optional(),
   slug: z.string(),
   name: z.string(),
   image: z.string().nullable(),
   product_count: z.number(),
+  ...categoryOffer,
   breadcrumbs: z.array(crumb),
-  children: z.array(z.object({ slug: z.string(), name: z.string(), image: z.string().nullable(), product_count: z.number() })),
+  children: z.array(z.object({ slug: z.string(), name: z.string(), image: z.string().nullable(), product_count: z.number(), ...categoryOffer })),
 });
 export type CategoryDetail = z.infer<typeof categoryDetail>;
 
@@ -653,6 +682,10 @@ export const adPlacement = z.object({
   link_url: z.string().nullable(),
   sponsored: z.boolean(),
   label: z.string().nullable(),
+  /** `with=products` (category page sponsored brand row): the advertised brand or store and its product cards. */
+  brand: z.object({ slug: z.string(), name: z.string(), logo: z.string().nullable() }).nullable().optional(),
+  store: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
+  products: z.array(productCard).catch([]).optional(),
 });
 export type AdPlacement = z.infer<typeof adPlacement>;
 
