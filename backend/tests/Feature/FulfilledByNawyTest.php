@@ -2,6 +2,7 @@
 
 use App\Domains\Customers\Models\CustomerNotification;
 use App\Domains\Delivery\Models\Shipment;
+use App\Domains\Delivery\Support\DeliveryDispatch;
 use App\Domains\Finance\Models\SubOrderSettlement;
 use App\Domains\Finance\Models\VendorBalanceItem;
 use App\Domains\Finance\Support\SettlementCalculator;
@@ -32,6 +33,7 @@ use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Orders\Support\PlaceOrder;
 use App\Domains\Orders\Support\SellerFulfilment;
 use App\Domains\Orders\Support\SubOrderStateMachine;
 use App\Domains\Panels\Navigation\PanelNavigation;
@@ -41,6 +43,7 @@ use App\Domains\Shipping\Support\ShipmentQuoter;
 use App\Domains\Vendors\Models\Vendor;
 use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
+use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -557,5 +560,143 @@ describe('panels', function () {
         $this->actingAs($staff)->get(onPanel('admin', 'inventory/pick-pack'))->assertOk()->assertSee('A-01');
         $this->post(onPanel('admin', "inventory/pick-pack/{$subOrderId}"), ['to' => 'confirmed'])->assertSessionHasNoErrors();
         expect(SubOrder::query()->findOrFail($subOrderId)->status)->toBe(SubOrderStatus::Confirmed);
+    });
+});
+
+describe('mixed seller groups (owner decision 2026-11-19: split into two parcels)', function () {
+    /**
+     * One seller, one FBN listing (2 × 100) and one listing the seller ships
+     * (1 × 50), bought together by COD.
+     *
+     * @return array{0: Listing, 1: Listing, 2: SubOrder, 3: SubOrder, 4: string}
+     */
+    function placeMixedFbnOrder(object $test): array
+    {
+        $warehouse = fbnWarehouse();
+        $fbn = fbnListing($warehouse, 6, price: '100.00');
+        $own = sellableListing('50.00', stock: 5, vendor: $fbn->vendor);
+        [, $token] = customerWithToken();
+
+        $test->withToken($token)->putJson('/api/v1/uae-en/cart/items', ['listing_id' => $fbn->id, 'quantity' => 2])->assertOk();
+        $test->withToken($token)->putJson('/api/v1/uae-en/cart/items', ['listing_id' => $own->id, 'quantity' => 1])->assertOk();
+        $number = $test->withToken($token)->postJson('/api/v1/uae-en/orders', [
+            'payment_method' => 'cod',
+            'address' => ['name' => 'Sara Ahmed', 'phone' => '+971500000000', 'city' => 'Dubai', 'area' => 'Marina', 'street' => 'Gate 2'],
+        ])->assertCreated()->json('data.number');
+
+        $parts = SubOrder::query()->where('vendor_id', $fbn->vendor_id)->orderBy('id')->get();
+        expect($parts)->toHaveCount(2);
+
+        return [$fbn, $own, $parts[0], $parts[1], $token];
+    }
+
+    it('splits the seller group into a seller parcel and a warehouse parcel at checkout', function () {
+        [$fbn, $own, $seller, $warehouse] = placeMixedFbnOrder($this);
+
+        expect($seller->fulfilled_by)->toBe('seller')->and($seller->split_from_sub_order_id)->toBeNull()
+            ->and($seller->items->pluck('listing_id')->all())->toBe([$own->id])
+            ->and($warehouse->fulfilled_by)->toBe('nawy')->and($warehouse->split_from_sub_order_id)->toBe($seller->id)
+            ->and($warehouse->items->pluck('listing_id')->all())->toBe([$fbn->id])
+            ->and($warehouse->subtotal)->toBe('200.00')->and($warehouse->shipping_total)->toBe('0.00')->and($warehouse->total)->toBe('200.00')
+            ->and($seller->subtotal)->toBe('50.00')
+            ->and($seller->number)->not->toBe($warehouse->number);
+
+        // Reserved warehouse units belong to the warehouse parcel only.
+        expect(FbnReservation::query()->pluck('sub_order_id')->unique()->all())->toBe([$warehouse->id]);
+
+        // The two parcels add up to what the customer pays.
+        $order = $seller->order;
+        expect(bcadd((string) $seller->total, (string) $warehouse->total, 2))->toBe(bcsub((string) $order->grand_total, (string) $order->cod_fee, 2));
+
+        $orders = app(FbnOrders::class);
+        expect($orders->isWarehouseFulfilled($warehouse))->toBeTrue()
+            ->and($orders->isWarehouseFulfilled($seller))->toBeFalse()
+            ->and($orders->queue()->pluck('id')->all())->toBe([$warehouse->id])
+            ->and(app(SellerFulfilment::class)->nextStepFor($seller))->toBe(SubOrderStatus::Confirmed)
+            ->and(app(SellerFulfilment::class)->nextStepFor($warehouse))->toBeNull();
+    });
+
+    it('ships the two parcels separately, each with its own shipment, tracking and COD amount', function () {
+        [$fbn, , $seller, $warehouse, $token] = placeMixedFbnOrder($this);
+
+        foreach ([SubOrderStatus::Confirmed, SubOrderStatus::Processing, SubOrderStatus::Packed, SubOrderStatus::Shipped] as $step) {
+            app(FbnOrders::class)->advance($warehouse->refresh(), $step, 1);
+        }
+
+        // The warehouse dispatched its parcel; the seller's parcel is untouched.
+        expect($warehouse->refresh()->status)->toBe(SubOrderStatus::Shipped)
+            ->and($seller->refresh()->status)->toBe(SubOrderStatus::Placed)
+            ->and(FbnReservation::query()->where('sub_order_id', $warehouse->id)->value('status'))->toBe(ReservationStatus::Dispatched)
+            ->and(Shipment::query()->where('sub_order_id', $seller->id)->exists())->toBeFalse();
+
+        $sellerFulfilment = app(SellerFulfilment::class);
+        while (($next = $sellerFulfilment->nextStepFor($seller->refresh())) !== null && $seller->status !== SubOrderStatus::Packed) {
+            $sellerFulfilment->advance($seller, $next, $fbn->vendor->owner_user_id);
+        }
+        $sellerShipment = app(DeliveryDispatch::class)->shipmentFor($seller->refresh(), ActorType::Vendor, $fbn->vendor->owner_user_id);
+        $warehouseShipment = Shipment::query()->where('sub_order_id', $warehouse->id)->sole();
+
+        expect($sellerShipment->number)->not->toBe($warehouseShipment->number)
+            ->and(Shipment::query()->count())->toBe(2);
+
+        // COD is collected per parcel; the order's COD fee rides on one of them only.
+        $dispatch = app(DeliveryDispatch::class);
+        $order = $seller->order;
+        expect(bcadd((string) $dispatch->expectedCod($seller), (string) $dispatch->expectedCod($warehouse), 2))->toBe(bcadd((string) $order->grand_total, '0', 2));
+
+        // The customer sees two parcels, the warehouse one marked as shipped by Nawy.
+        $shipments = $this->withToken($token)->getJson("/api/v1/uae-en/orders/{$order->number}")->assertOk()->json('data.shipments');
+        expect($shipments)->toHaveCount(2)
+            ->and(array_column($shipments, 'fulfilled_by'))->toBe(['seller', 'nawy'])
+            ->and($shipments[1]['status'])->toBe('shipped');
+    });
+
+    it('cancels, settles and charges fees per parcel (fixed fee once, FBN fee 0 by default)', function () {
+        config(['nawy.fbn.fees' => null]);
+        [$fbn, $own, $seller, $warehouse] = placeMixedFbnOrder($this);
+        $calculator = app(SettlementCalculator::class);
+
+        $sellerSettlement = $calculator->calculate($seller);
+        $warehouseSettlement = $calculator->calculate($warehouse);
+        expect((string) $warehouseSettlement['fbn_fees']->getAmount())->toBe('0.00')
+            ->and($warehouseSettlement['fees']->isZero())->toBeTrue()
+            ->and((string) $sellerSettlement['fees']->getAmount())->toBe((string) $calculator->calculate(subOrderFor($fbn->vendor, SubOrderStatus::Placed, 1, $own))['fees']->getAmount());
+
+        // Cancelling the seller's parcel leaves the warehouse parcel and its reservation alone.
+        app(SellerFulfilment::class)->cancel($seller, 'Out of stock', $fbn->vendor->owner_user_id);
+        expect($seller->refresh()->status)->toBe(SubOrderStatus::Cancelled)
+            ->and($warehouse->refresh()->status)->toBe(SubOrderStatus::Placed)
+            ->and(FbnReservation::query()->where('sub_order_id', $warehouse->id)->value('status'))->toBe(ReservationStatus::Reserved);
+
+        // The warehouse parcel completes and settles on its own.
+        foreach ([SubOrderStatus::Confirmed, SubOrderStatus::Processing, SubOrderStatus::Packed, SubOrderStatus::Shipped] as $step) {
+            app(FbnOrders::class)->advance($warehouse->refresh(), $step, 1);
+        }
+        moveSubOrderTo($warehouse->refresh(), SubOrderStatus::Completed);
+        expect(SubOrderSettlement::query()->where('sub_order_id', $warehouse->id)->value('fbn_fees'))->toBe('0.0000');
+        assertLedgerBalanced();
+    });
+
+    it('shares the seller discount between the parcels pro rata to their goods', function () {
+        $warehouse = fbnWarehouse();
+        $fbn = fbnListing($warehouse, 3, price: '300.00');
+        $own = sellableListing('100.00', stock: 3, vendor: $fbn->vendor);
+        $money = fn (string $amount) => Money::of($amount, 'AED');
+        $line = fn (Listing $listing, string $total) => ['listing_id' => $listing->id, 'line_total' => $money($total), 'warranty_total' => $money('0')];
+        $group = [
+            'vendor_id' => $fbn->vendor_id, 'lines' => [$line($fbn, '300.00'), $line($own, '100.00')],
+            'subtotal' => $money('400.00'), 'discount' => $money('40.00'), 'shipping' => $money('15.00'), 'shipping_cost' => $money('15.00'),
+            'shipping_subsidy_vendor' => $money('0'), 'shipping_subsidy_platform' => $money('0'), 'shipping_absorbed' => $money('0'),
+            'warranty' => $money('0'), 'total' => $money('375.00'),
+        ];
+
+        $parcels = (fn (array $group, $listings) => $this->parcels($group, $listings))
+            ->call(app(PlaceOrder::class), $group, Listing::query()->whereIn('id', [$fbn->id, $own->id])->get()->keyBy('id'));
+
+        expect($parcels)->toHaveCount(2)
+            ->and($parcels[0]['fulfilled_by'])->toBe('seller')->and((string) $parcels[0]['discount']->getAmount())->toBe('10.00')
+            ->and((string) $parcels[0]['total']->getAmount())->toBe('105.00')->and((string) $parcels[0]['shipping']->getAmount())->toBe('15.00')
+            ->and($parcels[1]['fulfilled_by'])->toBe('nawy')->and((string) $parcels[1]['discount']->getAmount())->toBe('30.00')
+            ->and((string) $parcels[1]['total']->getAmount())->toBe('270.00')->and((string) $parcels[1]['shipping']->getAmount())->toBe('0.00');
     });
 });

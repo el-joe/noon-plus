@@ -9,6 +9,7 @@ use App\Domains\Orders\Enums\ActorType;
 use App\Domains\Orders\Enums\SubOrderStatus;
 use App\Domains\Orders\Exceptions\SubOrderTransitionRefused;
 use App\Domains\Orders\Models\SubOrder;
+use App\Domains\Orders\Support\PlaceOrder;
 use App\Domains\Orders\Support\SubOrderStateMachine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ use Throwable;
  * follows the normal delivery flow (dispatch board, agents, carriers).
  * A seller's checkout group mixing FBN and seller-shipped items is split at
  * checkout into two sub-orders (owner decision 2026-11-19, see
- * {@see \App\Domains\Orders\Support\PlaceOrder}): the warehouse parcel
+ * {@see PlaceOrder}): the warehouse parcel
  * (`fulfilled_by` = `nawy`) comes here, the seller ships the other one.
  * Mixed sub-orders placed before the split stay with the seller; their FBN
  * units are taken from the warehouse when the seller hands the parcel over.

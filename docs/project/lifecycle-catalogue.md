@@ -89,6 +89,7 @@ Derived, never set directly. States: `placed`, `confirmed`, `partially_shipped`,
 Side effects: customer notifications on milestone change; history row with actor `system`.
 
 ### 2.2 Sub-order — SRS §7.1 (OrderStateMachine)
+Checkout creates one sub-order per seller; a seller group mixing FBN and seller-shipped items becomes **two sub-orders** (owner decision D17, 2026-11-19): the warehouse parcel (`fulfilled_by = nawy`, advanced only by warehouse staff through Pick & pack) and the seller's parcel. Each runs this lifecycle, its shipment, returns, refunds and settlement on its own.
 States: `placed`, `confirmed`, `processing`, `packed`, `shipped`, `out_for_delivery`, `delivered`, `completed` **(T)**, `cancelled` **(T)**, `returned`, `refunded` **(T)**.
 
 | Transition | Actor | Guards | Side effects |

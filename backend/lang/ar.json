@@ -4631,5 +4631,7 @@
     "You are invited to join the Nawy admin team": "أنت مدعو للانضمام إلى فريق إدارة Nawy",
     "You are invited to join the Nawy delivery team": "أنت مدعو للانضمام إلى فريق توصيل Nawy",
     "Shown as typed, e.g. Catalog editor.": "يظهر كما كتبته، مثل: محرر الكتالوج.",
-    "A role with this name already exists.": "يوجد دور بهذا الاسم بالفعل."
+    "A role with this name already exists.": "يوجد دور بهذا الاسم بالفعل.",
+    "Nawy reviews the campaign first; you can pause or end it once it is live.": "تراجع Nawy الحملة أولاً؛ يمكنك إيقافها مؤقتاً أو إنهاؤها بعد أن تبدأ.",
+    "No parcel with this number in :country.": "لا توجد شحنة بهذا الرقم في :country."
 }
