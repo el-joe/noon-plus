@@ -67,7 +67,7 @@
                             <select id="nav-workspace-country" name="country" onchange="this.form.submit()"
                                     class="size-full cursor-pointer appearance-none rounded-lg bg-transparent text-transparent opacity-0">
                                 @foreach ($panelCountries as $country)
-                                    <option value="{{ $country->code }}" @selected($country->is($currentCountry))>{{ app()->getLocale() === 'ar' ? $country->name_ar : $country->name_en }} · {{ $country->currency }}</option>
+                                    <option value="{{ $country->code }}" class="bg-surface text-fg" @selected($country->is($currentCountry))>{{ app()->getLocale() === 'ar' ? $country->name_ar : $country->name_en }} · {{ $country->currency }}</option>
                                 @endforeach
                             </select>
                         </form>

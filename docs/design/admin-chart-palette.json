@@ -1,0 +1,184 @@
+{
+  "$description": "Nawy admin chart palettes. Non-text graphics need >=3:1 against the surface (WCAG 1.4.11); contrastVsSurface is computed. Brand yellow #f9bb25 is NOT a categorical series colour on light (1.6:1) - use it as highlight with a 1.5px navy stroke or as sequential-yellow.",
+  "surface": {
+    "light": "#ffffff",
+    "dark": "#0d1526"
+  },
+  "categorical": {
+    "light": [
+      {
+        "id": "cat-1",
+        "name": "blue",
+        "hex": "#1d4ed8",
+        "contrastVsSurface": 6.7
+      },
+      {
+        "id": "cat-2",
+        "name": "amber",
+        "hex": "#c2710c",
+        "contrastVsSurface": 3.71
+      },
+      {
+        "id": "cat-3",
+        "name": "teal",
+        "hex": "#0f766e",
+        "contrastVsSurface": 5.47
+      },
+      {
+        "id": "cat-4",
+        "name": "violet",
+        "hex": "#7c3aed",
+        "contrastVsSurface": 5.7
+      },
+      {
+        "id": "cat-5",
+        "name": "red",
+        "hex": "#dc2626",
+        "contrastVsSurface": 4.83
+      },
+      {
+        "id": "cat-6",
+        "name": "green",
+        "hex": "#15803d",
+        "contrastVsSurface": 5.02
+      },
+      {
+        "id": "cat-7",
+        "name": "pink",
+        "hex": "#db2777",
+        "contrastVsSurface": 4.6
+      },
+      {
+        "id": "cat-8",
+        "name": "slate",
+        "hex": "#475569",
+        "contrastVsSurface": 7.58
+      }
+    ],
+    "dark": [
+      {
+        "id": "cat-1",
+        "name": "blue",
+        "hex": "#60a5fa",
+        "contrastVsSurface": 7.17
+      },
+      {
+        "id": "cat-2",
+        "name": "amber",
+        "hex": "#fbbf24",
+        "contrastVsSurface": 10.92
+      },
+      {
+        "id": "cat-3",
+        "name": "teal",
+        "hex": "#2dd4bf",
+        "contrastVsSurface": 9.79
+      },
+      {
+        "id": "cat-4",
+        "name": "violet",
+        "hex": "#a78bfa",
+        "contrastVsSurface": 6.7
+      },
+      {
+        "id": "cat-5",
+        "name": "red",
+        "hex": "#f87171",
+        "contrastVsSurface": 6.59
+      },
+      {
+        "id": "cat-6",
+        "name": "green",
+        "hex": "#4ade80",
+        "contrastVsSurface": 10.46
+      },
+      {
+        "id": "cat-7",
+        "name": "pink",
+        "hex": "#f472b6",
+        "contrastVsSurface": 6.88
+      },
+      {
+        "id": "cat-8",
+        "name": "slate",
+        "hex": "#94a3b8",
+        "contrastVsSurface": 7.11
+      }
+    ],
+    "order": "Assign in order; never rely on colour alone (add direct labels / markers / dash patterns)."
+  },
+  "sequential": {
+    "blue": [
+      "#eff6ff",
+      "#bfdbfe",
+      "#93c5fd",
+      "#60a5fa",
+      "#3b82f6",
+      "#1d4ed8",
+      "#1e3a8a"
+    ],
+    "yellow": [
+      "#fff8e1",
+      "#fde9a8",
+      "#fbd465",
+      "#f9bb25",
+      "#d99a0b",
+      "#a87206",
+      "#6b4803"
+    ],
+    "usage": "Light to dark = low to high on light surfaces; reverse on dark surfaces."
+  },
+  "diverging": {
+    "orange-blue": [
+      "#b45309",
+      "#f59e0b",
+      "#fcd34d",
+      "#f1f5f9",
+      "#93c5fd",
+      "#3b82f6",
+      "#1d4ed8"
+    ],
+    "midpoint": "#f1f5f9",
+    "note": "Colour-blind safe (orange vs blue); not red/green."
+  },
+  "status": {
+    "success": {
+      "fg": "#15803d",
+      "bg": "#d7f3e1",
+      "fgDark": "#4ade80",
+      "bgDark": "#1c4a33"
+    },
+    "info": {
+      "fg": "#1d4ed8",
+      "bg": "#dbe8fe",
+      "fgDark": "#93c5fd",
+      "bgDark": "#1f3a66"
+    },
+    "warning": {
+      "fg": "#b45309",
+      "bg": "#fdeacf",
+      "fgDark": "#fbbf24",
+      "bgDark": "#5a3a12"
+    },
+    "danger": {
+      "fg": "#b91c1c",
+      "bg": "#fde0e0",
+      "fgDark": "#fca5a5",
+      "bgDark": "#5a2530"
+    },
+    "neutral": {
+      "fg": "#475569",
+      "bg": "#e2e8f0",
+      "fgDark": "#cbd5e1",
+      "bgDark": "#324166"
+    }
+  },
+  "highlight": {
+    "brand": "#f9bb25",
+    "navy": "#0d1526",
+    "gridLight": "#e3e6ec",
+    "gridDark": "#324166",
+    "axisTextLight": "#475569",
+    "axisTextDark": "#a9b6d3"
+  }
+}

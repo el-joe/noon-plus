@@ -43,7 +43,12 @@ class LocalizePageSettingsCommand extends Command
                     $english = $group->firstWhere('locale', 'en');
                     $arabic = $group->firstWhere('locale', 'ar');
 
-                    if ($english && $arabic) {
+                    // Already linked by an earlier run: from then on the editor keeps both languages in step, so a
+                    // difference between them is an edit in progress. Merging again would turn a section added in one
+                    // language into a language-limited one (the Oman home hero bug); only convert each page itself.
+                    $linked = $english && $arabic && $group->contains(fn (Page $page): bool => $page->revisions()->where('note', __('Bilingual settings (EN + AR)'))->exists());
+
+                    if ($english && $arabic && ! $linked) {
                         $merged = $localizer->merge($english->currentRevision->zones, $arabic->currentRevision->zones);
                         $zones = $merged['zones'];
                         $totals['split'] += $merged['split'];
@@ -55,7 +60,7 @@ class LocalizePageSettingsCommand extends Command
                     $totals['addresses']++;
 
                     foreach ($group as $page) {
-                        $normalized = $pages->normalize($page->template, $zones);
+                        $normalized = $pages->normalize($page->template, $linked ? $localizer->convert($page->currentRevision->zones, $page->locale) : $zones);
 
                         // MySQL JSON columns reorder object keys: compare key-order-insensitively.
                         if ($this->canonical($normalized) === $this->canonical($pages->normalize($page->template, $page->currentRevision->zones))) {
