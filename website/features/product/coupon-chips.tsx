@@ -17,7 +17,7 @@ export function CouponChips({ slug }: { slug: string }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {data.slice(0, 4).map((coupon) => (
-        <CouponChip key={coupon.code} coupon={coupon} />
+        <CouponChip key={coupon.code} coupon={coupon} compact />
       ))}
     </div>
   );

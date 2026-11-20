@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Container, Skeleton } from "@/components/ui/misc";
 import { categoryTree, categoryTreeWithCounts, ProductListing, toListingQuery, type TreeNode } from "@/features/listing/product-listing";
 import { CategoryBreadcrumb, SubcategoryChips, SubcategoryTiles, type CategoryChild } from "@/features/page-builder/blocks/category";
-import { loadCmsPage } from "@/features/page-builder/cms-page";
+import { loadCmsPage, previewToken } from "@/features/page-builder/cms-page";
 import { PageZone } from "@/features/page-builder/render";
 import { str, type BlockContext, type Settings } from "@/features/page-builder/settings";
 import { orNull } from "@/lib/api/client";
@@ -73,10 +73,11 @@ async function CategoryContent({ params, searchParams }: Pick<PageProps<"/[marke
   const market = parseMarket(slug);
   if (!market || segments.length > 4 || segments.some((p) => !SEGMENT.test(p))) notFound();
 
-  const query = toListingQuery(await searchParams);
+  const rawSearch = await searchParams;
+  const query = toListingQuery(rawSearch);
   const last = segments.at(-1)!;
   const [{ page, categories }, detail, nodes] = await Promise.all([
-    loadCmsPage(market, last),
+    loadCmsPage(market, last, previewToken(rawSearch)),
     orNull(getCategory(market.slug, last).then((r) => r.data)).catch(() => null),
     getCategoryTree(market.slug)
       .then((r) => r.data)

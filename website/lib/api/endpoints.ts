@@ -98,7 +98,9 @@ export const unsubscribeNewsletter = (market: string, token: string) => request(
 export const getProduct = (market: string, slug: string) => get(market, `products/${encodeURIComponent(slug)}`, s.productDetail);
 
 // Content
-export const getPage = (market: string, slug: string) => get(market, `pages/${encodeURIComponent(slug)}`, s.cmsPage);
+/** A published page-builder page; `preview` (signed admin link) serves the current draft instead. */
+export const getPage = (market: string, slug: string, preview?: string | null) =>
+  get(market, `pages/${encodeURIComponent(slug)}`, s.cmsPage, preview ? { preview } : undefined);
 export const getFooter = (market: string) => get(market, "footer", s.footer);
 export const getFlashSale = (market: string, id: number | string) => get(market, `flash-sales/${encodeURIComponent(String(id))}`, s.flashSale);
 export const getAdPlacements = (market: string, placement: string, query: { category?: string; with?: "products" } = {}) =>

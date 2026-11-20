@@ -17,7 +17,10 @@ use Throwable;
 
 /**
  * Server-side data for published blocks (page-builder-blocks.md rule 2):
- * drops blocks outside their visibility window, resolves product sources
+ * drops blocks an editor hid (`hidden`), limited to other languages
+ * (`locales`) or outside their visibility window
+ * (`settings.visibility.starts_at` / `ends_at`), resolves bilingual
+ * settings (`{en, ar}`) for the request language ({@see BlockSettings::localize()}), resolves product sources
  * ({@see BlockProducts}: manual listing ids, new arrivals, category, brand,
  * bestsellers, top rated, deals, trending, recommended, coupon), category
  * tiles ({@see BlockTiles}), the flash sale of deal blocks (`flash_sale_id`
@@ -36,26 +39,28 @@ class BlockResolver
      * @param  array<string, array<int, array<string, mixed>>>  $zones
      * @return array<string, array<int, array<string, mixed>>>
      */
-    public function resolve(array $zones, ?CarbonImmutable $at = null): array
+    public function resolve(array $zones, ?CarbonImmutable $at = null, bool $includeHidden = false): array
     {
         $at ??= CarbonImmutable::now();
+        $locale = app()->getLocale() === 'ar' ? 'ar' : 'en';
         $resolved = [];
 
         foreach ($zones as $zone => $blocks) {
             $resolved[$zone] = [];
 
             foreach ($blocks as $block) {
-                if (! BlockRegistry::has((string) ($block['type'] ?? '')) || ! $this->visible((array) ($block['settings'] ?? []), $at)) {
+                if (! BlockRegistry::has((string) ($block['type'] ?? '')) || (! $includeHidden && ! empty($block['hidden'])) || ! $this->inLocale((array) $block, $locale) || ! $this->visible((array) ($block['settings'] ?? []), $at)) {
                     continue;
                 }
 
                 $definition = BlockRegistry::get($block['type']);
-                $settings = (array) ($block['settings'] ?? []);
+                // Bilingual settings ({en, ar}) become plain values of the request language (AR ↔ EN fallback).
+                $settings = BlockSettings::localize((array) ($block['settings'] ?? []), $locale);
                 $resolved[$zone][] = [
                     'id' => $block['id'] ?? null,
                     'type' => $block['type'],
                     'kind' => $definition['kind'],
-                    'settings' => $definition['kind'] === 'container' ? $this->children($settings, $at) : ($block['settings'] ?? []),
+                    'settings' => $definition['kind'] === 'container' ? $this->children($settings, $at) : $settings,
                     'data' => $this->data($block['type'], $settings),
                 ];
             }
@@ -90,7 +95,7 @@ class BlockResolver
                 $type = (string) ($child['type'] ?? '');
 
                 if ($type !== '' && BlockRegistry::has($type) && BlockRegistry::get($type)['kind'] !== 'container') {
-                    if (! $this->visible((array) ($child['settings'] ?? []), $at)) {
+                    if (! empty($child['hidden']) || ! empty($entry['hidden']) || ! $this->visible((array) ($child['settings'] ?? []), $at)) {
                         continue;
                     }
 
@@ -104,6 +109,18 @@ class BlockResolver
         }
 
         return $settings;
+    }
+
+    /**
+     * Blocks limited to some languages (`locales: ["ar"]`) are left out of the others.
+     *
+     * @param  array<string, mixed>  $block
+     */
+    private function inLocale(array $block, string $locale): bool
+    {
+        $locales = $block['locales'] ?? null;
+
+        return ! is_array($locales) || $locales === [] || in_array($locale, $locales, true);
     }
 
     /**

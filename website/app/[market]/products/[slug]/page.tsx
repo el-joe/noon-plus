@@ -14,9 +14,12 @@ import { SelectedOfferProvider } from "@/features/product/offer-context";
 import { OfferRail } from "@/features/product/offer-rail";
 import { ProductGallery } from "@/features/product/gallery";
 import { ProductQuestions } from "@/features/product/questions";
-import { ProductReviews } from "@/features/product/reviews";
+import { ProductReviews, ReviewsOverviewCard } from "@/features/product/reviews";
 import { orNull } from "@/lib/api/client";
-import { getProduct, getProductReviews } from "@/lib/api/endpoints";
+import { getProduct, getProductReviews, getProducts } from "@/lib/api/endpoints";
+import { cardFromApi } from "@/lib/api/mappers";
+import { ProductTabs, TabLink } from "@/features/product/product-tabs";
+import { RecentlyViewedRail, SimilarProductsRail } from "@/features/product/product-rails";
 import type { ProductDetail, ReviewPage } from "@/lib/api/schemas";
 import { getT } from "@/lib/i18n";
 import { parseMarket, type Market } from "@/lib/markets";
@@ -79,7 +82,8 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
   const highlights = textList(product.highlights);
   const specs = specRows(product.specifications);
   const crumbs = product.breadcrumbs.length > 0 ? product.breadcrumbs : product.category ? [{ slug: product.category.slug, name: product.category.name }] : [];
-  const reviewCount = reviews?.summary.count ?? product.rating?.count ?? 0;
+  // Written reviews when there are any, else the catalogue rating count (same number as under the title).
+  const reviewCount = reviews && reviews.summary.count > 0 ? reviews.summary.count : (product.rating?.count ?? 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,7 +104,7 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
       </nav>
 
       <SelectedOfferProvider initial={product.buy_box}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_300px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_320px]">
         <ProductGallery images={product.images} title={product.title} slug={product.slug} />
 
         <section className="flex flex-col gap-3">
@@ -154,63 +158,107 @@ function ProductView({ market, product, reviews }: { market: Market; product: Pr
 
       <FrequentlyBoughtTogether product={{ slug: product.slug, title: product.title, image: product.images[0]?.url ?? null, price: product.buy_box?.price ?? product.from_price }} />
 
-      <nav className="scrollbar-none -mx-4 flex gap-6 overflow-x-auto border-b border-line bg-page px-4 text-body md:sticky md:top-[116px] md:z-10" aria-label={t("product.tabOverview")}>
-        <a href="#overview" className="shrink-0 border-b-2 border-brand py-3 font-semibold">
-          {t("product.tabOverview")}
-        </a>
-        {specs.length > 0 ? (
-          <a href="#specifications" className="shrink-0 py-3 text-secondary hover:text-ink">
-            {t("product.tabSpecs")}
-          </a>
-        ) : null}
-        <a href="#reviews" className="shrink-0 py-3 text-secondary hover:text-ink">
-          {t("product.tabReviews", { count: reviewCount })}
-        </a>
-        <a href="#questions" className="shrink-0 py-3 text-secondary hover:text-ink">
-          {t("product.tabQuestions")}
-        </a>
-      </nav>
+      <ProductTabs
+        tabs={[
+          {
+            id: "overview",
+            label: t("product.tabOverview"),
+            panel: (
+              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="flex flex-col gap-6 rounded-lg border border-line bg-surface p-5">
+                  {highlights.length > 0 ? (
+                    <div>
+                      <h2 className="mb-3 text-h4 font-semibold">{t("product.highlights")}</h2>
+                      <ul className="flex list-disc flex-col gap-2 ps-5 text-body marker:text-brand">
+                        {highlights.map((h, i) => (
+                          <li key={i}>{h}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {product.description ? (
+                    <div>
+                      <h2 className="mb-3 text-h4 font-semibold">{t("product.description")}</h2>
+                      <div className="whitespace-pre-line text-body text-secondary">{product.description}</div>
+                    </div>
+                  ) : null}
+                  {specs.length > 0 ? (
+                    <div>
+                      <h2 className="mb-3 text-h4 font-semibold">{t("product.specifications")}</h2>
+                      <SpecTable specs={specs} />
+                    </div>
+                  ) : null}
+                  {!product.description && highlights.length === 0 && specs.length === 0 ? <p className="text-body text-secondary">{product.title}</p> : null}
+                </div>
+                <ReviewsOverviewCard
+                  slug={product.slug}
+                  summary={reviews?.summary ?? null}
+                  aggregate={product.rating}
+                  seeAll={
+                    <TabLink to="reviews" className="text-body-sm font-medium text-link hover:underline">
+                      {t("product.seeAllReviews")}
+                    </TabLink>
+                  }
+                />
+              </div>
+            ),
+          },
+          {
+            id: "specifications",
+            label: t("product.tabSpecs"),
+            panel: (
+              <div className="rounded-lg border border-line bg-surface p-5">
+                <h2 className="mb-3 text-h4 font-semibold">{t("product.specifications")}</h2>
+                {specs.length > 0 || product.model_number ? (
+                  <SpecTable specs={product.model_number && !specs.some(([k]) => /model/i.test(k)) ? [[t("discovery.pdp.model").replace(/[:：]\s*$/, ""), product.model_number], ...specs] : specs} />
+                ) : (
+                  <p className="text-body text-secondary">{t("product.noSpecs")}</p>
+                )}
+              </div>
+            ),
+          },
+          { id: "reviews", label: t("product.tabReviews", { count: new Intl.NumberFormat("en").format(reviewCount) }), panel: <ProductReviews slug={product.slug} initial={reviews} aggregate={product.rating} /> },
+          { id: "questions", label: t("product.tabQuestions"), panel: <ProductQuestions slug={product.slug} /> },
+        ]}
+      />
 
-      <section id="overview" className="flex scroll-mt-32 flex-col gap-6 rounded-lg border border-line bg-surface p-5">
-        {product.description ? (
-          <div>
-            <h2 className="mb-3 text-h4 font-semibold">{t("product.description")}</h2>
-            <div className="whitespace-pre-line text-body text-secondary">{product.description}</div>
-          </div>
-        ) : null}
-        {highlights.length > 0 ? (
-          <div>
-            <h2 className="mb-3 text-h4 font-semibold">{t("product.highlights")}</h2>
-            <ul className="flex list-disc flex-col gap-2 ps-5 text-body marker:text-brand">
-              {highlights.map((h, i) => (
-                <li key={i}>{h}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {specs.length > 0 ? (
-          <div id="specifications" className="scroll-mt-32">
-            <h2 className="mb-3 text-h4 font-semibold">{t("product.specifications")}</h2>
-            <table className="w-full overflow-hidden rounded-md border border-line text-body-sm">
-              <tbody>
-                {specs.map(([k, v], i) => (
-                  <tr key={`${k}-${i}`} className={i % 2 === 0 ? "bg-subtle" : "bg-surface"}>
-                    <th className="w-1/3 px-3 py-2 text-start font-normal text-secondary first-letter:uppercase">{k.replace(/_/g, " ")}</th>
-                    <td className="px-3 py-2">{v}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-        {!product.description && highlights.length === 0 && specs.length === 0 ? <p className="text-body text-secondary">{product.title}</p> : null}
-      </section>
-
-      <ProductReviews slug={product.slug} initial={reviews} />
-      <ProductQuestions slug={product.slug} />
+      {product.category ? (
+        <Suspense fallback={null}>
+          <SimilarProducts market={market} category={product.category.slug} exclude={product.slug} title={t("product.similar")} />
+        </Suspense>
+      ) : null}
+      <RecentlyViewedRail title={t("product.recentlyViewed")} exclude={product.slug} />
       <CompareTray />
     </div>
   );
+}
+
+function SpecTable({ specs }: { specs: [string, string][] }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-line">
+      <table className="w-full text-body-sm">
+        <tbody>
+          {specs.map(([k, v], i) => (
+            <tr key={`${k}-${i}`} className={i % 2 === 0 ? "bg-subtle" : "bg-surface"}>
+              <th scope="row" className="w-1/3 px-4 py-2.5 text-start font-normal text-secondary first-letter:uppercase">
+                {k.replace(/_/g, " ")}
+              </th>
+              <td className="px-4 py-2.5">{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Same-category products for the "Similar products" carousel. */
+async function SimilarProducts({ market, category, exclude, title }: { market: Market; category: string; exclude: string; title: string }) {
+  const products = await getProducts(market.slug, { category, per_page: 16, sort: "recommended" })
+    // Organic items only: the listing interleaves sponsored cards, which belong to ad slots.
+    .then((r) => r.data.filter((p) => p.slug !== exclude && !p.sponsored).slice(0, 12).map(cardFromApi))
+    .catch(() => []);
+  return <SimilarProductsRail title={title} products={products} />;
 }
 
 function PdpSkeleton() {

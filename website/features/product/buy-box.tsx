@@ -11,7 +11,7 @@ import { Alert, Badge } from "@/components/ui/misc";
 import { useRecordView } from "@/features/search/recently-viewed";
 import * as api from "@/lib/api/endpoints";
 import type { Offer, ProductDetail } from "@/lib/api/schemas";
-import { discountPercent, formatAmount, formatMoney } from "@/lib/format";
+import { discountPercent, formatAmount, formatMoney, savedAmount } from "@/lib/format";
 import { errorMessage, useCartMutation } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { Countdown } from "@/features/page-builder/countdown";
@@ -145,7 +145,12 @@ export function BuyBox({ product }: { product: ProductDetail }) {
             <span className="text-muted line-through">
               {t("product.was")} {formatMoney(offer.was_price)}
             </span>
-            <span className="font-medium text-success-text">{t("product.off", { percent })}</span>
+            <span className="font-medium text-success-text">
+              {(() => {
+                const saved = savedAmount(offer.price, offer.was_price);
+                return saved ? `${t("product.save", { amount: formatMoney(saved) })} (${percent}%)` : t("product.off", { percent });
+              })()}
+            </span>
           </p>
         ) : null}
         {offer.flash_sale ? (
@@ -262,13 +267,16 @@ export function BuyBox({ product }: { product: ProductDetail }) {
               <Plus className="size-4" />
             </button>
           </div>
-          <Button size="lg" onClick={() => submit("stay")} disabled={add.isPending}>
-            <ShoppingCart className="size-5" />
-            {add.isPending ? t("product.adding") : t("product.addToCart")}
-          </Button>
-          <Button size="lg" variant="dark" onClick={() => submit("checkout")} disabled={add.isPending}>
-            {t("product.buyNow")}
-          </Button>
+          {/* Mobile (Figma 85:445): Add to cart and Buy now share the row, full width. */}
+          <div className="grid basis-full grid-cols-2 gap-3 sm:flex sm:basis-auto">
+            <Button size="lg" className="whitespace-nowrap max-sm:px-3" onClick={() => submit("stay")} disabled={add.isPending}>
+              <ShoppingCart className="size-5" />
+              {add.isPending ? t("product.adding") : t("product.addToCart")}
+            </Button>
+            <Button size="lg" variant="dark" className="whitespace-nowrap max-sm:px-3" onClick={() => submit("checkout")} disabled={add.isPending}>
+              {t("product.buyNow")}
+            </Button>
+          </div>
           {offer.in_stock <= 5 ? <span className="text-body-sm text-danger-text">{t("product.lowStock", { count: offer.in_stock })}</span> : null}
         </div>
       ) : (

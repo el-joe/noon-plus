@@ -176,7 +176,13 @@
       "tomorrow": "Tomorrow",
       "two_days": "In 2 days",
       "later": "In 3+ days"
-    }
+    },
+    "zoom": "Zoom image",
+    "imageOf": "Image {n} of {total}",
+    "seeAllReviews": "See all reviews",
+    "similar": "Similar products",
+    "recentlyViewed": "Recently viewed",
+    "noSpecs": "No specifications listed for this product yet."
   },
   "listing": {
     "results": "{count, plural, =0 {No results} one {# result} other {# results}}",

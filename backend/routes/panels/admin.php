@@ -18,6 +18,7 @@ use App\Domains\Content\Http\Controllers\Admin\AppContextController;
 use App\Domains\Content\Http\Controllers\Admin\CmsController;
 use App\Domains\Content\Http\Controllers\Admin\NotificationTemplateController;
 use App\Domains\Content\Http\Controllers\Admin\PageBuilderController;
+use App\Domains\Content\Http\Controllers\Admin\PageBuilderPickerController;
 use App\Domains\Contracts\Http\Controllers\Admin\ContractTemplateController;
 use App\Domains\Countries\Http\Controllers\Admin\DomainAdminController;
 use App\Domains\Countries\Http\Controllers\Admin\HolidayController;
@@ -402,8 +403,11 @@ Route::middleware('can:pages.view')->group(function (): void {
 Route::middleware('can:pages.manage')->group(function (): void {
     Route::post('pages', [PageBuilderController::class, 'store'])->name('pages.store');
     Route::post('pages/{page}/save', [PageBuilderController::class, 'save'])->whereNumber('page')->name('pages.save');
+    Route::get('pages/pickers/{kind}', [PageBuilderPickerController::class, 'search'])
+        ->whereIn('kind', ['product', 'category', 'brand', 'coupon', 'flash_sale', 'ad_slot', 'stream', 'vendor', 'link'])->middleware('throttle:120,1')->name('pages.picker');
+    Route::post('pages/uploads', [PageBuilderPickerController::class, 'upload'])->middleware('throttle:30,1')->name('pages.upload');
     Route::post('pages/{page}/{action}', [PageBuilderController::class, 'act'])->whereNumber('page')
-        ->whereIn('action', ['publish', 'schedule', 'draft', 'archive', 'restore', 'copy', 'layout'])->name('pages.act');
+        ->whereIn('action', ['publish', 'schedule', 'draft', 'archive', 'restore', 'copy', 'locales', 'layout', 'duplicate', 'delete'])->name('pages.act');
 });
 Route::middleware('can:app_contexts.manage')->group(function (): void {
     Route::get('app-contexts', [AppContextController::class, 'index'])->name('app-contexts');

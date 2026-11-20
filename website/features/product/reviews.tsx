@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import clsx from "clsx";
 import { BadgeCheck, Flag, MessageSquare, Store, ThumbsUp } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/layout/modal";
@@ -27,10 +27,22 @@ function histogramOf(summary: ReviewSummary): Record<number, number> {
   return Object.fromEntries(Object.entries(h).map(([k, v]) => [Number(k), v]));
 }
 
+/**
+ * Written-review summary, or the product's catalogue rating when no written
+ * reviews exist yet (so the card agrees with the rating under the title).
+ */
+export function withAggregate(summary: ReviewSummary, aggregate?: { average: string | number | null; count: number } | null): ReviewSummary {
+  if (summary.count > 0 || !aggregate || aggregate.count <= 0 || aggregate.average == null) return summary;
+  return { ...summary, average: String(aggregate.average), count: aggregate.count };
+}
+
 /** Rating summary + histogram (Figma 24:2 "Ratings & reviews" card). */
-export function ReviewSummaryCard({ summary, onWrite, onFilter, active }: { summary: ReviewSummary; onWrite: () => void; onFilter?: (stars: number | null) => void; active?: number | null }) {
+export function ReviewSummaryCard({ summary, onWrite, onFilter, active, footer }: { summary: ReviewSummary; onWrite: () => void; onFilter?: (stars: number | null) => void; active?: number | null; footer?: ReactNode }) {
   const t = useTranslations("reviews");
   const histogram = histogramOf(summary);
+  // The catalogue's aggregate rating can exist without written reviews behind it
+  // (no per-star split): show the average and count, not a row of 0% bars.
+  const histogramTotal = Object.values(histogram).reduce((a, b) => a + b, 0);
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5">
       <h2 className="text-h4 font-semibold">{t("title")}</h2>
@@ -41,10 +53,11 @@ export function ReviewSummaryCard({ summary, onWrite, onFilter, active }: { summ
           <p className="text-body-sm text-secondary">{t("basedOn", { count: summary.count })}</p>
         </div>
       </div>
+      {histogramTotal > 0 || summary.count === 0 ? (
       <ul className="flex flex-col gap-1.5">
         {[5, 4, 3, 2, 1].map((stars) => {
           const count = histogram[stars] ?? 0;
-          const pct = summary.count ? Math.round((count / summary.count) * 100) : 0;
+          const pct = histogramTotal ? Math.round((count / histogramTotal) * 100) : 0;
           return (
             <li key={stars}>
               <button
@@ -64,9 +77,13 @@ export function ReviewSummaryCard({ summary, onWrite, onFilter, active }: { summ
           );
         })}
       </ul>
-      <Button variant="outline" onClick={onWrite} className="self-start">
-        {t("write")}
-      </Button>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="outline" onClick={onWrite} className="self-start">
+          {t("write")}
+        </Button>
+        {footer}
+      </div>
     </div>
   );
 }
@@ -75,7 +92,7 @@ export function ReviewSummaryCard({ summary, onWrite, onFilter, active }: { summ
  * PDP reviews (G-W3): summary + histogram, sort, star / photo filters, the
  * list with helpful votes, and the write-review modal for verified buyers.
  */
-export function ProductReviews({ slug, initial }: { slug: string; initial?: ReviewPage | null }) {
+export function ProductReviews({ slug, initial, aggregate }: { slug: string; initial?: ReviewPage | null; aggregate?: { average: string | number | null; count: number } | null }) {
   const t = useTranslations("reviews");
   const tc = useTranslations("common");
   const market = useMarket();
@@ -106,8 +123,8 @@ export function ProductReviews({ slug, initial }: { slug: string; initial?: Revi
 
   const data = query.data;
   return (
-    <section id="reviews" className="grid scroll-mt-28 items-start gap-6 lg:grid-cols-[320px_1fr]">
-      {data ? <ReviewSummaryCard summary={data.summary} onWrite={write} onFilter={setStars} active={stars} /> : <Skeleton className="h-72 w-full" />}
+    <section className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
+      {data ? <ReviewSummaryCard summary={withAggregate(data.summary, aggregate)} onWrite={write} onFilter={setStars} active={stars} /> : <Skeleton className="h-72 w-full" />}
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Select aria-label={t("sortLabel")} value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="h-9 w-auto text-body-sm">
@@ -290,6 +307,23 @@ function ReportReview({ reviewId }: { reviewId: number }) {
           </form>
         </Modal>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * Overview-tab rating card (Figma 24:2: "Ratings & reviews" beside the
+ * highlights). Stars filter jumps to the full reviews tab.
+ */
+export function ReviewsOverviewCard({ slug, summary, aggregate, seeAll }: { slug: string; summary: ReviewSummary | null; aggregate?: { average: string | number | null; count: number } | null; seeAll: ReactNode }) {
+  const toLogin = useLoginRedirect();
+  const { isSignedIn } = useSession();
+  const [writing, setWriting] = useState(false);
+  const base: ReviewSummary = summary ?? { average: null, count: 0, histogram: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
+  return (
+    <>
+      <ReviewSummaryCard summary={withAggregate(base, aggregate)} onWrite={() => (isSignedIn ? setWriting(true) : toLogin())} footer={seeAll} />
+      {writing ? <WriteReviewModal productSlug={slug} onClose={() => setWriting(false)} /> : null}
     </>
   );
 }

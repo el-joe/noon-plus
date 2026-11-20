@@ -47,7 +47,7 @@ export function ProductQuestions({ slug }: { slug: string }) {
   };
 
   return (
-    <section id="questions" className="flex scroll-mt-28 flex-col gap-3 rounded-lg border border-line bg-surface p-5">
+    <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-h4 font-semibold">{t("title")}</h2>
         {isSignedIn ? (

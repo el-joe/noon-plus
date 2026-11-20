@@ -13,6 +13,7 @@ use App\Domains\Content\Models\Page;
 use App\Domains\Content\Support\AppContexts;
 use App\Domains\Content\Support\BlockResolver;
 use App\Domains\Content\Support\Footer;
+use App\Domains\Content\Support\PagePreview;
 use App\Domains\Content\Support\Pages;
 use App\Domains\Content\Support\StaticPages;
 use App\Domains\Countries\Support\CountryContext;
@@ -44,10 +45,26 @@ class ContentApiController extends Controller
 
     public function __construct(private CountryContext $countryContext) {}
 
-    public function page(string $slug, Pages $pages, BlockResolver $resolver, VerticalSettings $settings): JsonResponse
+    public function page(Request $request, string $slug, Pages $pages, BlockResolver $resolver, VerticalSettings $settings, PagePreview $preview): JsonResponse
     {
         $locale = app()->getLocale();
         $country = $this->countryContext->current();
+
+        // Admin preview link (signed, expiring): the current draft of any status, never cached.
+        if ($request->filled('preview') && $preview->valid((string) $request->query('preview'), $country, $slug)) {
+            $page = Page::query()->where('slug', $slug)->where('locale', $locale)->with('currentRevision')->first();
+            abort_if($page === null || $page->currentRevision === null, 404);
+
+            return ApiResponse::success([
+                'slug' => $page->slug,
+                'template' => $page->template->value,
+                'title' => $page->title,
+                'seo' => ['title' => $page->seo_title ?? $page->title, 'description' => $page->seo_description],
+                'published_at' => $page->published_at?->toIso8601String(),
+                'preview' => true,
+                'zones' => $resolver->resolve($page->currentRevision->zones, null, $preview->showsHidden((string) $request->query('preview'), $country, $slug)),
+            ])->header('Cache-Control', 'no-store, private')->header('X-Robots-Tag', 'noindex');
+        }
 
         $payload = Cache::remember($pages->cacheKey($country->code, $locale, $slug), now()->addMinutes($settings->int('content.page_cache_minutes')), function () use ($slug, $locale): ?array {
             $page = Page::query()->where('slug', $slug)->where('locale', $locale)->where('status', PageStatus::Published)->with('publishedRevision')->first();

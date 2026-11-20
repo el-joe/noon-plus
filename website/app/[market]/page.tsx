@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Container, Skeleton } from "@/components/ui/misc";
 import { ProductGrid } from "@/components/product/product-grid";
 import { OffersForYou } from "@/features/offers/offers-for-you";
-import { loadCmsPage } from "@/features/page-builder/cms-page";
+import { loadCmsPage, previewToken } from "@/features/page-builder/cms-page";
 import { PageZone } from "@/features/page-builder/render";
 import { orNull } from "@/lib/api/client";
 import { getPage, getProducts } from "@/lib/api/endpoints";
@@ -29,19 +29,21 @@ export async function generateMetadata({ params }: PageProps<"/[market]">): Prom
 }
 
 /** Home (Figma "Home v2 desktop" 30:1208) — rendered from the `home` page-builder page. */
-export default async function HomePage({ params }: PageProps<"/[market]">) {
+export default async function HomePage({ params, searchParams }: PageProps<"/[market]">) {
   const market = await resolveMarket(params);
   return (
     <Container className="py-4">
       <Suspense fallback={<HomeSkeleton />}>
-        <Home market={market} />
+        {/* searchParams is request data: read it inside the Suspense boundary (cacheComponents prerender). */}
+        <Home market={market} searchParams={searchParams} />
       </Suspense>
     </Container>
   );
 }
 
-async function Home({ market }: { market: Market }) {
-  const { page, categories } = await loadCmsPage(market, "home");
+async function Home({ market, searchParams }: { market: Market; searchParams: PageProps<"/[market]">["searchParams"] }) {
+  const preview = previewToken(await searchParams);
+  const { page, categories } = await loadCmsPage(market, "home", preview);
   const ctx = { market, categories };
   if (page && (page.zones.main?.length ?? 0) > 0) {
     return (

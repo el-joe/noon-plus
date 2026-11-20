@@ -14,7 +14,7 @@ import { useMarket } from "@/lib/market-context";
  * Public coupon chip (Figma 24:2 dashed chips; home "Offers for you"):
  * label, code, conditions, Copy and Apply to cart.
  */
-export function CouponChip({ coupon, className }: { coupon: PublicCoupon; className?: string }) {
+export function CouponChip({ coupon, className, compact = false }: { coupon: PublicCoupon; className?: string; compact?: boolean }) {
   const t = useTranslations("discovery.coupons");
   const market = useMarket();
   const { isSignedIn } = useSession();
@@ -41,6 +41,53 @@ export function CouponChip({ coupon, className }: { coupon: PublicCoupon; classN
     coupon.first_order_only ? t("firstOrder") : null,
     coupon.ends_at ? t("endsOn", { date: formatDay(coupon.ends_at, market.locale) }) : null,
   ].filter(Boolean);
+
+  const applyButton = (
+    <button
+      type="button"
+      disabled={apply.isPending || apply.isSuccess}
+      onClick={() => {
+        setError(null);
+        if (coupon.requires_sign_in && !isSignedIn) {
+          toLogin();
+          return;
+        }
+        apply.mutate(coupon.code, { onError: (e) => setError(message(e)) });
+      }}
+      className="font-medium text-link hover:underline disabled:text-success-text disabled:no-underline"
+    >
+      {apply.isSuccess ? t("applied") : apply.isPending ? t("applying") : t("apply")}
+    </button>
+  );
+
+  if (compact) {
+    // PDP (Figma 24:2): one-line dashed chip, label + code, Copy at the end.
+    return (
+      <div className={clsx("flex min-w-0 flex-col gap-1 rounded-md border border-dashed border-success bg-success-subtle/40 px-3 py-2", className)} title={conditions.join(" · ") || undefined}>
+        <div className="flex items-center gap-2">
+          <Tag className="size-4 shrink-0 text-success-text" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-body-sm font-semibold">{coupon.label ?? coupon.code}</p>
+            <p className="text-caption text-secondary">
+              {t("code")}{" "}
+              <span className="font-mono font-semibold text-ink" dir="ltr">
+                {coupon.code}
+              </span>
+            </p>
+            {conditions.length > 0 ? <p className="truncate text-caption text-muted">{conditions[0]}</p> : null}
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5 text-caption">
+            <button type="button" onClick={copy} className="flex items-center gap-1 font-medium text-link hover:underline" aria-label={t("copyCode", { code: coupon.code })}>
+              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              {copied ? t("copied") : t("copy")}
+            </button>
+            {applyButton}
+          </div>
+        </div>
+        {error ? <p className="text-caption text-danger-text">{error}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className={clsx("flex min-w-0 flex-col gap-1.5 rounded-md border border-dashed border-success bg-success-subtle/40 px-3 py-2", className)}>

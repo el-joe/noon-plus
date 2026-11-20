@@ -20,22 +20,79 @@
 </head>
 <body class="bg-page font-sans text-fg antialiased">
 <div class="flex min-h-screen">
-    {{-- QC-025: below 1024px the sidebar opens as a drawer from the topbar menu button; on desktop it can shrink to an icon rail. --}}
-    <aside id="panel-sidebar" data-panel-sidebar class="panel-sidebar fixed inset-y-0 start-0 z-40 hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain bg-sidebar px-3 py-5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64" aria-label="{{ __('Main navigation') }}">
-        <div class="flex items-center gap-2 px-2">
-            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-brand font-bold text-fg-on-brand">N</span>
-            <span class="nav-brand-text flex grow flex-col leading-tight">
-                <span class="font-bold text-white">Nawy</span>
-                <span class="text-xs text-fg-sidebar">{{ $panel->name }}</span>
-            </span>
-            <button type="button" data-nav-rail-toggle aria-pressed="false"
-                    data-label-collapse="{{ __('Collapse sidebar') }}" data-label-expand="{{ __('Expand sidebar') }}"
-                    aria-label="{{ __('Collapse sidebar') }}" title="{{ __('Collapse sidebar') }}"
-                    class="hidden size-8 shrink-0 place-items-center rounded-lg text-fg-sidebar outline-none hover:bg-sidebar-active/60 hover:text-white focus-visible:ring-2 focus-visible:ring-brand lg:grid">
-                <x-icon name="panel-left" :size="18" class="rtl:-scale-x-100" />
-            </button>
+    @php
+        $signedIn = auth()->user();
+        $vendorWorkspace = app(\App\Domains\Vendors\Support\VendorWorkspace::class);
+        $workspaceLabel = $panel->key === 'partner' && $vendorWorkspace->has()
+            ? $vendorWorkspace->vendor()->store_name.($currentCountry ? ' · '.(app()->getLocale() === 'ar' ? $currentCountry->name_ar : $currentCountry->name_en) : '')
+            : ($currentCountry ? (app()->getLocale() === 'ar' ? $currentCountry->name_ar : $currentCountry->name_en).' · '.$currentCountry->currency : null);
+        $canSwitchCountry = $currentCountry && $panelCountries->count() > 1 && Route::has($panel->route('country'));
+        $roleLabel = $panel->key === 'admin' && $signedIn
+            ? (app(\App\Domains\Identity\Support\AdminAccess::class)->isSuperAdmin($signedIn) ? __('Super admin') : __('Admin staff'))
+            : $panel->name;
+        $iconButton = 'grid size-8 shrink-0 place-items-center rounded-lg text-fg-sidebar ring-1 ring-sidebar-active ring-inset transition-colors outline-none hover:bg-sidebar-hover hover:text-white focus-visible:ring-2 focus-visible:ring-brand';
+    @endphp
+    {{-- QC-025: below 1024px the sidebar is an off-canvas drawer opened from the topbar menu button; on desktop it can
+         shrink to an icon rail. Nav/Sidebar 239:3605, Header 233:169, Footer 233:196 (docs/design/panel-nav-design.md). --}}
+    <div class="nav-scrim fixed inset-0 z-30 bg-sidebar/60 lg:hidden" data-sidebar-scrim hidden></div>
+    <aside id="panel-sidebar" data-panel-sidebar aria-label="{{ __('Main navigation') }}"
+           class="panel-sidebar fixed inset-y-0 start-0 z-40 flex w-[304px] max-w-[calc(100vw-56px)] shrink-0 flex-col border-e border-sidebar-hover bg-sidebar lg:sticky lg:top-0 lg:h-screen lg:w-[264px] lg:max-w-none">
+        <div class="nav-header flex flex-col gap-3 px-3 pt-4 pb-3">
+            <div class="nav-header-row flex items-center gap-2.5 px-1">
+                <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-base/6 font-bold text-fg-on-brand" aria-hidden="true">N</span>
+                <span class="nav-titles flex min-w-0 grow flex-col">
+                    <span class="truncate text-base/6 font-semibold text-white rtl:text-base/7">{{ $panel->name }}</span>
+                    <span class="truncate text-xs/4 text-fg-sidebar-muted rtl:text-xs/[18px]">Nawy</span>
+                </span>
+                <button type="button" data-nav-rail-toggle aria-pressed="false"
+                        data-label-collapse="{{ __('Collapse sidebar') }}" data-label-expand="{{ __('Expand sidebar') }}"
+                        aria-label="{{ __('Collapse sidebar') }}" title="{{ __('Collapse sidebar') }}"
+                        class="{{ $iconButton }} hidden lg:grid">
+                    <x-icon name="panel-left" :size="18" class="rtl:-scale-x-100" />
+                </button>
+                <button type="button" data-sidebar-close aria-label="{{ __('Close menu') }}" title="{{ __('Close menu') }}" class="{{ $iconButton }} lg:hidden">
+                    <x-icon name="x" :size="18" />
+                </button>
+            </div>
+            @if ($workspaceLabel)
+                {{-- Workspace: the store (Seller Center) or the country; a country switcher when the user has several. --}}
+                <div class="nav-workspace relative flex h-10 items-center gap-2 rounded-lg bg-sidebar-hover px-2.5 ring-1 ring-sidebar-active ring-inset focus-within:ring-2 focus-within:ring-brand" data-nav-workspace>
+                    <x-icon :name="$panel->key === 'partner' && $vendorWorkspace->has() ? 'store' : 'globe'" :size="16" class="text-fg-sidebar-muted" />
+                    <span class="min-w-0 grow truncate text-sm font-medium text-white" title="{{ $workspaceLabel }}">{{ $workspaceLabel }}</span>
+                    @if ($canSwitchCountry)
+                        <x-icon name="chevrons-up-down" :size="16" class="text-fg-sidebar-muted" />
+                        <form method="POST" action="{{ route($panel->route('country')) }}" class="absolute inset-0">
+                            @csrf
+                            <label for="nav-workspace-country" class="sr-only">{{ __('Country') }}</label>
+                            <select id="nav-workspace-country" name="country" onchange="this.form.submit()"
+                                    class="size-full cursor-pointer appearance-none rounded-lg bg-transparent text-transparent opacity-0">
+                                @foreach ($panelCountries as $country)
+                                    <option value="{{ $country->code }}" @selected($country->is($currentCountry))>{{ app()->getLocale() === 'ar' ? $country->name_ar : $country->name_en }} · {{ $country->currency }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
+                </div>
+            @endif
         </div>
+
         <x-ui.sidebar-nav :panel="$panel" :navigation="$navigation" />
+
+        @if ($signedIn)
+            <div class="nav-footer flex items-center gap-2.5 border-t border-sidebar-hover px-4 py-3">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-[#feedc0] text-[13px] font-semibold text-sidebar" title="{{ $signedIn->name }}" aria-hidden="true">{{ mb_strtoupper(collect(preg_split('/\s+/u', trim((string) $signedIn->name)))->filter()->take(2)->map(fn (string $part): string => mb_substr($part, 0, 1))->implode('')) }}</span>
+                <span class="nav-footer-text flex min-w-0 grow flex-col">
+                    <span class="truncate text-sm font-medium text-white">{{ $signedIn->name }}</span>
+                    <span class="truncate text-xs/4 text-fg-sidebar-muted rtl:text-xs/[18px]">{{ $roleLabel }}</span>
+                </span>
+                <form method="POST" action="{{ route($panel->route('logout')) }}" class="nav-footer-action">
+                    @csrf
+                    <button type="submit" class="{{ $iconButton }}" aria-label="{{ __('Sign out') }}" title="{{ __('Sign out') }}">
+                        <x-icon name="log-out" :size="18" class="rtl:-scale-x-100" />
+                    </button>
+                </form>
+            </div>
+        @endif
     </aside>
 
     <div class="flex min-w-0 grow flex-col">
@@ -72,7 +129,6 @@
                     <noscript><x-ui.button type="submit" variant="outline" size="sm">{{ __('Switch') }}</x-ui.button></noscript>
                 </form>
             @endif
-            @php($signedIn = auth()->user())
             @if ($signedIn && Route::has($panel->route('notifications')))
                 @php($unreadNotifications = app(\App\Domains\Panels\Support\PanelNotifications::class)->unreadCount($signedIn->id, $panel->key))
                 {{-- QC-041: notification bell. --}}

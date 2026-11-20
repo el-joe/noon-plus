@@ -92,7 +92,7 @@ class PanelNavigation
             'admin' => [
                 self::link('dashboard', __('Dashboard'), 'layout-dashboard'),
                 self::link('approvals', __('Approvals queue'), 'clipboard-check'),
-                self::group('orders', __('Orders & fulfilment'), 'shopping-bag', [
+                self::group('orders', __('Orders'), 'shopping-bag', [
                     'orders' => __('Orders'),
                     'returns' => __('Returns'),
                     'refunds' => __('Refunds'),
@@ -102,6 +102,7 @@ class PanelNavigation
                 self::group('catalog', __('Catalog'), 'tag', [
                     'catalog' => __('Catalog'),
                     'product-requests' => __('Product requests'),
+                    'reviews' => __('Reviews & Q&A'),
                 ]),
                 self::group('sellers', __('Sellers & partners'), 'store', [
                     'users' => __('Users & vendors'),
@@ -111,22 +112,27 @@ class PanelNavigation
                     'documents' => __('Document review'),
                     'join-options' => __('Join options'),
                 ]),
-                self::group('customers', __('Customers & support'), 'users', [
+                self::group('customers', __('Customers'), 'users', [
                     'customers' => __('Customers'),
                     'support' => __('Support tickets'),
-                    'reviews' => __('Reviews & Q&A'),
                     'membership' => __('Nawy One'),
                 ]),
-                self::group('delivery', __('Delivery'), 'truck', [
+                self::group('finance', __('Finance'), 'banknote', [
+                    'finance' => __('Finance'),
+                    'finance.ledger' => __('Ledger'),
+                    'finance.payments-review' => __('Payments under review'),
+                    'finance.subscriptions' => __('Vendor subscriptions'),
+                    'finance.acquisition-commissions' => __('Acquisition commissions'),
+                    'finance.my-acquisition-commissions' => __('My acquisition commissions'),
+                ]),
+                self::group('logistics', __('Logistics'), 'truck', [
+                    'inventory' => __('Inventory & fulfilment'),
+                    'packaging' => __('Packaging'),
                     'delivery' => __('Delivery & logistics'),
                     'delivery.assignments' => __('Dispatch'),
                     'delivery.withdrawals' => __('Agent withdrawals'),
                 ]),
-                self::group('inventory', __('Inventory & FBN'), 'warehouse', [
-                    'inventory' => __('Inventory & fulfilment'),
-                    'packaging' => __('Packaging'),
-                ]),
-                self::group('marketing', __('Marketing & promotions'), 'megaphone', [
+                self::group('marketing', __('Marketing'), 'megaphone', [
                     'marketing' => __('Ads review'),
                     'coupons' => __('Coupons'),
                     'marketing.coupon-participation' => __('Coupon participation'),
@@ -140,49 +146,37 @@ class PanelNavigation
                     'marketers.celebrity-reports' => __('Celebrity monthly report'),
                     'marketers.settings' => __('Marketer settings'),
                 ]),
-                self::group('souq', __('Open Souq & classifieds'), 'layout-grid', [
+                self::group('verticals', __('Verticals'), 'layout-grid', [
                     'classifieds' => __('Classifieds review'),
                     'classifieds.reports' => __('Abuse reports'),
                     'classifieds.categories' => __('Classified categories'),
                     'real-estate' => __('Real estate'),
-                ]),
-                self::group('travel', __('Travel'), 'plane', [
                     'travel' => __('Travel packages'),
                     'marketing.travel-promotions' => __('Travel promotions'),
                 ]),
-                self::group('content', __('Content & pages'), 'file-text', [
+                self::group('content', __('Content'), 'file-text', [
                     'pages' => __('Pages & page builder'),
                     'cms' => __('Blog & help centre'),
                     'media' => __('Live & videos'),
                     'app-contexts' => __('App contexts'),
                     'notification-templates' => __('Notification templates'),
                 ]),
-                self::group('finance', __('Finance'), 'banknote', [
-                    'finance' => __('Finance'),
-                    'finance.ledger' => __('Ledger'),
-                    'finance.payments-review' => __('Payments under review'),
-                    'finance.subscriptions' => __('Vendor subscriptions'),
-                    'finance.acquisition-commissions' => __('Acquisition commissions'),
-                    'finance.my-acquisition-commissions' => __('My acquisition commissions'),
-                ]),
-                self::group('reports', __('Reports & analytics'), 'bar-chart', [
+                self::group('reports', __('Reports & logs'), 'bar-chart', [
                     'reports.cross-country' => __('Cross-country reports'),
                     'portal-analytics' => __('Portal analytics'),
+                    'activity' => __('Activity log'),
+                    'email-log' => __('Email log'),
                 ]),
-                self::group('settings', __('Countries & settings'), 'globe', [
+                self::group('platform', __('Platform'), 'globe', [
                     'countries' => __('Countries & gateways'),
                     'countries.exchange-rates' => __('Exchange rates'),
                     'countries.domains' => __('Domains'),
                     'settings' => __('Platform settings'),
-                ]),
-                self::group('staff', __('Staff & security'), 'shield', [
                     'staff' => __('Staff'),
                     'roles' => __('Roles & permissions'),
-                    'activity' => __('Activity log'),
                 ]),
-                self::group('system', __('System & data migration'), 'server', [
+                self::group('system', __('System & migration'), 'server', [
                     'health' => __('System health'),
-                    'email-log' => __('Email log'),
                     'migration.runs' => __('Migration runs'),
                     'migration.quarantine' => __('Quarantine queue'),
                     'migration.records' => __('Legacy records'),
@@ -218,11 +212,9 @@ class PanelNavigation
                 self::group('catalog', __('Catalog'), 'tag', [
                     'products' => __('Products'),
                     'product-requests' => __('Product requests'),
-                    'reviews' => __('Reviews'),
-                ]),
-                self::group('inventory', __('Inventory & FBN'), 'warehouse', [
                     'inventory' => __('Inventory & warehouses'),
                     'packaging' => __('Packaging supplies'),
+                    'reviews' => __('Reviews'),
                 ]),
                 self::group('marketing', __('Marketing'), 'megaphone', [
                     'coupons' => __('Coupons'),
@@ -253,14 +245,12 @@ class PanelNavigation
                     'campaigns' => __('Active campaigns'),
                     'links' => __('Links & coupons'),
                 ]),
-                self::group('promotion', __('Promotion tools'), 'sparkles', [
+                self::group('products', __('Products & promotion'), 'sparkles', [
+                    'products' => __('My products'),
+                    'product-requests' => __('Product requests'),
                     'cross-promotion' => __('Cross-promotion'),
                     'flash-sales' => __('Flash sales'),
                     'advertising' => __('Advertising'),
-                ]),
-                self::group('products', __('My products'), 'package', [
-                    'products' => __('My products'),
-                    'product-requests' => __('Product requests'),
                 ]),
                 self::isBroker() ? self::group('broker', __('Broker'), 'briefcase', [
                     'broker.leads' => __('Leads pipeline'),
@@ -280,18 +270,16 @@ class PanelNavigation
             ])),
             'travel_agency' => [
                 self::link('dashboard', __('Dashboard'), 'layout-dashboard'),
-                self::group('trips', __('Trips'), 'plane', [
+                self::group('trips', __('Trips & bookings'), 'plane', [
                     'packages' => __('Packages & trips'),
                     'departures' => __('Departures & capacity'),
-                ]),
-                self::group('bookings', __('Bookings'), 'ticket', [
                     'bookings' => __('Bookings'),
                     'inquiries' => __('Inquiries'),
-                    'reports' => __('Booking reports'),
                 ]),
-                self::group('promotions', __('Promotions'), 'megaphone', [
+                self::group('promotions', __('Promotions & reports'), 'megaphone', [
                     'promotions' => __('Promotions'),
                     'promotions.create' => __('Promote a trip'),
+                    'reports' => __('Booking reports'),
                 ]),
                 self::group('account', __('Agency & team'), 'building', [
                     'team' => __('Team & permissions'),
@@ -320,17 +308,14 @@ class PanelNavigation
                 self::link('company', __('Company settings'), 'building'),
                 self::link('support', __('Support'), 'life-buoy'),
             ],
+            // Six links: a flat list (panels with ≤ 8 links never use groups).
             'delivery' => [
                 self::link('dashboard', __('My day'), 'sun'),
                 self::link('assignments', __('Assignments'), 'clipboard-list'),
-                self::group('money', __('Money'), 'wallet', [
-                    'cod' => __('COD cash & settlements'),
-                    'earnings' => __('Earnings'),
-                ]),
-                self::group('account', __('Profile & documents'), 'user-circle', [
-                    'profile' => __('Profile & vehicle'),
-                    'documents' => __('Documents'),
-                ]),
+                self::link('cod', __('COD cash & settlements'), 'banknote'),
+                self::link('earnings', __('Earnings'), 'wallet'),
+                self::link('profile', __('Profile & vehicle'), 'car'),
+                self::link('documents', __('Documents'), 'file-text'),
             ],
             default => [],
         };

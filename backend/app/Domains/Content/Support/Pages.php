@@ -14,6 +14,7 @@ use App\Shared\StateMachine\StateMachine;
 use App\Shared\StateMachine\StateTransition;
 use App\Shared\StateMachine\TransitionRefused;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -84,8 +85,59 @@ class Pages
     public function restore(Page $page, int $revisionNumber, int $userId): PageRevision
     {
         $old = PageRevision::query()->where('page_id', $page->id)->where('number', $revisionNumber)->firstOrFail();
+        $zones = app(PageLocalizer::class)->convert($old->zones, $page->locale);
+        $note = __('Restored revision :number', ['number' => $revisionNumber]);
 
-        return $this->saveDraft($page, $old->zones, $userId, __('Restored revision :number', ['number' => $revisionNumber]));
+        foreach ($this->linked($page) as $other) {
+            if ($other->isNot($page)) {
+                $this->saveDraft($other, $zones, $userId, $note.' ('.strtoupper($page->locale).')');
+            }
+        }
+
+        return $this->saveDraft($page, $zones, $userId, $note);
+    }
+
+    /**
+     * The languages of one address (same slug and template): they share one
+     * bilingual layout ({@see PageLocalizer}). The page itself comes first.
+     *
+     * @return Collection<int, Page>
+     */
+    public function linked(Page $page): Collection
+    {
+        return Page::query()->where('slug', $page->slug)->where('template', $page->template)->get()
+            ->sortBy(fn (Page $other): int => $other->is($page) ? 0 : 1)->values();
+    }
+
+    /**
+     * Content filled in one language but missing in the other, per section
+     * (`Top #2 Product carousel: Arabic title`); [] = complete.
+     *
+     * @return array<int, string>
+     */
+    public function translationGaps(Page $page): array
+    {
+        $zones = $page->currentRevision()->first()?->zones ?? [];
+        $converter = new BlockSettings($page->locale);
+        $gaps = [];
+
+        foreach ($zones as $zone => $blocks) {
+            foreach (array_values((array) $blocks) as $position => $block) {
+                if (! empty($block['hidden']) || ! is_array($block)) {
+                    continue;
+                }
+
+                foreach ($converter->gaps((string) $block['type'], (array) ($block['settings'] ?? [])) as $gap) {
+                    [$field, $locale] = explode(':', $gap);
+                    $gaps[] = __(':zone #:position :type: :language :field', [
+                        'zone' => $zone, 'position' => $position + 1, 'type' => __(BlockRegistry::get((string) $block['type'])['label'] ?? $block['type']),
+                        'language' => $locale === 'ar' ? __('Arabic') : __('English'), 'field' => $field,
+                    ]);
+                }
+            }
+        }
+
+        return $gaps;
     }
 
     public function publish(Page $page, ActorType $actorType, ?int $userId): Page
@@ -187,6 +239,80 @@ class Pages
         return $copied;
     }
 
+    /**
+     * Copy the page's current draft into a new draft page (another address
+     * and / or language of this country).
+     */
+    public function duplicate(Page $page, string $slug, string $locale, string $title, int $userId): Page
+    {
+        $slug = Str::slug($slug) ?: 'page';
+
+        if (Page::query()->where('slug', $slug)->where('locale', $locale)->exists()) {
+            throw ValidationException::withMessages(['slug' => __('A page with this address and language already exists.')]);
+        }
+
+        $copy = $this->create(['template' => $page->template->value, 'slug' => $slug, 'locale' => $locale, 'title' => $title, 'seo_title' => $page->seo_title, 'seo_description' => $page->seo_description], $userId);
+        $zones = $this->freshIds($page->currentRevision()->first()?->zones ?? []);
+        $this->saveDraft($copy, $zones, $userId, __('Copied from :slug (:locale)', ['slug' => $page->slug, 'locale' => strtoupper($page->locale)]));
+
+        return $copy->refresh();
+    }
+
+    /**
+     * Copy the current draft to the same address in other languages of this
+     * country (a new revision of an existing page, else a new draft page).
+     *
+     * @param  array<int, string>  $locales
+     * @return int pages written
+     */
+    public function copyToLocales(Page $page, array $locales, int $userId): int
+    {
+        $zones = $page->currentRevision()->firstOrFail()->zones;
+        $copied = 0;
+
+        foreach (array_diff(array_intersect($locales, $this->countryContext->current()->locales), [$page->locale]) as $locale) {
+            $target = Page::query()->where('slug', $page->slug)->where('locale', $locale)->first()
+                ?? $this->create(['template' => $page->template->value, 'slug' => $page->slug, 'locale' => $locale, 'title' => $page->title, 'seo_title' => $page->seo_title, 'seo_description' => $page->seo_description], $userId);
+
+            if ($target->template !== $page->template) {
+                throw new TransitionRefused(__('The :locale page already uses another template.', ['locale' => strtoupper($locale)]));
+            }
+
+            $this->saveDraft($target, $zones, $userId, __('Copied from :locale', ['locale' => strtoupper($page->locale)]));
+            $copied++;
+        }
+
+        return $copied;
+    }
+
+    /**
+     * Delete a page that was never published (its draft revisions go with it).
+     * Pages that were live are archived instead, keeping their history.
+     */
+    public function delete(Page $page): void
+    {
+        if ($page->published_revision_id !== null || $page->status === PageStatus::Published || $page->status === PageStatus::Scheduled) {
+            throw new TransitionRefused(__('Only pages that were never published can be deleted; archive this one instead.'));
+        }
+
+        DB::connection($page->getConnectionName())->transaction(function () use ($page): void {
+            $page->forceFill(['current_revision_id' => null])->saveQuietly();
+            PageRevision::query()->where('page_id', $page->id)->toBase()->delete();
+            $page->delete();
+        });
+    }
+
+    /**
+     * New block ids for a copied layout (ids stay unique per page).
+     *
+     * @param  array<string, mixed>  $zones
+     * @return array<string, mixed>
+     */
+    private function freshIds(array $zones): array
+    {
+        return array_map(fn ($blocks) => array_map(fn ($block) => is_array($block) ? [...$block, 'id' => (string) Str::uuid()] : $block, (array) $blocks), $zones);
+    }
+
     public function saveAsLayout(Page $page, string $name, int $userId): PageLayoutTemplate
     {
         return PageLayoutTemplate::query()->create([
@@ -233,7 +359,7 @@ class Pages
      * block types allowed in that zone, settings as an object, an id per block.
      *
      * @param  array<string, mixed>  $zones
-     * @return array<string, array<int, array{id: string, type: string, settings: array<string, mixed>}>>
+     * @return array<string, array<int, array{id: string, type: string, settings: array<string, mixed>, hidden?: bool}>>
      */
     public function normalize(PageTemplate $template, array $zones): array
     {
@@ -276,7 +402,7 @@ class Pages
                     }
                 }
 
-                $clean[$zone][] = ['id' => (string) ($block['id'] ?? Str::uuid()), 'type' => $type, 'settings' => $settings];
+                $clean[$zone][] = ['id' => (string) ($block['id'] ?? Str::uuid()), 'type' => $type, 'settings' => $settings, ...(empty($block['hidden']) ? [] : ['hidden' => true]), ...$this->blockLocales($block)];
             }
         }
 
@@ -288,7 +414,20 @@ class Pages
     }
 
     /**
-     * Blocks of a zone plus the children of containers.
+     * The languages a block is limited to (`locales`), when not all of them.
+     *
+     * @param  array<string, mixed>  $block
+     * @return array{locales?: array<int, string>}
+     */
+    private function blockLocales(array $block): array
+    {
+        $locales = array_values(array_intersect(BlockSettings::LOCALES, (array) ($block['locales'] ?? [])));
+
+        return $locales === [] || count($locales) === count(BlockSettings::LOCALES) ? [] : ['locales' => $locales];
+    }
+
+    /**
+     * Shown blocks of a zone plus the children of containers (hidden ones skipped).
      *
      * @param  array<int, array<string, mixed>>  $blocks
      * @return array<int, array{type: string, settings: array<string, mixed>}>
@@ -298,10 +437,16 @@ class Pages
         $flat = [];
 
         foreach ($blocks as $block) {
+            if (! empty($block['hidden'])) {
+                continue;
+            }
+
             $flat[] = ['type' => $block['type'], 'settings' => (array) ($block['settings'] ?? [])];
 
             foreach ((array) ($block['settings']['children'] ?? []) as $child) {
-                $flat[] = ['type' => $child['type'], 'settings' => (array) ($child['settings'] ?? [])];
+                if (is_array($child) && empty($child['hidden']) && isset($child['type'])) {
+                    $flat[] = ['type' => $child['type'], 'settings' => (array) ($child['settings'] ?? [])];
+                }
             }
         }
 

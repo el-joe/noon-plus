@@ -23,6 +23,20 @@ export function isZero(money: Money | null | undefined): boolean {
   return !money || Number(money.amount) === 0;
 }
 
+/** `was - price` in the currency's minor units (string maths, no float drift). */
+export function savedAmount(price: Money | null | undefined, was: Money | null | undefined): Money | null {
+  if (!price || !was || price.currency !== was.currency) return null;
+  const decimals = Math.max((price.amount.split(".")[1] ?? "").length, (was.amount.split(".")[1] ?? "").length);
+  const minor = (amount: string) => {
+    const [whole, frac = ""] = amount.split(".");
+    return BigInt(whole + frac.padEnd(decimals, "0"));
+  };
+  const diff = minor(was.amount) - minor(price.amount);
+  if (diff <= BigInt(0)) return null;
+  const text = diff.toString().padStart(decimals + 1, "0");
+  return { amount: decimals > 0 ? `${text.slice(0, -decimals)}.${text.slice(-decimals)}` : text, currency: price.currency };
+}
+
 export function discountPercent(price: Money | null | undefined, was: Money | null | undefined): number | null {
   if (!price || !was) return null;
   const p = Number(price.amount);

@@ -176,7 +176,13 @@
       "tomorrow": "غداً",
       "two_days": "خلال يومين",
       "later": "خلال 3 أيام أو أكثر"
-    }
+    },
+    "zoom": "تكبير الصورة",
+    "imageOf": "الصورة {n} من {total}",
+    "seeAllReviews": "عرض كل المراجعات",
+    "similar": "منتجات مشابهة",
+    "recentlyViewed": "شوهدت مؤخرًا",
+    "noSpecs": "لا توجد مواصفات لهذا المنتج بعد."
   },
   "listing": {
     "results": "{count, plural, =0 {لا توجد نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",

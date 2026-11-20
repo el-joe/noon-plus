@@ -58,7 +58,8 @@
     "d12-souq-requests-records-only",
     "d14-travel-paid-placement",
     "wp11-data-migration-admin",
-    "finance-reporting-platform-panels"
+    "finance-reporting-platform-panels",
+    "admin-page-builder-v2"
   ],
   "pages": {
     "Cover": "0:1",
@@ -79,7 +80,9 @@
     "Web · States & extras": "95:4089",
     "Panel layouts": "96:1691",
     "App · Customer v2": "94:11699",
-    "Panel navigation": "231:2"
+    "Panel navigation": "231:2",
+    "Page builder · block thumbnails": "241:2",
+    "Admin · Page builder": "243:2"
   },
   "nodes": {
     "foundationsSpecimen": "2:144",
@@ -1127,5 +1130,66 @@
       }
     },
     "notes": "Sidebar 264 expanded / 72 rail / 304 drawer; accordion (only active group open); screens use the IA with the designer recommendations R1-R8 applied."
+  },
+  "pageBuilder": {
+    "date": "2026-11-20",
+    "page": "243:2",
+    "spec": "docs/design/page-builder-design.md",
+    "thumbnails": {
+      "doc": "docs/design/page-builder-thumbnails.md",
+      "dir": "backend/public/images/page-blocks",
+      "count": 57,
+      "composedPage": "241:2",
+      "composed": {
+        "category_hero": "241:3",
+        "category_promo_tiles": "241:19",
+        "category_brand_tiles": "241:42",
+        "category_gift_band": "241:76",
+        "category_deal_columns": "241:115",
+        "sponsored_brand_showcase": "241:182"
+      }
+    },
+    "screens": {
+      "Pages list": "253:5141",
+      "Editor — section selected": "247:208",
+      "Add section gallery": "249:1209",
+      "Add section modal": "249:1923",
+      "Validation errors": "250:3069",
+      "Publish confirmation": "250:4183",
+      "Publish modal": "250:4897",
+      "Revision history": "251:4481",
+      "Empty page": "251:5385",
+      "Save status states": "251:6345",
+      "Settings panel RTL": "254:5502"
+    },
+    "components": {
+      "Icons frame (PB/Icon/*)": "243:3",
+      "Field components frame": "243:192",
+      "PB/Field/Text": "243:228",
+      "PB/Field/Textarea": "243:229",
+      "PB/Field/Bilingual EN + AR": "243:237",
+      "PB/Field/Rich text": "243:257",
+      "PB/Field/Number with unit": "243:292",
+      "PB/Field/Select": "243:301",
+      "PB/Field/Segmented control": "243:311",
+      "PB/Field/Toggle": "243:321",
+      "PB/Field/Checkbox group": "243:328",
+      "PB/Field/Colour": "243:344",
+      "PB/Field/Schedule": "245:21",
+      "PB/Field/Image upload": "245:112",
+      "PB/Field/Product picker": "245:113",
+      "PB/Field/Entity picker": "245:195",
+      "PB/Field/Link picker": "245:227",
+      "PB/Field/Repeater": "245:257",
+      "PB/Outline row": "245:463",
+      "PB/Gallery card": "245:502",
+      "PB/Settings group": "245:503",
+      "PB/Unsaved changes bar": "245:510"
+    },
+    "reuses": {
+      "Nav/Sidebar": "239:3605",
+      "Admin nav screen cloned for pages list": "238:3516",
+      "block components": "page 37:2"
+    }
   }
 }
