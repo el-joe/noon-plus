@@ -34,7 +34,7 @@ export function SocialComplete({ ticket, returnTo }: { ticket: string | null; re
   }, [ticket]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-xl bg-surface p-8 text-center shadow-lg">
+    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-xl bg-surface p-8 text-center shadow-lg">
       {error ? (
         <>
           <XCircle aria-hidden className="size-10 text-danger-text" />

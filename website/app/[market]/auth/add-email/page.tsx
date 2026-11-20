@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Container, Skeleton } from "@/components/ui/misc";
+import { AuthShell } from "@/components/layout/auth-shell";
+import { Skeleton } from "@/components/ui/misc";
 import { AddEmailForm } from "@/features/auth/add-email-form";
 import { getT } from "@/lib/i18n";
 import { resolveMarket } from "@/lib/server-market";
@@ -11,12 +12,13 @@ export async function generateMetadata({ params }: PageProps<"/[market]/auth/add
 }
 
 /** `/auth/add-email?next=…` — an old phone-only Nawy account adds and confirms its email after the SMS-code sign-in. */
-export default function AddEmailPage() {
+export default async function AddEmailPage({ params }: PageProps<"/[market]/auth/add-email">) {
+  const market = await resolveMarket(params);
   return (
-    <Container className="py-12">
-      <Suspense fallback={<Skeleton className="mx-auto h-80 max-w-md" />}>
+    <AuthShell locale={market.locale}>
+      <Suspense fallback={<Skeleton className="h-80 w-full max-w-md" />}>
         <AddEmailForm />
       </Suspense>
-    </Container>
+    </AuthShell>
   );
 }

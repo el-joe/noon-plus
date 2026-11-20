@@ -26,7 +26,45 @@ const LEGACY_PORTAL: [string, string][] = [
   ["/advertise/:section(sellers|brands|advertisers|product|display|request)", "/advertise"],
 ];
 
+/**
+ * Framing: the storefront may be framed only by the admin page builder's
+ * live preview (requests carrying the signed `?preview=` token, which the
+ * API checks) and only from the admin panel origins; everything else denies
+ * framing (clickjacking). Admin origins: NAWY_ADMIN_ORIGINS (space separated),
+ * else derived from NEXT_PUBLIC_API_URL (`api.host` → `admin.host`, http + https).
+ */
+function adminOrigins(): string {
+  if (process.env.NAWY_ADMIN_ORIGINS) return process.env.NAWY_ADMIN_ORIGINS;
+  try {
+    const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "");
+    const host = api.host.replace(/^api\./, "admin.");
+    return host === api.host ? "'self'" : `https://${host} http://${host}`;
+  } catch {
+    return "'self'";
+  }
+}
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        missing: [{ type: "query", key: "preview" }],
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "query", key: "preview" }],
+        headers: [
+          { key: "Content-Security-Policy", value: `frame-ancestors ${adminOrigins()}` },
+          { key: "X-Robots-Tag", value: "noindex" },
+        ],
+      },
+    ];
+  },
   experimental: {
     agentFeedback: true,
     // The root layout lives under the dynamic `[market]` segment, so URLs

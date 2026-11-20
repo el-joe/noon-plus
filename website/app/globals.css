@@ -143,4 +143,5 @@ html[dir="rtl"] {
 .prose-cms a { color: var(--color-link); text-decoration: underline; }
 
 /* QC-058 (Figma 25:605): checkout uses a minimal "Secure checkout" header and no store footer. */
-body:has([data-chrome="checkout"]) [data-store-chrome] { display: none; }
+/* `:not([data-inactive])`: a checkout page kept hidden by Next's route cache (<Activity>) after navigating away must not hide the header of the page shown now. */
+body:has([data-chrome="checkout"]:not([data-inactive])) [data-store-chrome] { display: none; }

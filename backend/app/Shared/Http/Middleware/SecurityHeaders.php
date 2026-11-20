@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Security headers on every response (WP11 security review): no MIME
  * sniffing, no framing of the panels (clickjacking), a strict referrer, HSTS
  * on HTTPS and a Content-Security-Policy for the Blade panels (Vite assets,
- * Google Fonts, inline styles/scripts the panels use, Reverb websockets; skipped while the Vite dev server runs).
+ * Google Fonts, inline styles/scripts the panels use, Reverb websockets; skipped while the Vite dev server runs);
+ * frames only from the panel itself, plus the storefront on the page builder (live preview).
  * API responses are JSON and get the non-CSP headers only.
  */
 class SecurityHeaders
@@ -40,6 +41,7 @@ class SecurityHeaders
                 "font-src 'self' data: https://fonts.gstatic.com",
                 "script-src 'self' 'unsafe-inline'",
                 "connect-src 'self' ws: wss: https:",
+                trim("frame-src 'self' ".$this->previewFrameOrigins($request)),
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
@@ -47,6 +49,27 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /**
+     * The page builder's live preview frames the storefront (its signed
+     * preview link): only that admin page may embed the storefront origin.
+     */
+    private function previewFrameOrigins(Request $request): string
+    {
+        if ($request->route()?->getName() !== 'admin.pages.show') {
+            return '';
+        }
+
+        $parts = parse_url((string) config('nawy.payments.storefront_url'));
+
+        if (! isset($parts['host'])) {
+            return '';
+        }
+
+        $host = $parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+        return "https://{$host} http://{$host}";
     }
 
     /**

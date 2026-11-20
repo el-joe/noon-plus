@@ -5,7 +5,8 @@ import type { Category } from "@/lib/api/schemas";
 /**
  * Tolerant readers for block `settings` (free-form JSON saved by Admin →
  * Content → Page builder; keys per docs/design/page-builder-blocks.md).
- * Localised keys may be `title` or `title_en` / `title_ar`.
+ * Localised keys may be `title`, `title_en` / `title_ar` or a bilingual
+ * `{en, ar}` object (falling back to the other language when one is empty).
  */
 export type Settings = Record<string, unknown>;
 
@@ -26,8 +27,11 @@ export function str(s: Settings, key: string, locale?: Locale): string | null {
     const v = s[k];
     if (typeof v === "string" && v.trim() !== "") return v;
     if (typeof v === "number") return String(v);
-    if (v && typeof v === "object" && locale && typeof (v as Record<string, unknown>)[locale] === "string") {
-      return (v as Record<string, string>)[locale];
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      // Bilingual value {en, ar} (BlockResolver normally resolves these): this language, else the other one.
+      const t = v as Record<string, unknown>;
+      const order = locale === "ar" ? ["ar", "en"] : ["en", "ar"];
+      for (const l of order) if (typeof t[l] === "string" && (t[l] as string).trim() !== "") return t[l] as string;
     }
   }
   return null;

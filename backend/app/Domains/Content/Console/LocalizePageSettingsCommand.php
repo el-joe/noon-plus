@@ -57,7 +57,8 @@ class LocalizePageSettingsCommand extends Command
                     foreach ($group as $page) {
                         $normalized = $pages->normalize($page->template, $zones);
 
-                        if (json_encode($normalized) === json_encode($pages->normalize($page->template, $page->currentRevision->zones))) {
+                        // MySQL JSON columns reorder object keys: compare key-order-insensitively.
+                        if ($this->canonical($normalized) === $this->canonical($pages->normalize($page->template, $page->currentRevision->zones))) {
                             $totals['unchanged']++;
 
                             continue;
@@ -87,5 +88,22 @@ class LocalizePageSettingsCommand extends Command
         $this->components->info(sprintf('%s: %d addresses, %d pages converted (%d republished), %d already bilingual, %d blocks kept per language.', $dryRun ? 'Dry run' : 'Done', $totals['addresses'], $totals['pages'], $totals['republished'], $totals['unchanged'], $totals['split']));
 
         return self::SUCCESS;
+    }
+
+    private function canonical(mixed $value): string
+    {
+        $sort = function (mixed $value) use (&$sort): mixed {
+            if (! is_array($value)) {
+                return $value;
+            }
+
+            if (! array_is_list($value)) {
+                ksort($value);
+            }
+
+            return array_map($sort, $value);
+        };
+
+        return (string) json_encode($sort($value));
     }
 }

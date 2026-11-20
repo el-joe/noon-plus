@@ -99,8 +99,8 @@ export const getProduct = (market: string, slug: string) => get(market, `product
 
 // Content
 /** A published page-builder page; `preview` (signed admin link) serves the current draft instead. */
-export const getPage = (market: string, slug: string, preview?: string | null) =>
-  get(market, `pages/${encodeURIComponent(slug)}`, s.cmsPage, preview ? { preview } : undefined);
+export const getPage = (market: string, slug: string, preview?: { token: string; draft: string | null } | null) =>
+  get(market, `pages/${encodeURIComponent(slug)}`, s.cmsPage, preview ? { preview: preview.token, draft: preview.draft ?? undefined } : undefined);
 export const getFooter = (market: string) => get(market, "footer", s.footer);
 export const getFlashSale = (market: string, id: number | string) => get(market, `flash-sales/${encodeURIComponent(String(id))}`, s.flashSale);
 export const getAdPlacements = (market: string, placement: string, query: { category?: string; with?: "products" } = {}) =>

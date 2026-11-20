@@ -688,7 +688,7 @@ function renderGroup(field, values, path, ctx) {
 function itemTitle(field, item, index, ctx) {
     for (const key of field.item_title ?? []) {
         let value = key.split('.').reduce((v, part) => (v && typeof v === 'object' ? v[part] : undefined), item);
-        value = pickLocale(value, ctx.lang === 'ar' ? 'ar' : 'en');
+        value = pickLocale(value, ctx.lang === 'both' ? ctx.uiLocale : ctx.lang);
         if (filled(value) && typeof value !== 'object') return key.endsWith('type') ? ctx.typeLabel(value) : String(value);
     }
     return `${ctx.t('Item')} ${index + 1}`;
@@ -759,8 +759,11 @@ function renderRepeater(field, values, path, ctx) {
 }
 
 function thumbOf(item, ctx) {
-    const url = pickLocale(item.image_d ?? item.image ?? item.logo, ctx.lang === 'ar' ? 'ar' : 'en');
-    return typeof url === 'string' && url ? h('img', { src: url, alt: '', class: 'size-7 shrink-0 rounded border border-line bg-page object-cover', loading: 'lazy' }) : null;
+    const url = pickLocale(item.image_d ?? item.image ?? item.logo, ctx.lang === 'both' ? ctx.uiLocale : ctx.lang);
+    if (typeof url !== 'string' || !url) return null;
+    const img = h('img', { src: url, alt: '', class: 'size-7 shrink-0 rounded border border-line bg-page object-cover', loading: 'lazy' });
+    img.addEventListener('error', () => img.remove());
+    return img;
 }
 
 /** One child block of a container (panel_row column, section_band child). */

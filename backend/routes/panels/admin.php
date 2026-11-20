@@ -403,6 +403,8 @@ Route::middleware('can:pages.view')->group(function (): void {
 Route::middleware('can:pages.manage')->group(function (): void {
     Route::post('pages', [PageBuilderController::class, 'store'])->name('pages.store');
     Route::post('pages/{page}/save', [PageBuilderController::class, 'save'])->whereNumber('page')->name('pages.save');
+    Route::post('pages/{page}/draft-preview', [PageBuilderController::class, 'draft'])->whereNumber('page')->middleware('throttle:240,1')->name('pages.draft');
+    Route::get('pages/{page}/status', [PageBuilderController::class, 'status'])->whereNumber('page')->middleware('throttle:240,1')->name('pages.status');
     Route::get('pages/pickers/{kind}', [PageBuilderPickerController::class, 'search'])
         ->whereIn('kind', ['product', 'category', 'brand', 'coupon', 'flash_sale', 'ad_slot', 'stream', 'vendor', 'link'])->middleware('throttle:120,1')->name('pages.picker');
     Route::post('pages/uploads', [PageBuilderPickerController::class, 'upload'])->middleware('throttle:30,1')->name('pages.upload');

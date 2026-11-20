@@ -74,6 +74,14 @@ class PagePreview
         return $origin.'/'.$country->marketSlug($locale).$path.'?preview='.$this->token($country, $page->slug, null, $showHidden);
     }
 
+    /**
+     * Cache key of an editor's unsaved draft (live preview while typing).
+     */
+    public function draftCacheKey(Country $country, string $slug, string $key): string
+    {
+        return "page-draft:{$country->code}:{$slug}:{$key}";
+    }
+
     private function signature(string $payload): string
     {
         return hash_hmac('sha256', 'page-preview|'.$payload, (string) config('app.key'));

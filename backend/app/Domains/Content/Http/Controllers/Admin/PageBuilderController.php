@@ -6,6 +6,7 @@ use App\Domains\Content\Enums\PageStatus;
 use App\Domains\Content\Enums\PageTemplate;
 use App\Domains\Content\Models\Page;
 use App\Domains\Content\Models\PageLayoutTemplate;
+use App\Domains\Content\Models\PageRevision;
 use App\Domains\Content\Support\BlockField;
 use App\Domains\Content\Support\BlockRegistry;
 use App\Domains\Content\Support\BlockSchemas;
@@ -26,6 +27,8 @@ use App\Shared\Support\UserNames;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -77,14 +80,16 @@ class PageBuilderController extends Controller
             ->when($filters['template'] ?? null, fn ($query, string $template) => $query->where('template', $template))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when($filters['locale'] ?? null, fn ($query, string $locale) => $query->where('locale', $locale))
-            ->withCount('revisions')
+            ->withCount('revisions')->with('currentRevision')
             ->orderByDesc('updated_at')->orderBy('slug')->orderBy('locale')
             ->paginate(30)->withQueryString();
         $names->preload($pages->pluck('updated_by')->filter());
+        $localesBySlug = Page::query()->whereIn('slug', $pages->pluck('slug')->unique())->get(['slug', 'locale'])->groupBy('slug')->map(fn ($rows) => $rows->pluck('locale')->sort()->values()->all());
 
         return view('panels.admin.content.pages', [
             'pages' => $pages,
             'names' => $names,
+            'localesBySlug' => $localesBySlug,
             'counts' => Page::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             'layouts' => PageLayoutTemplate::query()->orderBy('name')->get(),
             'filters' => $filters,
@@ -234,7 +239,16 @@ class PageBuilderController extends Controller
             'blocks' => ['nullable', 'array'],
             'add' => ['nullable', 'array'],
             'note' => ['nullable', 'string', 'max:255'],
+            'base_revision' => ['nullable', 'integer'],
+            'overwrite' => ['nullable', 'boolean'],
         ]);
+
+        // Another admin saved a newer draft since this editor loaded it: do not overwrite silently.
+        $latest = $page->currentRevision()->first();
+
+        if ($request->has('zones') && isset($data['base_revision']) && $latest !== null && $latest->number > (int) $data['base_revision'] && ! $request->boolean('overwrite')) {
+            return response()->json($this->revisionConflict($page, $latest, (int) $data['base_revision']), 409);
+        }
 
         if (! $request->has('zones')) {
             // Older form posts: this page only.
@@ -266,7 +280,7 @@ class PageBuilderController extends Controller
 
             return response()->json([
                 'message' => $message,
-                'revision' => ['number' => $revision->number, 'at' => $this->clock->inAdminTime($revision->created_at)->format('j M H:i'), 'note' => $revision->note],
+                'revision' => ['number' => $revision->number, 'by' => $request->user()->name, 'at' => $this->clock->inAdminTime($revision->created_at)->format('j M H:i'), 'note' => $revision->note],
                 'zones' => $this->editorZones($revision->zones, $page->locale, $this->countryContext->current()),
                 'problems' => $this->pages->publishProblems($page),
                 'savedAt' => $this->clock->inCountry($this->countryContext->current(), $revision->created_at)->format('H:i'),
@@ -275,6 +289,82 @@ class PageBuilderController extends Controller
         }
 
         return back()->with('status', $message);
+    }
+
+    /**
+     * Live preview of unsaved edits: the editor posts its current zones; they
+     * are kept for 30 minutes under the editor's draft key and served by
+     * `GET pages/{slug}?preview=…&draft=…` (never saved as a revision).
+     */
+    public function draft(Request $request, int $page): JsonResponse
+    {
+        $page = Page::query()->findOrFail($page);
+        $data = $request->validate(['key' => ['required', 'string', 'regex:/^[a-f0-9-]{16,64}$/'], 'zones' => ['required', 'array']]);
+        $converter = new BlockSettings($page->locale, $this->countryContext->current());
+        $zones = [];
+
+        foreach ($page->template->zones() as $zone) {
+            foreach (array_values((array) ($data['zones'][$zone] ?? [])) as $index => $block) {
+                if (! is_array($block) || ! BlockRegistry::has((string) ($block['type'] ?? '')) || ! BlockRegistry::allowedIn((string) $block['type'], $zone)) {
+                    continue;
+                }
+
+                // Invalid fields are left out of the preview; saving reports them.
+                $zones[$zone][] = [
+                    'id' => (string) ($block['id'] ?? $zone.$index),
+                    'type' => (string) $block['type'],
+                    'hidden' => ! empty($block['hidden']),
+                    'locales' => array_values(array_filter((array) ($block['locales'] ?? []), 'is_string')),
+                    'settings' => $converter->fromEditor((string) $block['type'], is_array($block['settings'] ?? null) ? $block['settings'] : [], "zones.{$zone}.{$index}.settings"),
+                ];
+            }
+        }
+
+        Cache::put($this->preview->draftCacheKey($this->countryContext->current(), $page->slug, $data['key']), $zones, now()->addMinutes(30));
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The newest draft revision of the page (the editor polls it to notice other admins' saves).
+     */
+    public function status(Request $request, int $page, UserNames $names): JsonResponse
+    {
+        $page = Page::query()->with('currentRevision')->findOrFail($page);
+        $revision = $page->currentRevision;
+        $base = (int) $request->query('base', 0);
+
+        if ($revision !== null && $base > 0 && $revision->number > $base) {
+            return response()->json($this->revisionConflict($page, $revision, $base)['conflict'] + ['at' => $this->clock->inCountry($this->countryContext->current(), $revision->created_at)->format('H:i')]);
+        }
+
+        return response()->json([
+            'revision' => $revision?->number,
+            'by' => $revision?->created_by ? $names->name($revision->created_by) : null,
+            'by_id' => $revision?->created_by,
+            'at' => $revision ? $this->clock->inCountry($this->countryContext->current(), $revision->created_at)->format('H:i') : null,
+            'ago' => $revision?->created_at?->diffForHumans(),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function revisionConflict(Page $page, PageRevision $latest, int $base): array
+    {
+        $baseRevision = PageRevision::query()->where('page_id', $page->id)->where('number', $base)->first();
+        $diff = $baseRevision ? $this->zoneDiff($baseRevision->zones, $latest->zones) : null;
+
+        return [
+            'message' => __(':name saved a newer draft (revision :number) while you were editing.', ['name' => app(UserNames::class)->name($latest->created_by) ?? __('Another admin'), 'number' => $latest->number]),
+            'conflict' => [
+                'revision' => $latest->number,
+                'by' => app(UserNames::class)->name($latest->created_by),
+                'ago' => $latest->created_at?->diffForHumans(),
+                'summary' => $diff ? $this->diffSummary($diff) : null,
+                'sections' => $diff['sections'] ?? [],
+            ],
+        ];
     }
 
     public function act(Request $request, int $page, string $action): RedirectResponse
@@ -475,10 +565,15 @@ class PageBuilderController extends Controller
             'types' => $types,
             'groups' => collect(BlockRegistry::GROUPS)->map(fn (string $label): string => __($label))->all(),
             'fieldGroups' => collect(BlockSchemas::groups())->map(fn (string $label): string => __($label))->all(),
-            'country' => ['code' => $country->code, 'timezone' => $country->timezone, 'locales' => $country->locales],
+            'country' => ['code' => $country->code, 'name' => app()->getLocale() === 'ar' ? ($country->name_ar ?? $country->name_en) : $country->name_en, 'timezone' => $country->timezone, 'locales' => $country->locales, 'currency' => $country->currency],
+            'adminTimezone' => (string) config('nawy.admin_timezone'),
             'superAdmin' => $superAdmin,
+            'revision' => $page->currentRevision?->number,
+            'draftKey' => (string) Str::uuid(),
             'urls' => [
                 'save' => route('admin.pages.save', $page->id),
+                'draft' => route('admin.pages.draft', $page->id),
+                'status' => route('admin.pages.status', $page->id),
                 'picker' => route('admin.pages.picker', ['kind' => '__kind__']),
                 'upload' => route('admin.pages.upload'),
             ],

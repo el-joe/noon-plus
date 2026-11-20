@@ -18,6 +18,8 @@ import { hostMapping } from "@/lib/domain-market";
  * - WP11 extras: an old-platform URL answers 301 to its new page from the
  *   migration's map (lib/legacy-redirects.ts). Only paths that would 404 and
  *   un-prefixed old-portal paths are looked up; other requests never wait.
+ * - The partner portal host (`business.*` or a `portal` domain) shows the
+ *   partner pages only; other market pages redirect to `/{market}/join`.
  * - QC-044: a custom domain from the admin domain map (lib/domain-market.ts)
  *   — a host with `redirect_to` answers 301 to that host; on a storefront
  *   host (e.g. `nawy.om`) un-prefixed URLs open its market instead of the
@@ -35,6 +37,15 @@ export async function proxy(request: NextRequest) {
     url.host = mapping.redirectTo;
     url.port = "";
     return NextResponse.redirect(url, 301);
+  }
+
+  // The partner portal host (business.*, or a mapped `portal` domain) serves the partner pages only:
+  // any other market page (storefront home, categories…) opens the portal landing `/{market}/join`.
+  if (market && isPortalHost(request.headers.get("host"), mapping?.kind) && !PORTAL_SECTIONS.has(parts[2] ?? "")) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${market.slug}/join`;
+    url.search = "";
+    return NextResponse.redirect(url, 307);
   }
 
   if (market) {
@@ -84,6 +95,15 @@ function permanentRedirect(request: NextRequest, target: string, search: string)
   const url = new URL(target, request.url);
   if (!url.search && search) url.search = search;
   return NextResponse.redirect(url, 301);
+}
+
+/** First path segments (after the market) the partner portal host serves. */
+const PORTAL_SECTIONS = new Set(["join", "sell", "advertise", "adsupport", "help", "legal", "login", "auth", "reset-password", "pages", "missing"]);
+
+/** The public partner portal host: `business.` (local / default naming) or a domain mapped as `portal`. */
+function isPortalHost(host: string | null, kind: string | undefined): boolean {
+  if (kind === "portal") return true;
+  return /^business\./i.test((host ?? "").trim());
 }
 
 /** `{country}-{lang}` where one half is ours (`uae-fr`, `xyz-en`); other paths are store paths. */

@@ -25,17 +25,17 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-page font-sans text-fg antialiased">
-<div data-page-builder class="grid h-screen min-w-[1280px] grid-rows-[56px_minmax(0,1fr)] overflow-hidden">
+<div data-page-builder class="grid h-screen min-w-[1024px] grid-cols-[minmax(0,1fr)] grid-rows-[56px_minmax(0,1fr)] overflow-hidden">
     <script type="application/json" id="page-builder-state">@json($editor, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP)</script>
     <script type="application/json" id="page-builder-i18n">@json(\App\Domains\Content\Support\PageBuilderStrings::all(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP)</script>
 
     {{-- Top bar (Figma 247:208 / states 251:6345). --}}
-    <header class="flex items-center gap-4 border-b border-line bg-surface px-4">
+    <header class="flex min-w-0 items-center gap-3 border-b border-line bg-surface px-4">
         <a href="{{ route('admin.pages') }}" data-pb-leave-link class="inline-flex items-center gap-1 text-sm text-fg-secondary hover:text-fg">
             <svg aria-hidden="true" class="size-4 rtl:-scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m15 18-6-6 6-6"/></svg>{{ __('Pages') }}
         </a>
         <span class="h-8 w-px bg-line"></span>
-        <div class="flex min-w-0 flex-col">
+        <div class="flex min-w-0 max-w-[320px] shrink flex-col">
             <div class="flex min-w-0 items-center gap-2">
                 <h1 class="truncate text-[15px] font-semibold" data-pb-title>{{ $page->title }}</h1>
                 <span class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium {{ $chipClass }}" data-pb-status-chip>{{ $chipLabel }}</span>
@@ -66,8 +66,8 @@
             </div>
         </details>
 
-        <div class="ms-auto flex items-center gap-2">
-            <span class="max-w-64 truncate text-xs text-fg-secondary" data-pb-status role="status"></span>
+        <div class="ms-auto flex min-w-0 shrink-0 items-center gap-1.5">
+            <span class="hidden max-w-52 truncate text-xs text-fg-secondary min-[1400px]:inline" data-pb-status role="status"></span>
             <button type="button" data-pb-undo class="grid size-9 place-items-center rounded-lg text-fg-secondary hover:bg-subtle hover:text-fg disabled:opacity-30" title="{{ __('Undo') }} (Ctrl+Z)" aria-label="{{ __('Undo') }}" disabled>
                 <svg aria-hidden="true" class="size-[18px] rtl:-scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
             </button>
@@ -77,8 +77,11 @@
             <button type="button" data-pb-open-panel="history" class="inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-subtle">
                 <svg aria-hidden="true" class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>{{ __('History') }}
             </button>
-            <a href="{{ $editor['previewUrls'][$page->locale] }}" target="_blank" rel="noopener" data-pb-preview-tab class="inline-flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium hover:bg-subtle">
-                <svg aria-hidden="true" class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>{{ __('Preview') }}
+            <button type="button" data-pb-preview-toggle aria-pressed="false" aria-keyshortcuts="P" title="{{ __('Show or hide the live preview') }} (P)" class="inline-flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium hover:bg-subtle aria-pressed:border-inverse aria-pressed:bg-inverse aria-pressed:text-fg-inverse">
+                <svg aria-hidden="true" class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg>{{ __('Preview') }}
+            </button>
+            <a href="{{ $editor['previewUrls'][$page->locale] }}" target="_blank" rel="noopener" data-pb-preview-tab title="{{ __('Open the draft in a new tab') }}" aria-label="{{ __('Open the draft in a new tab') }}" class="grid size-10 place-items-center rounded-lg border border-line-strong bg-surface hover:bg-subtle">
+                <svg aria-hidden="true" class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h11"/></svg>
             </a>
             @if ($canManage)
                 <button type="button" data-pb-save class="inline-flex h-10 items-center rounded-lg border border-line-strong bg-surface px-4 text-sm font-medium hover:bg-subtle disabled:opacity-50">{{ __('Save draft') }}</button>
@@ -99,7 +102,7 @@
         </div>
     </header>
 
-    <div data-pb-workspace class="grid min-h-0 grid-cols-[280px_minmax(0,1fr)_380px] data-[panel-closed]:grid-cols-[280px_minmax(0,1fr)_0px]">
+    <div data-pb-workspace class="group/ws grid min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] data-[preview-on]:grid-cols-[280px_minmax(0,1fr)_380px] data-[preview-on]:data-[panel-closed]:grid-cols-[280px_minmax(0,1fr)_0px]">
         {{-- Page outline (245:463 rows). --}}
         <aside class="flex min-h-0 flex-col border-e border-line bg-surface" aria-label="{{ __('Page outline') }}">
             <div class="flex flex-col gap-3 px-4 pt-4 pb-3">
@@ -129,7 +132,24 @@
         </aside>
 
         {{-- Preview canvas. --}}
-        <main class="relative flex min-h-0 min-w-0 flex-col gap-3 bg-page px-6 pt-3 pb-3" aria-label="{{ __('Live preview') }}">
+        <main data-pb-canvas hidden class="relative flex min-h-0 min-w-0 flex-col gap-3 bg-page px-6 pt-3 pb-3" aria-label="{{ __('Live preview') }}">
+            <div data-pb-alerts-preview class="flex flex-col gap-3 empty:hidden"><div data-pb-alerts class="flex flex-col gap-3 empty:hidden">
+            @if (session('status'))
+                <div role="status" class="rounded-xl border border-line bg-success-subtle px-4 py-2.5 text-sm text-fg-success" data-pb-flash>{{ session('status') }}</div>
+            @endif
+            @if ($errors->any())
+                <div role="alert" class="rounded-xl border border-line-danger bg-danger-subtle px-4 py-2.5 text-sm text-fg-danger">@foreach ($errors->all() as $message)<p>{{ $message }}</p>@endforeach</div>
+            @endif
+            <div role="alert" data-pb-problems hidden class="flex items-start gap-3 rounded-xl border border-line-danger bg-danger-subtle px-4 py-3">
+                <svg aria-hidden="true" class="mt-0.5 size-5 shrink-0 text-fg-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[15px] font-semibold text-fg-danger" data-pb-problems-title></p>
+                    <p class="truncate text-sm text-fg-secondary" data-pb-problems-list></p>
+                </div>
+                <button type="button" data-pb-first-issue class="h-9 shrink-0 rounded-lg border border-line-danger bg-surface px-3 text-sm font-medium text-fg-danger hover:bg-danger-subtle">{{ __('Go to first issue') }}</button>
+            </div>
+
+            </div></div>
             <div class="flex flex-wrap items-center gap-3" data-pb-preview>
                 <div class="flex rounded-lg border border-line bg-surface p-0.5" role="group" aria-label="{{ __('Device') }}">
                     @foreach (['desktop' => [__('Desktop'), '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>'], 'tablet' => [__('Tablet'), '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M12 18h.01"/>'], 'mobile' => [__('Mobile'), '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>']] as $device => [$label, $svg])
@@ -154,21 +174,6 @@
                 </button>
             </div>
 
-            @if (session('status'))
-                <div role="status" class="rounded-xl border border-line bg-success-subtle px-4 py-2.5 text-sm text-fg-success" data-pb-flash>{{ session('status') }}</div>
-            @endif
-            @if ($errors->any())
-                <div role="alert" class="rounded-xl border border-line-danger bg-danger-subtle px-4 py-2.5 text-sm text-fg-danger">@foreach ($errors->all() as $message)<p>{{ $message }}</p>@endforeach</div>
-            @endif
-            <div role="alert" data-pb-problems hidden class="flex items-start gap-3 rounded-xl border border-line-danger bg-danger-subtle px-4 py-3">
-                <svg aria-hidden="true" class="mt-0.5 size-5 shrink-0 text-fg-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                <div class="min-w-0 flex-1">
-                    <p class="text-[15px] font-semibold text-fg-danger" data-pb-problems-title></p>
-                    <p class="truncate text-sm text-fg-secondary" data-pb-problems-list></p>
-                </div>
-                <button type="button" data-pb-first-issue class="h-9 shrink-0 rounded-lg border border-line-danger bg-surface px-3 text-sm font-medium text-fg-danger hover:bg-danger-subtle">{{ __('Go to first issue') }}</button>
-            </div>
-
             <div data-pb-frame-holder class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                 <div data-pb-frame-box class="relative mx-auto overflow-hidden rounded-[10px] bg-surface shadow-[0_2px_12px_rgba(13,21,38,0.08)]">
                     <iframe title="{{ __('Storefront preview') }}" data-pb-frame class="absolute top-0 start-0 origin-top-left border-0 bg-surface rtl:origin-top-right" referrerpolicy="no-referrer"></iframe>
@@ -176,7 +181,7 @@
             </div>
 
             {{-- Unsaved-changes bar (245:510). --}}
-            <div data-pb-savebar hidden class="absolute inset-x-0 bottom-6 z-30 mx-auto flex w-fit max-w-[calc(100%-3rem)] items-center gap-4 rounded-xl bg-inverse py-2.5 ps-4 pe-2.5 text-fg-inverse shadow-[0_24px_48px_rgba(13,21,38,0.24)]">
+            <div data-pb-savebar hidden class="fixed inset-x-0 bottom-6 z-30 mx-auto flex w-fit max-w-[calc(100%-3rem)] items-center gap-4 rounded-xl bg-inverse py-2.5 ps-4 pe-2.5 text-fg-inverse shadow-[0_24px_48px_rgba(13,21,38,0.24)]">
                 <span class="size-2 shrink-0 rounded-full bg-brand"></span>
                 <span class="text-[15px] font-medium" data-pb-savebar-text>{{ __('Unsaved changes') }}</span>
                 <span class="text-sm opacity-60" data-pb-savebar-meta></span>
@@ -187,6 +192,8 @@
 
         {{-- Right panel: section settings (JS), page settings, revision history. --}}
         <aside class="flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-line bg-surface" data-pb-panel aria-label="{{ __('Settings') }}">
+            <div class="mx-auto flex min-h-0 w-full max-w-[760px] flex-1 flex-col group-data-[preview-on]/ws:max-w-none" data-pb-panel-inner>
+            <div data-pb-alerts-panel class="flex flex-col gap-3 px-4 pt-3 empty:hidden"></div>
             <div data-pb-form class="flex min-h-0 flex-1 flex-col" hidden></div>
 
             <div data-pb-panel-page hidden class="flex min-h-0 flex-1 flex-col">
@@ -306,6 +313,7 @@
                         </li>
                     @endforeach
                 </ul>
+            </div>
             </div>
         </aside>
     </div>

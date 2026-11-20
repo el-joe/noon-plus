@@ -8,6 +8,7 @@ import { Footer, FooterFallback } from "@/components/layout/footer";
 import { MergeWarningsBanner } from "@/features/cart/merge-warnings-banner";
 import { CookieConsent } from "@/features/content/cookie-consent";
 import { MiniPlayer } from "@/features/live/mini-player";
+import { PreviewBridge } from "@/features/page-builder/preview-bridge";
 import { LivePlayerProvider } from "@/features/live/player-context";
 import { getMessages, getT } from "@/lib/i18n";
 import { MARKET_SLUGS } from "@/lib/markets";
@@ -58,6 +59,8 @@ export default async function MarketLayout({ children, params }: LayoutProps<"/[
             <Suspense fallback={null}>
               <MiniPlayer />
             </Suspense>
+            {/* Admin page-builder preview: select / highlight blocks inside the editor's iframe (inactive otherwise). */}
+            <PreviewBridge />
             <CookieConsent />
           </LivePlayerProvider>
         </Providers>

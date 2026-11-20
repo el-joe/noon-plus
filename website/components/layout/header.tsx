@@ -3,9 +3,9 @@
 import clsx from "clsx";
 import { Globe, Heart, ShoppingCart, Store, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useState } from "react";
+import { Suspense, useState, type MouseEvent } from "react";
 import { cartItemCount, useCart, useSession, useWishlist } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { syncLocale } from "@/lib/locale-sync";
@@ -32,7 +32,16 @@ export function Header() {
   const t = useTranslations("header");
   const market = useMarket();
   const href = useHref();
+  const router = useRouter();
   const { user } = useSession();
+  // Guests come back to this page after signing in (read at click time; no usePathname in the static shell).
+  const toSignIn = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (user || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    const here = `${window.location.pathname}${window.location.search}`;
+    if (here.startsWith(href("/login"))) return;
+    event.preventDefault();
+    router.push(`${href("/login")}?next=${encodeURIComponent(here)}`);
+  };
   const { data: cart } = useCart();
   const count = cartItemCount(cart);
   const { data: wishlist } = useWishlist();
@@ -57,7 +66,7 @@ export function Header() {
               <span>{market.country.iso2}</span>
             </button>
             <span className="hidden h-6 w-px bg-ink/25 sm:block" aria-hidden />
-            <Link href={user ? href("/account") : href("/login")} className="flex items-center gap-1.5 text-body font-medium">
+            <Link href={user ? href("/account") : href("/login")} onClick={toSignIn} className="flex items-center gap-1.5 text-body font-medium">
               <User className="size-[22px]" />
               <span className="hidden max-w-28 truncate sm:inline">{user ? (user.name || user.email.split("@")[0]) : t("signIn")}</span>
             </Link>

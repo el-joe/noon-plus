@@ -94,10 +94,18 @@ export const BLOCKS: Record<string, ComponentType<BlockProps>> = {
 export function renderBlock(block: { type: string; settings: Settings; data?: Record<string, unknown> | null; id?: string | number | null }, ctx: BlockContext, key: number | string): ReactNode {
   const Component = BLOCKS[block.type];
   if (!Component) return null;
-  return (
+  const rendered = (
     <BlockBoundary key={key} type={block.type}>
       <Component s={block.settings ?? {}} ctx={ctx} data={block.data} renderChild={(child, childCtx, childKey) => renderBlock(child, childCtx, `${key}-${childKey}`)} />
     </BlockBoundary>
+  );
+  // Top-level blocks carry their id for the admin preview bridge (layout-neutral wrapper).
+  return !ctx.depth && block.id != null ? (
+    <div key={key} data-pb-block={String(block.id)} data-pb-type={block.type} className="contents">
+      {rendered}
+    </div>
+  ) : (
+    rendered
   );
 }
 

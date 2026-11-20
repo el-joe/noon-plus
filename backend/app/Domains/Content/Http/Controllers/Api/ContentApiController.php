@@ -54,6 +54,9 @@ class ContentApiController extends Controller
         if ($request->filled('preview') && $preview->valid((string) $request->query('preview'), $country, $slug)) {
             $page = Page::query()->where('slug', $slug)->where('locale', $locale)->with('currentRevision')->first();
             abort_if($page === null || $page->currentRevision === null, 404);
+            // Unsaved edits of the editor (live preview while typing), else the saved draft.
+            $draftKey = (string) $request->query('draft', '');
+            $draft = preg_match('/^[a-f0-9-]{16,64}$/', $draftKey) === 1 ? Cache::get($preview->draftCacheKey($country, $slug, $draftKey)) : null;
 
             return ApiResponse::success([
                 'slug' => $page->slug,
@@ -62,7 +65,7 @@ class ContentApiController extends Controller
                 'seo' => ['title' => $page->seo_title ?? $page->title, 'description' => $page->seo_description],
                 'published_at' => $page->published_at?->toIso8601String(),
                 'preview' => true,
-                'zones' => $resolver->resolve($page->currentRevision->zones, null, $preview->showsHidden((string) $request->query('preview'), $country, $slug)),
+                'zones' => $resolver->resolve(is_array($draft) ? $draft : $page->currentRevision->zones, null, $preview->showsHidden((string) $request->query('preview'), $country, $slug)),
             ])->header('Cache-Control', 'no-store, private')->header('X-Robots-Tag', 'noindex');
         }
 

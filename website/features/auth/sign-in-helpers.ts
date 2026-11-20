@@ -15,14 +15,24 @@ export function deviceName(): string {
 }
 
 /**
- * Only same-market, root-relative return paths. A path without the market
- * prefix (the API's `return_to`) is put under this market.
+ * Only same-market, root-relative return paths (no open redirect). A path
+ * without the market prefix (the API's `return_to`) is put under this market.
+ * Backslashes, whitespace and control characters are refused outright:
+ * browsers strip or normalise them, which can turn `/\t/evil.com` or
+ * `/\\evil.com` into a protocol-relative `//evil.com`.
  */
 export function safeNext(next: string | null | undefined, market: string): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return `/${market}/account`;
+  const fallback = `/${market}/account`;
+  if (!next || next.length > 2000 || !next.startsWith("/") || next.startsWith("//") || /[\\\s\u0000-\u001f\u007f]/.test(next)) return fallback;
+  // The resolved URL must stay on this origin.
+  try {
+    if (typeof window !== "undefined" && new URL(next, window.location.origin).origin !== window.location.origin) return fallback;
+  } catch {
+    return fallback;
+  }
   if (next === `/${market}` || next.startsWith(`/${market}/`) || next.startsWith(`/${market}?`)) return next;
   // Another market's path: keep this market (a different market has its own session).
-  if (/^\/[a-z]{3}-[a-z]{2}(\/|\?|$)/.test(next)) return `/${market}/account`;
+  if (/^\/[a-z]{3}-[a-z]{2}(\/|\?|#|$)/.test(next)) return fallback;
   return `/${market}${next}`;
 }
 

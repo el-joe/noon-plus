@@ -112,10 +112,12 @@ class PageLocalizer
     private function mergeValues(mixed $en, mixed $ar): mixed
     {
         if (BlockSettings::isTranslation($en) || BlockSettings::isTranslation($ar)) {
-            $enSide = BlockSettings::isTranslation($en) ? ($en['en'] ?? $en['ar'] ?? null) : $en;
+            $enSide = BlockSettings::isTranslation($en) ? ($en['en'] ?? null) : $en;
             $arSide = BlockSettings::isTranslation($ar) ? ($ar['ar'] ?? $ar['en'] ?? null) : $ar;
 
             if ($enSide === null) {
+                $arSide = BlockSettings::isTranslation($ar) ? ($ar['ar'] ?? null) : $ar;
+
                 return $arSide === null ? null : ['ar' => $arSide];
             }
 

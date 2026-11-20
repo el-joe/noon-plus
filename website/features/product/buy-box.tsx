@@ -12,7 +12,7 @@ import { useRecordView } from "@/features/search/recently-viewed";
 import * as api from "@/lib/api/endpoints";
 import type { Offer, ProductDetail } from "@/lib/api/schemas";
 import { discountPercent, formatAmount, formatMoney, savedAmount } from "@/lib/format";
-import { errorMessage, useCartMutation } from "@/lib/hooks";
+import { errorMessage, useCartMutation, useSession } from "@/lib/hooks";
 import { useHref, useMarket } from "@/lib/market-context";
 import { Countdown } from "@/features/page-builder/countdown";
 import { DeliveryPromise } from "./delivery-promise";
@@ -41,6 +41,7 @@ export function BuyBox({ product }: { product: ProductDetail }) {
   const market = useMarket();
   const href = useHref();
   const router = useRouter();
+  const session = useSession();
   const offers = useMemo(() => (product.buy_box ? [product.buy_box, ...product.other_offers] : []), [product]);
 
   const axes = useMemo(() => {
@@ -125,7 +126,10 @@ export function BuyBox({ product }: { product: ProductDetail }) {
       {
         onSuccess: () => {
           setAdded(true);
-          if (then === "checkout") router.push(href("/checkout"));
+          if (then !== "checkout") return;
+          // Buy now as a guest: the item is in the guest cart (merged on sign-in); sign in first, then land on checkout.
+          const checkout = href("/checkout");
+          router.push(!session.isLoading && !session.isSignedIn ? `${href("/login")}?next=${encodeURIComponent(checkout)}` : checkout);
         },
         onError: (e) => setError(errorMessage(e, t("common.error"))),
       },
